@@ -9,81 +9,65 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*void addChildNodes(NodeTree *node, DataToken *data) {*/
-/*if (node->length >= node->capacity) {*/
-/*int newCapacity = node->capacity * 2;*/
-/*childNodes *children =*/
-/*realloc(node->childNodes, sizeof(childNodes) * newCapacity);*/
-
-/*if (!children) {*/
-/*perror("Reallocaton is failed.");*/
-/*return;*/
-/*}*/
-
-/*memset(&children[node->length], 0,*/
-/*(newCapacity - node->capacity) * sizeof(childNodes));*/
-/*node->childNodes = children;*/
-/*node->capacity = newCapacity;*/
-/*}*/
-
-/*node->childNodes[node->length].children.value = strdup(data->value);*/
-/*}*/
-
-/*void addParentNode(NodeTree *node, DataToken *data) {*/
-/*if (node->length >= node->capacity) {*/
-/*int newCapacity = node->capacity * 2;*/
-/*childNodes *parent =*/
-/*realloc(node->childNodes, sizeof(childNodes) * newCapacity);*/
-
-/*if (!parent) {*/
-/*perror("Reallocaton is failed.");*/
-/*return;*/
-/*}*/
-
-/*memset(&parent[node->length], 0,*/
-/*(newCapacity - node->capacity) * sizeof(NodeTree));*/
-/*node->childNodes = parent;*/
-/*node->capacity = newCapacity;*/
-/*}*/
-
-/*node->childNodes[node->length].parent.value = strdup(data->value);*/
-/*node->length++;*/
-/*}*/
-
-void createAssignment(NodeTree *node, DataToken *data) {
-
+void parseAssignment(Node *node, DataToken *data) {
   if (!data || !node)
     return;
 
-  if (node->type == NODE_ASSIGN) {
-    if (data->type == IDENTIFIER) {
-      printf("(IDENTIFIER) %s\n", data->value);
+  if (node->length >= node->capacity) {
+    int newCapacity = node->capacity * 2;
+    AstNode *ast = realloc(node->ast, sizeof(AstNode) * newCapacity);
+
+    if (!ast) {
+      perror("Reallocaton is failed.");
+      return;
+    }
+
+    memset(&ast[node->length], 0,
+           (newCapacity - node->capacity) * sizeof(AstNode));
+    node->ast = ast;
+    node->capacity = newCapacity;
+  }
+
+  AstNode *ast = &node->ast[node->length];
+  ast->type = NODE_ASSIGN;
+
+  if (data->type == IDENTIFIER) {
+    ast->identifier.data = data;
+    printf("(IDENTIFIER) %s\n", ast->assign.data->value);
+  } else {
+    if (data->type == EXPRESSION) {
     } else {
-      printf("(VALUE) %s\n", data->value);
+      ast->assign.data = data;
+      printf("(VALUE) %s\n", ast->assign.data->value);
     }
   }
+
+  node->length++;
 }
 
+//  Memparser hasil token menjadi AST
 void parse(Token *token) {
   if (!token)
     return;
 
-  NodeTree *node = createNode(10);
+  Node *node = createNode(10);
   int current = 0;
 
   for (int i = 0; i < token->length; i++) {
-    DataToken *data = &token->entries[current];
+    DataToken *data = &token->data[current];
 
+    // skip =
     if (data->type == ASSIGN) {
-      node->type = NODE_ASSIGN;
       current++;
       continue;
     }
 
-    createAssignment(node, data);
+    parseAssignment(node, data);
     current++;
   }
 
-  node->type = 0;
+  node->capacity = 10;
+  node->length = 0;
+  free(node->ast);
   free(node);
 }

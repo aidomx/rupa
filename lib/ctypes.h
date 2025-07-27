@@ -3,7 +3,7 @@
 
 // Grup karakter
 #define isarray(c) ((c) == '[' || (c) == ']')
-#define isassign(c) ((c) == ':' || (c) == '=')
+#define isassign(c) ((c) == '=')
 #define isbacktick(c) ((c) == '`')
 #define isblock(c) ((c) == '{' || (c) == '}')
 #define iscomma(c) ((c) == ',')

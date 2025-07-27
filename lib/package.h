@@ -12,7 +12,7 @@ void clearAll(ReplState *state, Token *token);
 void clearScreen();
 void clearState(ReplState *state);
 void clearToken(Token *token, int capacity);
-NodeTree *createNode(int capacity);
+Node *createNode(int capacity);
 Token *createToken(int capacity);
 void compiler(SystemConfig cfg);
 void console(ReplState *state, bool *actived, char buffer[], int line);

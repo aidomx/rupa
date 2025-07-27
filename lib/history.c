@@ -10,7 +10,7 @@ void clearAll(ReplState *state, Token *token) {
   clearState(state);
   clearToken(token, 10);
   free(state);
-  free(token->entries);
+  free(token->data);
   free(token);
 }
 

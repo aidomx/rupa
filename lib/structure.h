@@ -4,13 +4,16 @@
 #include "enum.h"
 #include "limit.h"
 #include <stdbool.h>
-#include <stddef.h>
 
 typedef struct {
-  char *name;
   char *value;
   int line;
   int row;
+  Types type;
+} DataToken;
+
+typedef struct {
+  DataToken *data;
 } Assignment;
 
 typedef struct {
@@ -42,34 +45,8 @@ typedef struct {
 } Args;
 
 typedef struct {
-  char raw[64];
-  int line;
-  int row;
-  Types types;
-} Delim;
-
-typedef struct {
-  Types types;
-  char name[64];
-  char value[256];
-  int line;
-  int row;
-  int length;
-} Variable;
-
-typedef struct {
-  char raw[64];
-  int line;
-  int row;
-  Types types;
+  DataToken *data;
 } Identifier;
-
-typedef struct {
-  char raw[MAX_VALUE];
-  int line;
-  int row;
-  Types types;
-} Value;
 
 typedef struct {
   char func[MAX_VALUE];
@@ -80,64 +57,18 @@ typedef struct {
 } Function;
 
 typedef struct {
+  NodeType type;
   union {
-    struct {
-      char name[64];
-      char value[MAX_VALUE];
-      int line;
-      int row;
-      // Identifier id[256];
-      // Value value[256];
-      // Variable var[256];
-      Types types[MAX_DEPTH];
-    } assign;
-
-    NodeType type;
-
-    struct {
-      char func[64];
-      char args[8][256];
-      int argc;
-      int line;
-      int row;
-      Types type;
-    } call;
+    Assignment assign;
+    Identifier identifier;
   };
 } AstNode;
 
 typedef struct Node {
-  AstNode ast[MAX_DEPTH];
-  union {
-    struct {
-      char name[64];
-    } assign;
-  };
+  AstNode *ast;
+  int capacity;
   int length;
 } Node;
-
-typedef struct Children {
-  char **value;
-  int capacity;
-  int length;
-} Children;
-
-typedef struct Parent {
-  char **value;
-  int capacity;
-  int length;
-} Parent;
-
-typedef struct {
-  char *name;
-  struct NodeTree *value;
-} NodeAssign;
-
-typedef struct NodeTree {
-  NodeType type;
-  union {
-    Assignment assign;
-  };
-} NodeTree;
 
 typedef struct {
   char entry[MAX_BUFFER_SIZE];
@@ -147,30 +78,9 @@ typedef struct {
 } SystemConfig;
 
 typedef struct {
-  char key[64];
-  char value[MAX_VALUE];
-  int line;
-  int row;
-} Object;
-
-typedef struct {
-  char raw[MAX_VALUE];
-  char *value;
-  int line;
-  int row;
-  Types type;
-} DataToken;
-
-typedef struct {
-  DataToken data[MAX_DEPTH];
-  DataToken *entries;
-  Types types[MAX_DEPTH];
-  Types type;
-  size_t capacity;
-  char **value;
+  DataToken *data;
+  int capacity;
   int length;
-  int line;
-  int row;
 } Token;
 
 typedef struct {

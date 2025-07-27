@@ -2,14 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-NodeTree *createNode(int capacity) {
-  NodeTree *node = malloc(sizeof(NodeTree));
+Node *createNode(int capacity) {
+  Node *node = malloc(sizeof(Node));
 
   if (!node) {
     perror("Memory allocation for node tree is failed.");
     exit(1);
   }
 
-  node->type = 0;
+  node->ast = calloc(capacity, sizeof(AstNode));
+  node->capacity = capacity;
+  node->length = 0;
+
   return node;
 }

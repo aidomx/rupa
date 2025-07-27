@@ -16,7 +16,7 @@ Token *createToken(int capacity) {
     exit(EXIT_FAILURE);
   }
 
-  token->entries = calloc(capacity, sizeof(DataToken));
+  token->data = calloc(capacity, sizeof(DataToken));
   token->capacity = capacity;
   token->length = 0;
 
@@ -29,7 +29,7 @@ int addToken(Token *t, Types types, const char *value, int line, int row) {
 
   if (t->length >= t->capacity) {
     size_t newCapacity = t->capacity * 2;
-    DataToken *data = realloc(t->entries, sizeof(DataToken) * newCapacity);
+    DataToken *data = realloc(t->data, sizeof(DataToken) * newCapacity);
 
     if (!data) {
       perror("Relocation of data is failed.");
@@ -38,11 +38,11 @@ int addToken(Token *t, Types types, const char *value, int line, int row) {
 
     memset(&data[t->length], 0,
            (newCapacity - t->capacity) * sizeof(DataToken));
-    t->entries = data;
+    t->data = data;
     t->capacity = newCapacity;
   }
 
-  DataToken *data = &t->entries[t->length];
+  DataToken *data = &t->data[t->length];
   data->value = strdup(value);
   data->line = line >= 1 ? line - 1 : line;
   data->row = row;
@@ -65,10 +65,10 @@ void clearToken(Token *token, int capacity) {
     return;
 
   for (int i = 0; i < token->length; i++) {
-    free(token->entries[i].value);
-    token->entries[i].line = 0;
-    token->entries[i].row = 0;
-    token->entries[i].type = 0;
+    free(token->data[i].value);
+    token->data[i].line = 0;
+    token->data[i].row = 0;
+    token->data[i].type = 0;
   }
 
   token->capacity = capacity;
