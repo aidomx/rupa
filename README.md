@@ -1,10 +1,4 @@
-# Rupa Language
+# Dokumentasi
 
-Eksperimen bahasa pemrograman baru bernama **Rupa**  
-Mendukung ekstensi: `.rp`, `.rupa`, `.rx`
-
-### Menjalankan
-
-```bash
-bun run bin/index.ts run examples/hello.rp
-```
+Dokumentasi lengkap akan tersedia di:
+[docs](https://github.com/aidomx/rupa/blob/main/docs/README.md)
