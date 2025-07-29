@@ -13,7 +13,8 @@ typedef struct {
 } DataToken;
 
 typedef struct {
-  DataToken *data;
+  char *name;
+  struct AstNode *value;
 } Assignment;
 
 typedef struct {
@@ -45,7 +46,7 @@ typedef struct {
 } Args;
 
 typedef struct {
-  DataToken *data;
+  char *name;
 } Identifier;
 
 typedef struct {
@@ -56,11 +57,23 @@ typedef struct {
   Types types;
 } Function;
 
-typedef struct {
-  NodeType type;
+typedef struct Number {
+  int value;
+} Number;
+
+typedef struct Binary {
+  char *op;
+  struct AstNode *left;
+  struct AstNode *right;
+} Binary;
+
+typedef struct AstNode {
+  AstType type;
   union {
     Assignment assign;
+    Binary binary;
     Identifier identifier;
+    Number number;
   };
 } AstNode;
 
@@ -82,6 +95,11 @@ typedef struct {
   int capacity;
   int length;
 } Token;
+
+typedef struct Parser {
+  Token *tokens;
+  int length;
+} Parser;
 
 typedef struct {
   char **history;

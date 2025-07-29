@@ -1,3 +1,4 @@
+#include "enum.h"
 #include "limit.h"
 #include "package.h"
 #include "structure.h"

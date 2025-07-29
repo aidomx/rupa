@@ -8,6 +8,7 @@ typedef enum {
   AST_BOOLEAN,
   AST_CALL,
   AST_DELIM,
+  AST_IDENTIFIER,
   AST_FLOAT,
   AST_NUMBER,
   AST_STRING

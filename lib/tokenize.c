@@ -140,6 +140,12 @@ void tokenize(Token *token, const char *input, int line) {
     if (isassign(input[i])) {
       handleVariable(token, input, line, i);
       break;
+    } else {
+      Types type = gettype(input);
+      if (type == IDENTIFIER) {
+        addToken(token, type, input, line, i);
+        break;
+      }
     }
   }
 }
