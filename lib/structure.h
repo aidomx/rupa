@@ -5,17 +5,69 @@
 #include "limit.h"
 #include <stdbool.h>
 
+struct AstNode;
+
 typedef struct {
-  char *value;
-  int line;
-  int row;
-  Types type;
-} DataToken;
+  struct AstNode *target;
+  struct AstNode *value;
+} AstAssignment;
+
+typedef struct {
+  BinaryType type;
+  struct AstNode *left;
+  struct AstNode *right;
+} AstBinary;
+
+typedef struct {
+  bool value;
+} AstBoolean;
+
+typedef struct {
+  double value;
+} AstDouble;
+
+typedef struct {
+  float value;
+} AstFloat;
+
+typedef struct {
+  char *name;
+} AstIdentifier;
+
+typedef struct {
+  int value;
+} AstNumber;
+
+typedef struct {
+  struct AstNode *declarations;
+  struct AstNode *next;
+} AstProgram;
+
+typedef struct {
+  struct AstNode *expression;
+} AstReturn;
+
+typedef struct {
+  char *name;
+} AstString;
+
+typedef struct {
+  VariableType type;
+  struct AstNode *name;
+  struct AstNode *next;
+} AstVariable;
 
 typedef struct {
   char *name;
   struct AstNode *value;
 } Assignment;
+
+typedef struct {
+  char *value;
+  int line;
+  int row;
+  TokenType type;
+} DataToken;
 
 typedef struct {
   char message[MAX_MESSAGE_LENGTH];
@@ -42,7 +94,7 @@ typedef struct {
   char value[1024];
   int line;
   int row;
-  Types types;
+  TokenType types;
 } Args;
 
 typedef struct {
@@ -54,7 +106,7 @@ typedef struct {
   char args[8][256];
   int line;
   int row;
-  Types types;
+  TokenType types;
 } Function;
 
 typedef struct Number {
@@ -68,12 +120,19 @@ typedef struct Binary {
 } Binary;
 
 typedef struct AstNode {
-  AstType type;
+  NodeType type;
   union {
-    Assignment assign;
-    Binary binary;
-    Identifier identifier;
-    Number number;
+    AstAssignment assign;
+    AstBinary binary;
+    AstBoolean boolean;
+    AstDouble asDouble;
+    AstFloat asFloat;
+    AstIdentifier identifier;
+    AstNumber number;
+    AstProgram program;
+    AstReturn asReturn;
+    AstString string;
+    AstVariable variable;
   };
 } AstNode;
 
