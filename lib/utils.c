@@ -27,7 +27,7 @@ char getBracketType(const char *ptr) {
   return 0;
 }
 
-Types gettype(const char *ptr) {
+TokenType gettype(const char *ptr) {
   if (strcmp(ptr, "true") == 0 || strcmp(ptr, "false") == 0)
     return BOOLEAN;
 
@@ -73,41 +73,6 @@ Types gettype(const char *ptr) {
   }
 
   return UNKNOWN;
-}
-
-int istype(const char *ptr, int *output) {
-  int i = 0, left = 0, right = 0;
-
-  while (ptr[i] != '\0') {
-    if (i == 0) {
-      left = isquote(ptr[i]);
-    }
-    right = isquote(ptr[i]);
-
-    int compare = left == 0 && right == 0;
-
-    // string literal
-    // example: "Hello world"
-    if (left > 0 && right > 0) {
-      return STRING;
-    }
-
-    // integer
-    // example: 10
-    else if (compare && isint(ptr[i])) {
-      return NUMBER;
-    }
-
-    // identifier
-    // example: name
-    else if (compare && isstr(ptr[i])) {
-      return IDENTIFIER;
-    }
-
-    i++;
-  }
-
-  return 0;
 }
 
 void replace(const char *str, const char *key, const char *value,

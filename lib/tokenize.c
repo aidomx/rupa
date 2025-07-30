@@ -23,7 +23,7 @@ Token *createToken(int capacity) {
   return token;
 }
 
-int addToken(Token *t, Types types, const char *value, int line, int row) {
+int addToken(Token *t, TokenType type, const char *value, int line, int row) {
   if (!t || t->length >= MAX_TOKENS || !value)
     return 0;
 
@@ -46,18 +46,94 @@ int addToken(Token *t, Types types, const char *value, int line, int row) {
   data->value = strdup(value);
   data->line = line >= 1 ? line - 1 : line;
   data->row = row;
-  data->type = types;
+  data->type = type;
 
   return t->length++;
 }
 
 int addDelim(Token *t, char c, int line, int row) {
   const char del[2] = {c, '\0'};
+
   if (isassign(c)) {
     return addToken(t, ASSIGN, del, line, row);
   }
 
-  return addToken(t, DELIM, del, line, row);
+  switch (c) {
+  case '+':
+    return addToken(t, PLUS, del, line, row);
+  case '-':
+    return addToken(t, MINUS, del, line, row);
+  case '*':
+    return addToken(t, ASTERISK, del, line, row);
+  case '/':
+    return addToken(t, SLASH, del, line, row);
+  case '%':
+    return addToken(t, PERCENT, del, line, row);
+  case '&':
+    return addToken(t, AMPERSAND, del, line, row);
+  case '|':
+    return addToken(t, PIPE, del, line, row);
+  case '^':
+    return addToken(t, CARET, del, line, row);
+  case '~':
+    return addToken(t, TILDE, del, line, row);
+  case '?':
+    return addToken(t, QUESTION_MARK, del, line, row);
+  case ':':
+    return addToken(t, COLON, del, line, row);
+  case '.':
+    return addToken(t, DOT, del, line, row);
+  case ',':
+    return addToken(t, COMMA, del, line, row);
+  case ';':
+    return addToken(t, SEMICOLON, del, line, row);
+  case '@':
+    return addToken(t, AT, del, line, row);
+  case '$':
+    return addToken(t, DOLLAR, del, line, row);
+  case '!':
+    return addToken(t, EXCLAMATION, del, line, row);
+  case '<':
+    return addToken(t, LESS_THAN, del, line, row);
+  case '>':
+    return addToken(t, GREATER_THAN, del, line, row);
+  case '=':
+    return addToken(t, EQUAL_THAN, del, line, row);
+  case '#':
+    return addToken(t, HASHTAG, del, line, row);
+  case '\\':
+    return addToken(t, BACKSLASH, del, line, row);
+  case '`':
+    return addToken(t, BACKTICK, del, line, row);
+  case '"':
+    return addToken(t, QUOTE, del, line, row);
+  case '\'':
+    return addToken(t, SINGLE_QUOTE, del, line, row);
+  case '[':
+    return addToken(t, BLOCK_LEFT, del, line, row);
+  case ']':
+    return addToken(t, BLOCK_RIGHT, del, line, row);
+  case '{':
+    return addToken(t, BRACE_LEFT, del, line, row);
+  case '}':
+    return addToken(t, BRACE_RIGHT, del, line, row);
+  case '(':
+    return addToken(t, PAREN_LEFT, del, line, row);
+  case ')':
+    return addToken(t, PAREN_RIGHT, del, line, row);
+  case '\n':
+    return addToken(t, NEWLINE, del, line, row);
+  case '\t':
+    return addToken(t, TAB, del, line, row);
+  case '\r':
+    return addToken(t, CARRIAGE_RETURN, del, line, row);
+  case '\b':
+    return addToken(t, BACKSPACE, del, line, row);
+  case '\f':
+    return addToken(t, FORM_FEED, del, line, row);
+  default:
+    return addToken(t, UNKNOWN, del, line, row);
+  }
 }
 
 void clearToken(Token *token, int capacity) {
@@ -104,21 +180,21 @@ void saveToken(Token *t, const char *token, char expr, int line, int row) {
   }
 
   trimspace(ptr);
-  Types type = gettype(ptr);
+  TokenType type = gettype(ptr);
 
   if (type == STRING) {
     addStringToken(t, ptr, line, row);
   } else {
     if (type == IDENTIFIER) {
-      addToken(t, ASSIGN_ID, ptr, line, row);
+      addToken(t, LITERAL_ID, ptr, line, row);
     } else {
       addToken(t, type, ptr, line, row);
     }
   }
 
   if (expr > 0) {
-    char op[2] = {expr, '\0'};
-    addToken(t, EXPRESSION, op, line, row);
+    // char op[2] = {expr, '\0'};
+    addDelim(t, expr, line, row);
   }
 
   if (bracket == ')') {
@@ -141,7 +217,7 @@ void tokenize(Token *token, const char *input, int line) {
       handleVariable(token, input, line, i);
       break;
     } else {
-      Types type = gettype(input);
+      TokenType type = gettype(input);
       if (type == IDENTIFIER) {
         addToken(token, type, input, line, i);
         break;

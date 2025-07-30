@@ -1,12 +1,14 @@
 #ifndef PACKAGE_H
 #define PACKAGE_H
 
+#include "enum.h"
 #include "structure.h"
 
 #include <stdbool.h>
 
 int addDelim(Token *token, char c, int line, int row);
-int addToken(Token *token, Types types, const char *value, int line, int row);
+int addToken(Token *token, TokenType type, const char *value, int line,
+             int row);
 void addToHistory(ReplState *state, const char *input);
 void clearAll(ReplState *state, Token *token);
 void clearScreen();
