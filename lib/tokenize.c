@@ -24,7 +24,7 @@ Token *createToken(int capacity) {
 }
 
 int addToken(Token *t, TokenType type, const char *value, int line, int row) {
-  if (!t || t->length >= MAX_TOKENS || !value)
+  if (!t || t->length >= MAX_TOKENS)
     return 0;
 
   if (t->length >= t->capacity) {
@@ -210,7 +210,7 @@ void tokenize(Token *token, const char *input, int line) {
 
   for (int i = 0; input[i]; i++) {
     if (input[i] == '\0') {
-      addToken(token, ENDOF, input, line, i);
+      addToken(token, ENDOF, NULL, line, i);
     }
 
     if (isassign(input[i])) {

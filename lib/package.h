@@ -15,6 +15,7 @@ void clearScreen();
 void clearState(ReplState *state);
 void clearToken(Token *token, int capacity);
 Node *createNode(int capacity);
+AstNode *createAst(Node *node);
 Token *createToken(int capacity);
 void compiler(SystemConfig cfg);
 void console(ReplState *state, bool *actived, char buffer[], int line);
