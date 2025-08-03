@@ -1,3 +1,4 @@
+#include "enum.h"
 #include "structure.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,9 +19,9 @@ Node *createNode(int capacity) {
   return node;
 }
 
-AstNode *createAst(Node *node) {
+int createAst(Node *node, AstNode n) {
   if (!node)
-    return NULL;
+    return 0;
 
   if (node->length >= node->capacity) {
     int newCapacity = node->capacity * 2;
@@ -31,12 +32,12 @@ AstNode *createAst(Node *node) {
       exit(1);
     }
 
+    memset(&ast[node->capacity], 0,
+           sizeof(AstNode) * (newCapacity - node->capacity));
     node->ast = ast;
     node->capacity = newCapacity;
   }
 
-  AstNode *ast = &node->ast[node->length];
-  memset(ast, 0, sizeof(AstNode));
-
-  return ast;
+  node->ast[node->length] = n;
+  return node->length++;
 }

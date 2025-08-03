@@ -10,125 +10,182 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Mengatur penugasan token berdasarkan identifier
-void setNodeAssign();
+// Forward declaration
+static int parseExpression(Node *node, Parser *parser);
 
-// Mengatur token boolean
-void setNodeBoolean();
+// === TOKEN HELPERS ===
 
-// Mengatur token float
-void setNodeFloat();
+DataToken *peek(Parser *parser) {
+  if (!parser || !parser->tokens)
+    return NULL;
+  if (parser->length >= parser->tokens->length)
+    return NULL;
+  return &parser->tokens->data[parser->length];
+}
 
-// Mengatur token identifier
-void setTokenId();
-
-// Mengatur token number
-void setNodeNumber();
-
-// Mengatur expresi token
-void setNodeExpression();
-
-// Mendapatkan token terakhir
-DataToken *getCurrentToken(Parser *parser, int currentIndex) {
-  if (currentIndex < parser->tokens->length) {
-    return &parser->tokens->data[currentIndex];
-  }
-
+DataToken *advance(Parser *parser) {
+  if (!parser || !parser->tokens)
+    return NULL;
+  if (parser->length < parser->tokens->length)
+    return &parser->tokens->data[parser->length++];
   return NULL;
 }
 
-// Cek token yang masih tersimpan
-bool getMoreToken(Parser *parser) {
-  return parser->length < parser->tokens->length;
+bool hasTokens(Parser *parser) {
+  return parser && parser->tokens && (parser->length < parser->tokens->length);
 }
 
-// Lanjut ke token berikutnya
-int advanceToken(Parser *parser) { return parser->length++; }
+// === AST NODE CREATION ===
 
-// Evaluasi parse token
-void evalute();
+int saveNode(Node *node, NodeType nodeType, AstNode n) {
+  switch (nodeType) {
+  case NODE_ASSIGN:
+  case NODE_IDENTIFIER:
+  case NODE_NUMBER:
+    return createAst(node, n);
+  default:
+    return 0;
+  }
+}
 
-int addNode(Node *node, AstNode *ast, DataToken *token) {
-  if (!ast || !node || !token)
+int createNumber(Node *node, DataToken *token) {
+  AstNode n = {.type = NODE_NUMBER, .number.value = atoi(token->value)};
+  return saveNode(node, NODE_NUMBER, n);
+}
+
+int createIdentifier(Node *node, DataToken *token) {
+  AstNode n = {.type = NODE_IDENTIFIER,
+               .identifier.name = strdup(token->value)};
+  int index = saveNode(node, NODE_IDENTIFIER, n);
+
+  if (!node->ast[index].identifier.name) {
+    free(&node->ast[index]);
+    return 0;
+  }
+
+  return index;
+}
+
+int createAssignment(Node *node, int left, int right) {
+  AstNode n = {
+      .type = NODE_ASSIGN, .assign.target = left, .assign.value = right};
+  return saveNode(node, NODE_ASSIGN, n);
+}
+
+// === PARSER ===
+
+// atom → IDENTIFIER | NUMBER
+int parseAtom(Node *node, Parser *parser) {
+  if (!parser)
     return 0;
 
-  if (token->type == IDENTIFIER) {
-    ast->type = NODE_IDENTIFIER;
-    ast->identifier.name = strdup(token->value);
-  }
+  DataToken *token = peek(parser);
+  if (!token)
+    return 0;
 
-  node->length++;
-  return 1;
+  switch (token->type) {
+  case IDENTIFIER:
+    return createIdentifier(node, advance(parser));
+  case NUMBER:
+    return createNumber(node, advance(parser));
+  default:
+    return 0;
+  }
 }
 
-Node *parseNodeProgram(Parser *parser) {
-  Node *node = createNode(10);
+// expression → IDENTIFIER "=" expression
+//            | atom
+int parseExpression(Node *node, Parser *parser) {
+  int left = parseAtom(node, parser);
+  DataToken *token = peek(parser);
 
-  if (!node) {
-    perror("Create node program is failed.");
-    exit(1);
+  if (token && token->type == ASSIGN) {
+    advance(parser);
+    int right = parseExpression(node, parser);
+    return createAssignment(node, left, right);
   }
 
-  int added_node = 0;
+  return left;
+}
 
-  while (getMoreToken(parser)) {
-    DataToken *currentToken = getCurrentToken(parser, parser->length);
-
-    if (currentToken == NULL || currentToken->type == ENDOF)
-      break;
-
-    AstNode *newAstNode = createAst(node);
-    if (!newAstNode) {
-      perror("Error: Failed to prepare new AstNode, out of memory.");
-      return NULL;
-    }
-
-    if (addNode(node, newAstNode, currentToken) == 0) {
-      fprintf(stderr,
-              "Failed to add data for token '%s' at index %d, skipping...",
-              currentToken->value, parser->length);
-      advanceToken(parser);
-      continue;
-    }
-
-    added_node++;
-
-    if (newAstNode->type == NODE_IDENTIFIER) {
-      advanceToken(parser);
-      printf("%s\n", currentToken->value);
-    }
-
-    advanceToken(parser);
+// program → expression*
+Node *parseAllNodes(Parser *parser) {
+  Node *node = createNode(NODE_PROGRAM);
+  while (hasTokens(parser)) {
+    parseExpression(node, parser);
   }
-
-  if (added_node == 0 && node->length == 0) {
-    fprintf(stderr,
-            "Error: failed is empty or parsing failed is completely.\n");
-    free(node);
-    return NULL;
-  }
-
   return node;
 }
 
-//  Memparser hasil token menjadi AST
-void parse(Token *token) {
-  Parser parser = {.tokens = token, .length = 0};
+// === AST PRINTER ===
 
-  if (!parser.tokens) {
-    return;
-  }
-
-  Node *node = parseNodeProgram(&parser);
-
-  if (!node) {
+void printAst(Node *node) {
+  if (!node || node->length == 0) {
+    printf("(empty)\n");
     return;
   }
 
   for (int i = 0; i < node->length; i++) {
-    free(node->ast[i].identifier.name);
+    AstNode *n = &node->ast[i];
+    switch (n->type) {
+    case NODE_IDENTIFIER:
+      if (n->identifier.name)
+        printf("(id %s)\n", n->identifier.name);
+      else
+        printf("(id null)\n");
+      break;
+    case NODE_NUMBER:
+      printf("(num %d)\n", n->number.value);
+      break;
+    case NODE_ASSIGN: {
+      printf("(assign ");
+      AstNode *t = &node->ast[n->assign.target];
+      AstNode *v = &node->ast[n->assign.value];
+      if (t->type == NODE_IDENTIFIER) {
+        printf("%s = ", t->identifier.name ? t->identifier.name : "null");
+      }
+      if (v->type == NODE_NUMBER) {
+        printf("%d", v->number.value);
+      }
+      printf(")\n");
+      break;
+    }
+    default:
+      printf("(unknown)\n");
+    }
+  }
+}
+
+// === CLEANUP ===
+
+void destroyNode(Node *node) {
+  if (!node)
+    return;
+
+  for (int i = 0; i < node->length; i++) {
+    if (node->ast[i].type == NODE_IDENTIFIER && node->ast[i].identifier.name) {
+      free(node->ast[i].identifier.name);
+    }
   }
 
   free(node->ast);
+  node->capacity = NODE_PROGRAM;
+  node->length = 0;
   free(node);
+}
+
+// === ENTRY POINT ===
+
+void parse(Token *tokens) {
+  if (!tokens || tokens->length == 0)
+    return;
+
+  Parser parser = {.length = 0, .tokens = tokens};
+  Node *node = parseAllNodes(&parser);
+
+  if (node->length > 0) {
+    printf("Total: %d\n", node->length);
+    printAst(node);
+    destroyNode(node);
+  }
 }

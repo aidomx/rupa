@@ -2,27 +2,17 @@
  * Superset tipe
  *
  * Mendefinisikan tipe sesuai dengan kategori :
+ * - BinaryType
  * - ErrorType
  * - NodeType
  * - TokenType
+ * - VariableType
+ * - etc
  *
  * @author aidomx
  */
 #ifndef ENUM_H
 #define ENUM_H
-
-typedef enum {
-  AST_ASSIGN,
-  AST_BINARY,
-  AST_BRACKET,
-  AST_BOOLEAN,
-  AST_CALL,
-  AST_DELIM,
-  AST_IDENTIFIER,
-  AST_FLOAT,
-  AST_NUMBER,
-  AST_STRING
-} AstType;
 
 /**
  * Definisi tipe pada saat proses interpreter berjalan,
@@ -79,13 +69,15 @@ typedef enum {
 typedef enum {
   NODE_ASSIGN,
   NODE_BINARY,
+  NODE_ENDPROGRAM,
   NODE_FUNCTION,
   NODE_IDENTIFIER,
   NODE_NUMBER,
   NODE_PARAM,
-  NODE_PROGRAM,
+  NODE_PROGRAM = 10,
   NODE_RETURN,
   NODE_STRING,
+  NODE_UNKNOWN,
   NODE_VARIABLE
 } NodeType;
 
@@ -100,7 +92,8 @@ typedef enum {
   BINARY_MULTIPLY,
   BINARY_SUBTRACT,
   BINARY_DIVIDE,
-  BINARY_MODULES
+  BINARY_MODULES,
+  BINARY_UNKNOWN,
 } BinaryType;
 
 /**

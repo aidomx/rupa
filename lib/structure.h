@@ -8,8 +8,8 @@
 struct AstNode;
 
 typedef struct {
-  struct AstNode *target;
-  struct AstNode *value;
+  int target;
+  int value;
 } AstAssignment;
 
 typedef struct {
@@ -133,10 +133,11 @@ typedef struct AstNode {
     AstReturn asReturn;
     AstString string;
     AstVariable variable;
+    DataToken *token;
   };
 } AstNode;
 
-typedef struct Node {
+typedef struct {
   AstNode *ast;
   int capacity;
   int length;
