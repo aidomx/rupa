@@ -14,8 +14,9 @@ typedef struct {
 
 typedef struct {
   BinaryType type;
-  struct AstNode *left;
-  struct AstNode *right;
+  char *op;
+  int left;
+  int right;
 } AstBinary;
 
 typedef struct {

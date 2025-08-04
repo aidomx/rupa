@@ -19,6 +19,9 @@ int createAst(Node *node, AstNode n);
 Token *createToken(int capacity);
 void compiler(SystemConfig cfg);
 void console(ReplState *state, bool *actived, char buffer[], int line);
+
+// Debugging
+void printAst(Node *node);
 char *getConfig(const char *line, const char *key, char *value);
 void handleVariable(Token *token, const char *input, int line, int row);
 void interpreter(Node *node, Error *e);

@@ -40,6 +40,7 @@ bool hasTokens(Parser *parser) {
 int saveNode(Node *node, NodeType nodeType, AstNode n) {
   switch (nodeType) {
   case NODE_ASSIGN:
+  case NODE_BINARY:
   case NODE_IDENTIFIER:
   case NODE_NUMBER:
     return createAst(node, n);
@@ -72,6 +73,13 @@ int createAssignment(Node *node, int left, int right) {
   return saveNode(node, NODE_ASSIGN, n);
 }
 
+int createBinary(Node *node, BinaryType type, DataToken *token) {
+  AstNode n = {.type = NODE_BINARY,
+               .binary.type = type,
+               .binary.op = strdup(token->value)};
+  return saveNode(node, NODE_BINARY, n);
+}
+
 // === PARSER ===
 
 // atom → IDENTIFIER | NUMBER
@@ -93,6 +101,35 @@ int parseAtom(Node *node, Parser *parser) {
   }
 }
 
+int checkBinary(DataToken *token) {
+  if (!token || (token->type != ASTERISK && token->type != MINUS &&
+                 token->type != PLUS && token->type != SLASH)) {
+    return 1;
+  }
+  return 0;
+}
+
+int parseBinary(Node *node, Parser *parser) {
+  int left = parseAtom(node, parser);
+
+  while (hasTokens(parser)) {
+    if (checkBinary(peek(parser)) != 0)
+      break;
+
+    DataToken *op = advance(parser);
+    int right = parseAtom(node, parser);
+
+    AstNode n = {.type = NODE_BINARY,
+                 .binary.left = left,
+                 .binary.right = right,
+                 .binary.op = strdup(op->value)};
+
+    left = saveNode(node, NODE_BINARY, n);
+  }
+
+  return left;
+}
+
 // expression → IDENTIFIER "=" expression
 //            | atom
 int parseExpression(Node *node, Parser *parser) {
@@ -105,7 +142,8 @@ int parseExpression(Node *node, Parser *parser) {
     return createAssignment(node, left, right);
   }
 
-  return left;
+  parser->length--;
+  return parseBinary(node, parser);
 }
 
 // program → expression*
@@ -117,45 +155,6 @@ Node *parseAllNodes(Parser *parser) {
   return node;
 }
 
-// === AST PRINTER ===
-
-void printAst(Node *node) {
-  if (!node || node->length == 0) {
-    printf("(empty)\n");
-    return;
-  }
-
-  for (int i = 0; i < node->length; i++) {
-    AstNode *n = &node->ast[i];
-    switch (n->type) {
-    case NODE_IDENTIFIER:
-      if (n->identifier.name)
-        printf("(id %s)\n", n->identifier.name);
-      else
-        printf("(id null)\n");
-      break;
-    case NODE_NUMBER:
-      printf("(num %d)\n", n->number.value);
-      break;
-    case NODE_ASSIGN: {
-      printf("(assign ");
-      AstNode *t = &node->ast[n->assign.target];
-      AstNode *v = &node->ast[n->assign.value];
-      if (t->type == NODE_IDENTIFIER) {
-        printf("%s = ", t->identifier.name ? t->identifier.name : "null");
-      }
-      if (v->type == NODE_NUMBER) {
-        printf("%d", v->number.value);
-      }
-      printf(")\n");
-      break;
-    }
-    default:
-      printf("(unknown)\n");
-    }
-  }
-}
-
 // === CLEANUP ===
 
 void destroyNode(Node *node) {
@@ -165,6 +164,10 @@ void destroyNode(Node *node) {
   for (int i = 0; i < node->length; i++) {
     if (node->ast[i].type == NODE_IDENTIFIER && node->ast[i].identifier.name) {
       free(node->ast[i].identifier.name);
+    }
+
+    if (node->ast[i].type == NODE_BINARY && node->ast[i].binary.op) {
+      free(node->ast[i].binary.op);
     }
   }
 
