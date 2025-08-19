@@ -19,16 +19,6 @@ int main(int argc, const char *argv[]) {
   /*printf("%s\n", buffer);*/
   /*}*/
   startRepl();
-  /*int line_number = 1;*/
-  /*bool actived = true;*/
-  /*char buffer[MAX_BUFFER_SIZE];*/
-
-  /*printf("Welcome to Aidomx v%.1f\n", VERSION);*/
-
-  /*do {*/
-  /*printf("%d ", line_number);*/
-  /*console(&actived, buffer, &line_number);*/
-  /*} while (actived);*/
 
   return 0;
 }
