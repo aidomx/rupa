@@ -1,5 +1,6 @@
 #include "ctypes.h"
 #include "enum.h"
+#include "limit.h"
 #include "package.h"
 #include "structure.h"
 #include "utils.h"
@@ -118,9 +119,9 @@ int addDelim(Token *t, char c, int line, int row) {
   case '}':
     return addToken(t, BRACE_RIGHT, del, line, row);
   case '(':
-    return addToken(t, PAREN_LEFT, del, line, row);
+    return addToken(t, LPAREN, del, line, row);
   case ')':
-    return addToken(t, PAREN_RIGHT, del, line, row);
+    return addToken(t, RPAREN, del, line, row);
   case '\n':
     return addToken(t, NEWLINE, del, line, row);
   case '\t':
@@ -137,7 +138,7 @@ int addDelim(Token *t, char c, int line, int row) {
 }
 
 void clearToken(Token *token, int capacity) {
-  if (!token || token->length < 0)
+  if (!token)
     return;
 
   for (int i = 0; i < token->length; i++) {
@@ -151,7 +152,8 @@ void clearToken(Token *token, int capacity) {
   token->length = 0;
 }
 
-void addStringToken(Token *t, const char *value, int line, int row) {
+// @deprecated
+int addStringToken(Token *t, const char *value, int line, int row) {
   char temp[strlen(value) + 1];
   strcpy(temp, value);
   char qopen = temp[0];
@@ -160,68 +162,154 @@ void addStringToken(Token *t, const char *value, int line, int row) {
   trimquote(temp);
   addToken(t, STRING, temp, line, row);
   addDelim(t, qclose, line, row);
+
+  return t->length;
 }
 
-void saveToken(Token *t, const char *token, char expr, int line, int row) {
-  if (!t || !token)
-    return;
+char *getTokenId(const char *input, int length) {
+  if (!input || length == 0)
+    return NULL;
 
-  char bracket = getBracketType(token);
-  char *ptr = strdup(token);
-
-  if (!ptr)
-    return;
-
-  if (bracket == '(') {
-    addDelim(t, bracket, line, row);
-    trimbracket(ptr, bracket, 0);
-  } else if (bracket == ')') {
-    trimbracket(ptr, 0, bracket);
-  }
-
-  trimspace(ptr);
-  TokenType type = gettype(ptr);
-
-  if (type == STRING) {
-    addStringToken(t, ptr, line, row);
-  } else {
-    if (type == IDENTIFIER) {
-      addToken(t, LITERAL_ID, ptr, line, row);
-    } else {
-      addToken(t, type, ptr, line, row);
-    }
-  }
-
-  if (expr > 0) {
-    // char op[2] = {expr, '\0'};
-    addDelim(t, expr, line, row);
-  }
-
-  if (bracket == ')') {
-    addDelim(t, bracket, line, row);
-  }
-
-  free(ptr);
+  return substring(input, 0, length);
 }
 
-void tokenize(Token *token, const char *input, int line) {
-  if (!token || !input)
-    return;
+char *getTokenValue(const char *input, int length) {
+  if (!input || length == 0)
+    return NULL;
 
-  for (int i = 0; input[i]; i++) {
-    if (input[i] == '\0') {
-      addToken(token, ENDOF, NULL, line, i);
-    }
+  return substring(input, length + 1, strlen(input));
+}
 
-    if (isassign(input[i])) {
-      handleVariable(token, input, line, i);
-      break;
-    } else {
-      TokenType type = gettype(input);
-      if (type == IDENTIFIER) {
-        addToken(token, type, input, line, i);
-        break;
+int handleTokenId(State *state) {
+  if (!state)
+    return -1;
+
+  Token *tokens = state->manage->tokens;
+  int line = state->manage->line;
+
+  char *id = getTokenId(state->input, state->row);
+
+  if (id && !issymdenied(id[0])) {
+    for (int i = 0; id[i]; i++) {
+      if (issymdenied(id[i])) {
+        if (!isarray(id[i])) {
+          printf("\033[1;30mUndefined\033[0m\n");
+        } else {
+          addToken(tokens, IDENTIFIER, id, line, state->row - 1);
+          addDelim(tokens, state->input[state->row], line, state->row);
+        }
+      } else {
+        addToken(tokens, IDENTIFIER, id, line, state->row - 1);
+        addDelim(tokens, state->input[state->row], line, state->row);
       }
     }
   }
+
+  free(id);
+  return tokens->length;
+}
+
+int handleTokenValue(State *state) {
+  if (!state)
+    return -1;
+
+  Token *tokens = state->manage->tokens;
+  int line = state->manage->line;
+  int row = state->row;
+  char *value = getTokenValue(state->input, row);
+  char *ptr = value;
+  char input[MAX_BUFFER_SIZE];
+  int length = 0;
+
+  trimspace(ptr);
+
+  while (*ptr) {
+    if (issymbol(*ptr)) {
+      if (length > 0) {
+        input[length] = '\0';
+        addToken(tokens, gettype(input), input, line, row);
+        length = 0;
+      }
+      addDelim(tokens, *ptr, line, row++);
+      ptr++;
+      row++;
+      continue;
+    }
+
+    input[length++] = *ptr;
+    ptr++;
+    row++;
+  }
+
+  if (length > 0) {
+    input[length] = '\0';
+    TokenType type = gettype(input);
+
+    switch (type) {
+    case IDENTIFIER:
+      addToken(tokens, LITERAL_ID, input, line, row);
+      break;
+
+    default:
+      addToken(tokens, type, input, line, row);
+      break;
+    }
+  }
+
+  free(value);
+  return tokens->length;
+}
+
+int createVar(State *state) {
+  if (!state)
+    return -1;
+
+  if (handleTokenId(state)) {
+    return handleTokenValue(state);
+  }
+
+  return -1;
+}
+
+int processToken(State *state) {
+  if (!state)
+    return -1;
+
+  Token *tokens = state->manage->tokens;
+  char *input = state->input;
+  int hasAssign = 0;
+  int line = state->manage->line;
+  int row = state->row;
+
+  for (; input[state->row]; state->row++) {
+    if (isassign(input[state->row])) {
+      hasAssign = 1;
+      break;
+    }
+  }
+
+  if (!hasAssign) {
+    return addToken(tokens, gettype(input), input, line, row);
+  }
+
+  return createVar(state);
+}
+
+Token *tokenize(ReplState *state) {
+  if (state && state->length == 0)
+    return NULL;
+
+  State newState = {.manage = state, .row = 0};
+
+  for (int i = 0; i < state->length; i++) {
+    if (!state->history[i])
+      break;
+
+    serialize(state->history[i], newState.input);
+  }
+
+  if (!processToken(&newState))
+    return NULL;
+
+  return state->tokens;
 }

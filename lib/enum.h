@@ -89,11 +89,12 @@ typedef enum {
  */
 typedef enum {
   BINARY_ADD,
+  BINARY_ASSIGN,
   BINARY_MULTIPLY,
   BINARY_SUBTRACT,
   BINARY_DIVIDE,
   BINARY_MODULES,
-  BINARY_UNKNOWN,
+  BINARY_NONE,
 } BinaryType;
 
 /**
@@ -130,7 +131,7 @@ typedef enum {
   DOT,             // .
   DOUBLE,
   ELLIPSIS, // ...
-  ENDOF,
+  ENDOF = '\0',
   EQUAL,       // ==
   EQUAL_THAN,  // =
   EXCLAMATION, // !
@@ -149,6 +150,8 @@ typedef enum {
   LITERAL_ID,
   LOGICAL_AND, // &&
   LOGICAL_OR,  // ||
+  LPAREN,      // (
+  RPAREN,      // )
   MINUS,       // -
   NEWLINE,     // \n
   NOT_EQUAL,   // !=

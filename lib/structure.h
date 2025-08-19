@@ -20,6 +20,11 @@ typedef struct {
 } AstBinary;
 
 typedef struct {
+  BinaryType type;
+  char *op;
+} AstBinaryExpression;
+
+typedef struct {
   bool value;
 } AstBoolean;
 
@@ -92,6 +97,11 @@ typedef struct {
 } SymbolTable;
 
 typedef struct {
+  char symbol;
+  TokenType type;
+} SymbolToken;
+
+typedef struct {
   char value[1024];
   int line;
   int row;
@@ -125,6 +135,7 @@ typedef struct AstNode {
   union {
     AstAssignment assign;
     AstBinary binary;
+    AstBinaryExpression binaryExpression;
     AstBoolean boolean;
     AstDouble asDouble;
     AstFloat asFloat;
@@ -162,10 +173,52 @@ typedef struct Parser {
   int length;
 } Parser;
 
+/**
+ * Position merepresentasikan range token (start..end).
+ * Digunakan untuk menandai posisi sub-ekspresi.
+ */
+typedef struct {
+  int start;
+  int end;
+} Position;
+
+/**
+ * Request menyimpan state parsing:
+ * - node  : pointer ke kumpulan AST nodes
+ * - tokens: daftar token input
+ * - left  : posisi token kiri (target assignment)
+ * - right : range token kanan (expression setelah '=')
+ */
+typedef struct {
+  Node *node;
+  Token *tokens;
+  int left;
+  Position right;
+} Request;
+
+/**
+ * Response menyimpan hasil parsing berupa indeks node AST:
+ * - nodeId   : id node hasil parsing penuh
+ * - leftId   : id node bagian kiri (assignment target)
+ * - rightId  : id node bagian kanan (assignment value)
+ */
+typedef struct {
+  int nodeId;
+  int leftId;
+  int rightId;
+} Response;
+
 typedef struct {
   char **history;
   int length;
   int line;
+  Token *tokens;
 } ReplState;
+
+typedef struct {
+  ReplState *manage;
+  char input[MAX_BUFFER_SIZE];
+  int row;
+} State;
 
 #endif

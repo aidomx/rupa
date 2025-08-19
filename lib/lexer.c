@@ -15,6 +15,8 @@ void processExpression(Token *t, char *input, int line, int row) {
     return;
 
   trimspace(input);
+  printf("raw input:%s\n", input);
+
   int expr_count = 0;
   char exprs[256] = {0};
 
@@ -55,13 +57,18 @@ void handleVariable(Token *t, const char *input, int line, int row) {
       }
     }
 
-    if (value) {
-      if (strpbrk(value, "+-*/%")) {
-        processExpression(t, value, line, row);
-      } else {
-        saveToken(t, value, 0, line, row + 1);
-      }
-    }
+    if (value == NULL)
+      return;
+
+    saveToken(t, value, 0, line, row + 1);
+
+    // if (value) {
+    // if (strpbrk(value, "+-*/%")) {
+    //  processExpression(t, value, line, row);
+    // } else {
+    //  saveToken(t, value, 0, line, row + 1);
+    // }
+    //}
   } else {
     printf("\033[1;30mUndefined\033[0m\n");
   }

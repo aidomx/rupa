@@ -1,8 +1,31 @@
+#include "ctypes.h"
 #include "enum.h"
+#include "package.h"
 #include "structure.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// === CLEANUP ===
+void clearNode(Node *node) {
+  if (!node)
+    return;
+
+  for (int i = 0; i < node->length; i++) {
+    if (node->ast[i].type == NODE_IDENTIFIER && node->ast[i].identifier.name) {
+      free(node->ast[i].identifier.name);
+    }
+
+    if (node->ast[i].type == NODE_BINARY && node->ast[i].binary.op) {
+      free(node->ast[i].binary.op);
+    }
+  }
+
+  node->capacity = NODE_PROGRAM;
+  node->length = 0;
+  free(node->ast);
+  free(node);
+}
 
 Node *createNode(int capacity) {
   Node *node = malloc(sizeof(Node));
@@ -40,4 +63,66 @@ int createAst(Node *node, AstNode n) {
 
   node->ast[node->length] = n;
   return node->length++;
+}
+
+/* ====== Node Builders ====== */
+
+/**
+ * Membuat node identifier (variabel).
+ */
+int createId(Node *root, char *name) {
+  if (name == NULL)
+    return -1;
+
+  // validasi sederhana: tidak boleh integer literal murni
+  for (int i = 0; name[i]; i++) {
+    if (isint(name[i]) && !isstr(name[i + 1])) {
+      return -1;
+    }
+  }
+
+  AstNode node = {.type = NODE_IDENTIFIER, .identifier.name = strdup(name)};
+  return createAst(root, node);
+}
+
+/**
+ * Membuat node number literal.
+ */
+int createNumber(Node *root, int value) {
+  AstNode node = {.type = NODE_NUMBER, .number.value = value};
+  return createAst(root, node);
+}
+
+/**
+ * Membuat node binary expression.
+ */
+int createBinary(Node *root, DataToken *opToken, int leftId, int rightId) {
+  if (!root || leftId < 0 || rightId < 0 || !opToken)
+    return -1;
+
+  char *op = strdup(opToken->value);
+  BinaryType binType = getBinaryType(opToken);
+
+  AstNode node = {
+      .type = NODE_BINARY,
+      .binary.left = leftId,
+      .binary.right = rightId,
+      .binary.op = op,
+      .binary.type = binType,
+  };
+
+  return createAst(root, node);
+}
+
+/**
+ * Membuat node assignment.
+ */
+int createAssignment(Node *root, int left, int right) {
+  if (!root || left < 0 || right < 0)
+    return -1;
+
+  AstNode node = {
+      .type = NODE_ASSIGN, .assign.target = left, .assign.value = right};
+
+  return createAst(root, node);
 }

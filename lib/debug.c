@@ -1,79 +1,101 @@
-#include "package.h"
+#include "enum.h"
 #include "structure.h"
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-void printAst(Node *node) {
-  if (!node || node->length == 0) {
-    printf("(empty)\n");
+// Fungsi utilitas
+void printIndent(int level) {
+  for (int i = 0; i < level; i++)
+    printf("  "); // Gunakan 2 spasi untuk indentasi
+}
+
+void printId(char *id, int level) {
+  printIndent(level);
+  printf("Identifier: %s\n", id ? id : "null");
+}
+
+void printNumber(int value, int level) {
+  printIndent(level);
+  printf("Number: %d\n", value);
+}
+
+// Fungsi utama untuk mencetak node AST
+static void printAst(Node *node, int index, int level) {
+  if (!node || index < 0 || index >= node->length)
     return;
-  }
 
+  AstNode *n = &node->ast[index];
+  switch (n->type) {
+  case NODE_ASSIGN:
+    printIndent(level);
+    printf("Assignment:\n");
+    printIndent(level + 1);
+    printf("Target:\n");
+    if (n->assign.target >= 0 && n->assign.target < node->length) {
+      AstNode *target = &node->ast[n->assign.target];
+      if (target->type == NODE_IDENTIFIER) {
+        printId(target->identifier.name, level + 2);
+      }
+    }
+    printIndent(level + 1);
+    printf("Value:\n");
+    printAst(node, n->assign.value, level + 2);
+    break;
+
+  case NODE_NUMBER:
+    printNumber(n->number.value, level);
+    break;
+
+  case NODE_IDENTIFIER:
+    printId(n->identifier.name, level);
+    break;
+
+  case NODE_BINARY:
+    printIndent(level);
+    printf("Binary: %s\n", n->binary.op);
+    printIndent(level + 1);
+    printf("Left:\n");
+    printAst(node, n->binary.left, level + 2);
+    printIndent(level + 1);
+    printf("Right:\n");
+    printAst(node, n->binary.right, level + 2);
+    break;
+
+  default:
+    printIndent(level);
+    printf("(unknown node type %d)\n", n->type);
+    break;
+  }
+}
+
+// Fungsi pemanggil awal
+void startDebug(Node *node) {
+  if (!node || node->length == 0)
+    return;
+
+  printf("--- Struktur AST Node ---\n");
+
+  // Loop melalui semua node, namun hanya cetak node yang tidak memiliki orang
+  // tua. Ini biasanya merupakan node akar (root node) dari setiap ekspresi atau
+  // assignment.
   for (int i = 0; i < node->length; i++) {
-    AstNode *n = &node->ast[i];
-    switch (n->type) {
-    case NODE_IDENTIFIER:
-      if (n->identifier.name)
-        printf("(id %s)\n", n->identifier.name);
-      else
-        printf("(id null)\n");
-      break;
-    case NODE_NUMBER:
-      printf("(num %d)\n", n->number.value);
-      break;
-    case NODE_ASSIGN: {
-      printf("(assign ");
-      AstNode *t = &node->ast[n->assign.target];
-      AstNode *v = &node->ast[n->assign.value];
-      if (t->type == NODE_IDENTIFIER) {
-        printf("%s = ", t->identifier.name ? t->identifier.name : "null");
+    bool isRoot = true;
+    for (int j = 0; j < node->length; j++) {
+      AstNode *n = &node->ast[j];
+      if ((n->type == NODE_ASSIGN &&
+           (n->assign.target == i || n->assign.value == i)) ||
+          (n->type == NODE_BINARY &&
+           (n->binary.left == i || n->binary.right == i))) {
+        isRoot = false;
+        break;
       }
-      if (v->type == NODE_NUMBER) {
-        printf("%d", v->number.value);
-      }
-
-      if (v->type == NODE_BINARY) {
-        AstNode *l = &node->ast[v->binary.left];
-        AstNode *r = &node->ast[v->binary.right];
-        if (l->type == NODE_NUMBER)
-          printf("%d ", l->number.value);
-        else if (l->type == NODE_IDENTIFIER && l->identifier.name)
-          printf("%s ", l->identifier.name);
-
-        if (v->binary.op) {
-          printf("%s ", v->binary.op); // Operator
-        }
-
-        if (r->type == NODE_NUMBER)
-          printf("%d", r->number.value);
-        else if (r->type == NODE_IDENTIFIER && r->identifier.name)
-          printf("%s", r->identifier.name);
-      }
-      printf(")\n");
-      break;
     }
-
-    case NODE_BINARY: {
-      AstNode *l = &node->ast[n->binary.left];
-      AstNode *r = &node->ast[n->binary.right];
-      printf("(binary ");
-      if (l->type == NODE_NUMBER)
-        printf("%d ", l->number.value);
-      else if (l->type == NODE_IDENTIFIER && l->identifier.name)
-        printf("%s ", l->identifier.name);
-
-      if (n->binary.op)
-        printf("%s ", n->binary.op); // Operator
-
-      if (r->type == NODE_NUMBER)
-        printf("%d", r->number.value);
-      else if (r->type == NODE_IDENTIFIER && r->identifier.name)
-        printf("%s", r->identifier.name);
-
-      printf(")\n");
-      break;
-    }
-    default:
-      printf("(unknown)\n");
+    if (isRoot) {
+      printAst(node, i, 0);
     }
   }
+
+  printf("--- ENDOF ---\n");
 }

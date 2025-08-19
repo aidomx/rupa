@@ -16,6 +16,7 @@
 #define ismodules(c) ((c) == '%')
 #define ismultiply(c) ((c) == '*')
 #define isnewline(c) ((c) == '\n' || (c) == '\r' || (c) == '\x1F')
+#define isparen(c) ((c) == '(' || (c) == ')')
 #define isplus(c) ((c) == '+')
 #define isquote(c) ((c) == '"' || (c) == '\'')
 #define issemicolon(c) ((c) == ';')

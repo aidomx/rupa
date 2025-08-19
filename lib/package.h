@@ -53,9 +53,15 @@ void addToHistory(ReplState *state, const char *input);
  * @brief Membersihkan semua memori yang digunakan oleh state dan token.
  *
  * @param state Pointer ke ReplState.
- * @param token Pointer ke Token.
  */
-void clearAll(ReplState *state, Token *token);
+void clearAll(ReplState *state);
+
+/**
+ * @brief Menghapus seluru node dan mengosongkan buffer.
+ *
+ * @param node pointer node
+ */
+void clearNode(Node *node);
 
 /**
  * @brief Membersihkan layar terminal.
@@ -102,6 +108,45 @@ Node *createNode(int capacity);
  */
 int createAst(Node *node, AstNode n);
 
+/**
+ * @brief Membuat identifier node (variabel) dalam AST.
+ *
+ * @param root Root node AST.
+ * @param name Nama identifier.
+ * @return ID node yang dibuat, atau -1 jika gagal.
+ */
+int createId(Node *root, char *name);
+
+/**
+ * @brief Membuat number literal node dalam AST.
+ *
+ * @param root Root node AST.
+ * @param value Nilai integer.
+ * @return ID node yang dibuat, atau -1 jika gagal.
+ */
+int createNumber(Node *root, int value);
+
+/**
+ * @brief Membuat binary operation node dalam AST.
+ *
+ * @param root Root node AST.
+ * @param opToken Operator (+, -, *, /, =, dsb).
+ * @param leftId ID node operand kiri.
+ * @param rightId ID node operand kanan.
+ * @return ID node yang dibuat, atau -1 jika gagal.
+ */
+int createBinary(Node *root, DataToken *opToken, int leftId, int rightId);
+
+/**
+ * @brief Membuat assignment node dalam AST.
+ *
+ * @param root Root node AST.
+ * @param left ID node target (identifier).
+ * @param right ID node ekspresi nilai.
+ * @return ID node yang dibuat, atau -1 jika gagal.
+ */
+int createAssignment(Node *root, int left, int right);
+
 /// ==============================
 /// End Comment: Node & AST
 /// ==============================
@@ -117,6 +162,10 @@ int createAst(Node *node, AstNode n);
  * @return Pointer ke Token.
  */
 Token *createToken(int capacity);
+
+/// ==============================
+/// End Comment: Token & Compiler
+/// ==============================
 
 /**
  * @brief Memulai proses kompilasi berdasarkan konfigurasi.
@@ -148,15 +197,118 @@ void console(ReplState *state, bool *actived, char buffer[], int line);
 /// ==============================
 
 /// ==============================
+/// Start Comment: Parser & AST Builder
+/// ==============================
+
+/**
+ * @brief Membuat request baru untuk parser.
+ *
+ * @param tokens Pointer ke struktur token.
+ * @param capacity Kapasitas awal node.
+ * @return Struktur Request yang terinisialisasi.
+ */
+Request createRequest(Token *tokens, int capacity);
+
+/**
+ * findParen: mencari kurung penutup yang cocok.
+ */
+int findParen(Token *tokens, int start, int end);
+
+/**
+ * @brief Mendapatkan tipe operator biner dari token.
+ *
+ * @param token Pointer ke DataToken operator.
+ * @return Enum BinaryType.
+ */
+BinaryType getBinaryType(DataToken *token);
+
+/**
+ * @brief Mendapatkan precedence operator.
+ *
+ * @param token Pointer ke DataToken operator.
+ * @return Integer precedence (lebih tinggi = lebih kuat).
+ */
+int getPrecedence(DataToken *token);
+
+/**
+ * @brief Mengambil indeks terakhir dari token dalam 1 baris.
+ *
+ * @param token Pointer ke Token.
+ * @param start Index awal.
+ * @return Index akhir baris.
+ */
+int lastIndex(Token *token, int start);
+
+/**
+ * match: cek apakah token sesuai dengan tipe T.
+ */
+bool match(DataToken *data, TokenType T);
+
+/**
+ * @brief Mem-parse sebuah atom (IDENTIFIER atau NUMBER).
+ *
+ * @param req Pointer ke Request parser.
+ * @param data Pointer ke DataToken.
+ * @return Index node hasil parse, atau -1 jika gagal.
+ */
+int parseAtom(Request *req, DataToken *data);
+
+/**
+ * @brief Mem-parse faktor assignment (IDENTIFIER).
+ *
+ * @param req Pointer ke Request parser.
+ * @param res Struktur Response sementara.
+ * @return Index node identifier, atau -1 jika gagal.
+ */
+int parseFactor(Request *req, Response res);
+
+/**
+ * @brief Mem-parse sebuah ekspresi assignment (kanan "=").
+ *
+ * @param req Pointer ke Request parser.
+ * @param res Struktur Response sementara.
+ * @return Struktur Response hasil parse.
+ */
+Response parseExpression(Request *req, Response res);
+
+/**
+ * @brief Mem-parse sebuah statement (assignment).
+ *
+ * @param req Pointer ke Request parser.
+ * @param res Struktur Response sementara.
+ * @return Struktur Response hasil parse.
+ */
+Response parseStatement(Request *req, Response res);
+
+/**
+ * @brief Loop utama untuk membangun AST dari token list.
+ *
+ * @param req Pointer ke Request parser.
+ * @return Pointer ke Node AST root.
+ */
+Node *processGenerate(Request *req);
+
+/**
+ * @brief Entry point parser: generate AST dari token list.
+ *
+ * @param tokens Pointer ke Token list.
+ */
+void generateAst(Token *tokens);
+
+/// ==============================
+/// End Comment: Parser & AST Builder
+/// ==============================
+
+/// ==============================
 /// Start Comment: Debug & Utilities
 /// ==============================
 
 /**
- * @brief Menampilkan struktur AST untuk debugging.
+ * @brief Proses debugging struktur AST.
  *
  * @param node Root node AST.
  */
-void printAst(Node *node);
+void startDebug(Node *node);
 
 /**
  * @brief Mengambil konfigurasi dari baris string berdasarkan key.
@@ -210,17 +362,6 @@ void parse(Token *token);
  */
 bool readfile(const char *path, char *buffer);
 
-/**
- * @brief Menyimpan token dari input tertentu.
- *
- * @param token Pointer token.
- * @param src Sumber string.
- * @param expr Tipe ekspresi.
- * @param line Baris.
- * @param row Kolom.
- */
-void saveToken(Token *token, const char *src, char expr, int line, int row);
-
 /// ==============================
 /// End Comment: Debug & Utilities
 /// ==============================
@@ -237,11 +378,9 @@ void startRepl();
 /**
  * @brief Melakukan tokenisasi terhadap input tertentu.
  *
- * @param token Struktur token.
- * @param input Input string.
- * @param line Baris input.
+ * @param state ReplState
  */
-void tokenize(Token *token, const char *input, int line);
+Token *tokenize(ReplState *state);
 
 /// ==============================
 /// End Comment: Entry Point

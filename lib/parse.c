@@ -3,192 +3,109 @@
 #include "limit.h"
 #include "package.h"
 #include "structure.h"
-#include "utils.h"
-#include <stdbool.h>
-#include <stddef.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Forward declaration
-static int parseExpression(Node *node, Parser *parser);
-
-// === TOKEN HELPERS ===
-
-DataToken *peek(Parser *parser) {
-  if (!parser || !parser->tokens)
-    return NULL;
-  if (parser->length >= parser->tokens->length)
-    return NULL;
-  return &parser->tokens->data[parser->length];
+/**
+ * parseAtom: memproses atom (IDENTIFIER atau NUMBER).
+ */
+int parseAtom(Request *req, DataToken *data) {
+  if (!data)
+    return -1;
+  if (match(data, IDENTIFIER))
+    return createId(req->node, data->value);
+  if (match(data, NUMBER))
+    return createNumber(req->node, atoi(data->value));
+  return -1;
 }
 
-DataToken *advance(Parser *parser) {
-  if (!parser || !parser->tokens)
-    return NULL;
-  if (parser->length < parser->tokens->length)
-    return &parser->tokens->data[parser->length++];
-  return NULL;
-}
+/**
+ * parseBinary: parser rekursif untuk binary expression.
+ * - Menjaga precedence.
+ * - Mengabaikan operator dalam tanda kurung.
+ */
+int parseBinary(Request *req, int start, int end) {
+  if (!req || start >= end)
+    return -1;
+  Token *tokens = req->tokens;
 
-bool hasTokens(Parser *parser) {
-  return parser && parser->tokens && (parser->length < parser->tokens->length);
-}
+  int minPrec = 0x3f3f3f3f;
+  int minIndex = -1;
+  int depth = 0;
 
-// === AST NODE CREATION ===
-
-int saveNode(Node *node, NodeType nodeType, AstNode n) {
-  switch (nodeType) {
-  case NODE_ASSIGN:
-  case NODE_BINARY:
-  case NODE_IDENTIFIER:
-  case NODE_NUMBER:
-    return createAst(node, n);
-  default:
-    return 0;
-  }
-}
-
-int createNumber(Node *node, DataToken *token) {
-  AstNode n = {.type = NODE_NUMBER, .number.value = atoi(token->value)};
-  return saveNode(node, NODE_NUMBER, n);
-}
-
-int createIdentifier(Node *node, DataToken *token) {
-  AstNode n = {.type = NODE_IDENTIFIER,
-               .identifier.name = strdup(token->value)};
-  int index = saveNode(node, NODE_IDENTIFIER, n);
-
-  if (!node->ast[index].identifier.name) {
-    free(&node->ast[index]);
-    return 0;
-  }
-
-  return index;
-}
-
-int createAssignment(Node *node, int left, int right) {
-  AstNode n = {
-      .type = NODE_ASSIGN, .assign.target = left, .assign.value = right};
-  return saveNode(node, NODE_ASSIGN, n);
-}
-
-int createBinary(Node *node, BinaryType type, DataToken *token) {
-  AstNode n = {.type = NODE_BINARY,
-               .binary.type = type,
-               .binary.op = strdup(token->value)};
-  return saveNode(node, NODE_BINARY, n);
-}
-
-// === PARSER ===
-
-// atom → IDENTIFIER | NUMBER
-int parseAtom(Node *node, Parser *parser) {
-  if (!parser)
-    return 0;
-
-  DataToken *token = peek(parser);
-  if (!token)
-    return 0;
-
-  switch (token->type) {
-  case IDENTIFIER:
-    return createIdentifier(node, advance(parser));
-  case NUMBER:
-    return createNumber(node, advance(parser));
-  default:
-    return 0;
-  }
-}
-
-int checkBinary(DataToken *token) {
-  if (!token || (token->type != ASTERISK && token->type != MINUS &&
-                 token->type != PLUS && token->type != SLASH)) {
-    return 1;
-  }
-  return 0;
-}
-
-int parseBinary(Node *node, Parser *parser) {
-  int left = parseAtom(node, parser);
-
-  while (hasTokens(parser)) {
-    if (checkBinary(peek(parser)) != 0)
-      break;
-
-    DataToken *op = advance(parser);
-    int right = parseAtom(node, parser);
-
-    AstNode n = {.type = NODE_BINARY,
-                 .binary.left = left,
-                 .binary.right = right,
-                 .binary.op = strdup(op->value)};
-
-    left = saveNode(node, NODE_BINARY, n);
-  }
-
-  return left;
-}
-
-// expression → IDENTIFIER "=" expression
-//            | atom
-int parseExpression(Node *node, Parser *parser) {
-  int left = parseAtom(node, parser);
-  DataToken *token = peek(parser);
-
-  if (token && token->type == ASSIGN) {
-    advance(parser);
-    int right = parseExpression(node, parser);
-    return createAssignment(node, left, right);
-  }
-
-  parser->length--;
-  return parseBinary(node, parser);
-}
-
-// program → expression*
-Node *parseAllNodes(Parser *parser) {
-  Node *node = createNode(NODE_PROGRAM);
-  while (hasTokens(parser)) {
-    parseExpression(node, parser);
-  }
-  return node;
-}
-
-// === CLEANUP ===
-
-void destroyNode(Node *node) {
-  if (!node)
-    return;
-
-  for (int i = 0; i < node->length; i++) {
-    if (node->ast[i].type == NODE_IDENTIFIER && node->ast[i].identifier.name) {
-      free(node->ast[i].identifier.name);
+  // cari operator top-level (depth == 0)
+  for (int i = start; i < end; i++) {
+    if (match(&tokens->data[i], LPAREN)) {
+      depth++;
+      continue;
     }
+    if (match(&tokens->data[i], RPAREN)) {
+      depth--;
+      continue;
+    }
+    if (depth > 0)
+      continue;
 
-    if (node->ast[i].type == NODE_BINARY && node->ast[i].binary.op) {
-      free(node->ast[i].binary.op);
+    int prec = getPrecedence(&tokens->data[i]);
+    if (prec >= 0 && prec <= minPrec) {
+      minPrec = prec;
+      minIndex = i;
     }
   }
 
-  free(node->ast);
-  node->capacity = NODE_PROGRAM;
-  node->length = 0;
-  free(node);
+  // tidak ada operator di level atas
+  if (minIndex == -1) {
+    if (match(&tokens->data[start], LPAREN)) {
+      int k = findParen(tokens, start, end);
+      if (k == end - 1) {
+        // kupas kurung luar
+        return parseBinary(req, start + 1, k);
+      }
+    }
+    return parseAtom(req, &tokens->data[start]);
+  }
+
+  // pecah kiri dan kanan
+  int left = parseBinary(req, start, minIndex);
+  int right = parseBinary(req, minIndex + 1, end);
+
+  return createBinary(req->node, &tokens->data[minIndex], left, right);
 }
 
-// === ENTRY POINT ===
+/**
+ * parseExpression: memproses ekspresi kanan assignment.
+ */
+Response parseExpression(Request *req, Response res) {
+  if (req->right.start >= req->right.end)
+    return res;
 
-void parse(Token *tokens) {
-  if (!tokens || tokens->length == 0)
-    return;
+  int start = req->right.start;
+  int end = req->right.end;
 
-  Parser parser = {.length = 0, .tokens = tokens};
-  Node *node = parseAllNodes(&parser);
+  res.rightId = parseBinary(req, start, end);
+  return res;
+}
 
-  if (node->length > 0) {
-    printf("Total: %d\n", node->length);
-    printAst(node);
-    destroyNode(node);
-  }
+/**
+ * parseFactor: memproses faktor kiri assignment (IDENTIFIER).
+ */
+int parseFactor(Request *req, Response res) {
+  if (req->left == -1 || req->right.start >= req->right.end)
+    return -1;
+  Token *tokens = req->tokens;
+  DataToken *t = &tokens->data[req->left];
+  return match(t, IDENTIFIER) ? createId(req->node, t->value) : -1;
+}
+
+/**
+ * parseStatement: memproses 1 statement.
+ * grammar: identifier = expression
+ */
+Response parseStatement(Request *req, Response res) {
+  if (req->left == -1)
+    return parseExpression(req, res);
+  res.leftId = parseFactor(req, res);
+  return parseExpression(req, res);
 }

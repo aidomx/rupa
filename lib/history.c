@@ -3,15 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-void clearAll(ReplState *state, Token *token) {
-  if (!state || !token)
+void clearAll(ReplState *state) {
+  if (!state)
     return;
 
+  clearToken(state->tokens, 10);
+  free(state->tokens->data);
+  free(state->tokens);
   clearState(state);
-  clearToken(token, 10);
   free(state);
-  free(token->data);
-  free(token);
 }
 
 void clearState(ReplState *state) {

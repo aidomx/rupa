@@ -1,6 +1,7 @@
 #include "ctypes.h"
 #include "enum.h"
 #include "limit.h"
+#include "structure.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,6 +28,51 @@ char getBracketType(const char *ptr) {
   return 0;
 }
 
+static const SymbolToken symbol_table[] = {{'+', PLUS},
+                                           {'-', MINUS},
+                                           {'*', ASTERISK},
+                                           {'/', SLASH},
+                                           {'%', PERCENT},
+                                           {'&', AMPERSAND},
+                                           {'|', PIPE},
+                                           {'^', CARET},
+                                           {'~', TILDE},
+                                           {'?', QUESTION_MARK},
+                                           {':', COLON},
+                                           {'.', DOT},
+                                           {',', COMMA},
+                                           {';', SEMICOLON},
+                                           {'@', AT},
+                                           {'$', DOLLAR},
+                                           {'!', EXCLAMATION},
+                                           {'<', LESS_THAN},
+                                           {'>', GREATER_THAN},
+                                           {'=', EQUAL_THAN},
+                                           {'#', HASHTAG},
+                                           {'\\', BACKSLASH},
+                                           {'`', BACKTICK},
+                                           {'"', QUOTE},
+                                           {'\'', SINGLE_QUOTE},
+                                           {'[', BLOCK_LEFT},
+                                           {']', BLOCK_RIGHT},
+                                           {'{', BRACE_LEFT},
+                                           {'}', BRACE_RIGHT},
+                                           {'(', LPAREN},
+                                           {')', RPAREN},
+                                           {'\n', NEWLINE},
+                                           {'\t', TAB},
+                                           {'\r', CARRIAGE_RETURN},
+                                           {'\b', BACKSPACE},
+                                           {'\f', FORM_FEED}};
+
+static TokenType lookup_symbol(char c) {
+  for (size_t i = 0; i < sizeof(symbol_table) / sizeof(symbol_table[0]); i++) {
+    if (symbol_table[i].symbol == c)
+      return symbol_table[i].type;
+  }
+  return UNKNOWN;
+}
+
 TokenType gettype(const char *ptr) {
   if (strcmp(ptr, "true") == 0 || strcmp(ptr, "false") == 0)
     return BOOLEAN;
@@ -39,7 +85,7 @@ TokenType gettype(const char *ptr) {
     return (*end == quote) ? STRING : UNKNOWN;
   }
 
-  else if (isint(*ptr)) {
+  if (isint(*ptr)) {
     const char *p = ptr;
     bool has_digit = false, has_dot = false;
 
@@ -51,13 +97,11 @@ TokenType gettype(const char *ptr) {
     if (isdot(*p)) {
       has_dot = true;
       p++;
-
       bool has_frac = false;
       while (isint(*p)) {
         has_frac = true;
         p++;
       }
-
       if (!has_frac)
         return UNKNOWN;
     }
@@ -65,11 +109,17 @@ TokenType gettype(const char *ptr) {
     return (has_digit && !has_dot) ? NUMBER : FLOAT;
   }
 
-  else if (isstr(*ptr)) {
+  if (isstr(*ptr)) {
     const char *p = ptr + 1;
     while (*p && (isstr(*p) || isint(*p)))
       p++;
     return (*p == '\0') ? IDENTIFIER : UNKNOWN;
+  }
+
+  else {
+    TokenType t = lookup_symbol(*ptr);
+    if (t != UNKNOWN)
+      return t;
   }
 
   return UNKNOWN;
@@ -145,12 +195,12 @@ void trimbracket(char *value, char open, char close) {
 }
 
 void trimspace(char *value) {
-  while (*value != '\0') {
-    if (isspace(*value)) {
-      memmove(&(*value), &(*value) + 1, strlen(value));
-      value++;
-      continue;
-    }
+  int n = strlen(value);
+  if (n >= 2 && isquote(value[0]) && isquote(value[n - 1]))
+    return;
+
+  while (isspace((unsigned char)*value)) {
+    memmove(value, value + 1, strlen(value));
     value++;
   }
 }
