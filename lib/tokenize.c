@@ -301,15 +301,15 @@ Token *tokenize(ReplState *state) {
 
   State newState = {.manage = state, .row = 0};
 
-  for (int i = 0; i < state->length; i++) {
-    if (!state->history[i])
+  for (int i = 0; i < newState.manage->length; i++) {
+    if (!newState.manage->history[i])
       break;
 
-    serialize(state->history[i], newState.input);
+    serialize(newState.manage->history[i], newState.input);
   }
 
   if (!processToken(&newState))
     return NULL;
 
-  return state->tokens;
+  return newState.manage->tokens;
 }
