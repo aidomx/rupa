@@ -11,6 +11,6 @@ char *serialize(const char *str, char buffer[]);
 char *substring(const char *input, int start, int end);
 void trimquote(char *value);
 void trimbracket(char *value, char open, char close);
-void trimspace(char *value);
+char *trimspace(char *value);
 
 #endif

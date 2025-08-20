@@ -194,15 +194,44 @@ void trimbracket(char *value, char open, char close) {
   }
 }
 
-void trimspace(char *value) {
-  int n = strlen(value);
-  if (n >= 2 && isquote(value[0]) && isquote(value[n - 1]))
-    return;
+char *trimspace(char *value) {
+  if (value == NULL || *value == '\0')
+    return value;
 
-  while (isspace((unsigned char)*value)) {
-    memmove(value, value + 1, strlen(value));
-    value++;
+  char *dest = value;
+  char *str = value;
+  int in_quote = 0;
+  char quote_char = '\0';
+
+  while (*str) {
+    if (isquote(*str)) {
+      if (!in_quote) {
+        in_quote = 1;
+        quote_char = *str;
+      }
+
+      else if (in_quote && *str == quote_char) {
+        in_quote = 0;
+      }
+
+      *dest++ = *str++;
+      continue;
+    }
+
+    if (in_quote) {
+      *dest++ = *str++;
+    }
+
+    else {
+      if (!isspace((unsigned char)*str)) {
+        *dest++ = *str;
+      }
+      str++;
+    }
   }
+
+  *dest = '\0';
+  return value;
 }
 
 void trimquote(char *value) {
