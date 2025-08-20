@@ -124,6 +124,7 @@ Node *processGenerate(Request *req) {
       // grammar: identifier = expression
       if (!match(&tokens->data[i - 1], IDENTIFIER))
         break;
+
       req->left = i - 1;
       req->right.start = i + 1;
       req->right.end = lastIndex(tokens, i);

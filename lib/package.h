@@ -108,6 +108,9 @@ Node *createNode(int capacity);
  */
 int createAst(Node *node, AstNode n);
 
+int createBoolean(Node *root, bool value);
+int createFloat(Node *root, char *value);
+
 /**
  * @brief Membuat identifier node (variabel) dalam AST.
  *
@@ -125,6 +128,8 @@ int createId(Node *root, char *name);
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
 int createNumber(Node *root, int value);
+
+int createString(Node *root, char *value);
 
 /**
  * @brief Membuat binary operation node dalam AST.

@@ -4,6 +4,7 @@
 #include "package.h"
 #include "structure.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,10 +15,19 @@
 int parseAtom(Request *req, DataToken *data) {
   if (!data)
     return -1;
+
+  if (match(data, BOOLEAN))
+    return createBoolean(req->node,
+                         strcmp(data->value, "true") == 0 ? true : false);
+  if (match(data, FLOAT))
+    return createFloat(req->node, data->value);
   if (match(data, IDENTIFIER))
     return createId(req->node, data->value);
   if (match(data, NUMBER))
     return createNumber(req->node, atoi(data->value));
+  if (match(data, STRING))
+    return createString(req->node, data->value);
+
   return -1;
 }
 

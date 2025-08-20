@@ -19,6 +19,14 @@ void clearNode(Node *node) {
     if (node->ast[i].type == NODE_BINARY && node->ast[i].binary.op) {
       free(node->ast[i].binary.op);
     }
+
+    if (node->ast[i].type == NODE_FLOAT && node->ast[i].asFloat.lexeme) {
+      free(node->ast[i].asFloat.lexeme);
+    }
+
+    if (node->ast[i].type == NODE_STRING && node->ast[i].string.value) {
+      free(node->ast[i].string.value);
+    }
   }
 
   node->capacity = NODE_PROGRAM;
@@ -66,6 +74,17 @@ int createAst(Node *node, AstNode n) {
 }
 
 /* ====== Node Builders ====== */
+int createBoolean(Node *root, bool value) {
+  AstNode node = {.type = NODE_BOOLEAN, .boolean.value = value};
+  return createAst(root, node);
+}
+
+int createFloat(Node *root, char *value) {
+  AstNode node = {.type = NODE_FLOAT,
+                  .asFloat.value = atof(value),
+                  .asFloat.lexeme = strdup(value)};
+  return createAst(root, node);
+}
 
 /**
  * Membuat node identifier (variabel).
@@ -90,6 +109,11 @@ int createId(Node *root, char *name) {
  */
 int createNumber(Node *root, int value) {
   AstNode node = {.type = NODE_NUMBER, .number.value = value};
+  return createAst(root, node);
+}
+
+int createString(Node *root, char *value) {
+  AstNode node = {.type = NODE_STRING, .string.value = strdup(value)};
   return createAst(root, node);
 }
 

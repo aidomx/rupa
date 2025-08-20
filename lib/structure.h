@@ -33,6 +33,7 @@ typedef struct {
 } AstDouble;
 
 typedef struct {
+  char *lexeme;
   float value;
 } AstFloat;
 
@@ -54,7 +55,7 @@ typedef struct {
 } AstReturn;
 
 typedef struct {
-  char *name;
+  char *value;
 } AstString;
 
 typedef struct {

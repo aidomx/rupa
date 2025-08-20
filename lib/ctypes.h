@@ -41,7 +41,13 @@
    isdot(c) || iscomma(c) || issemicolon(c) || isquote(c) || isbacktick(c) ||  \
    (c) == '\\')
 
-// Semua simbol umum
-#define issymbol(c) (issymallow(c) || issymdenied(c))
+// Semua simbol umum (gabungan semua is* kecuali issymallow dan issymdenied)
+#define issymbol(c)                                                            \
+  (isarray(c) || isassign(c) || isbacktick(c) || isblock(c) || iscomma(c) ||   \
+   isdot(c) || ishash(c) || isminus(c) || ismodules(c) || ismultiply(c) ||     \
+   isparen(c) || isplus(c) || isquote(c) || issemicolon(c) || isslash(c) ||    \
+   isoperator(c))
+
+#define issymvalue(c) (isarray(c) || isblock(c) || isparen(c) || isoperator(c))
 
 #endif

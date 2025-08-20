@@ -87,7 +87,7 @@ void editorRepl(ReplState *state, bool *actived, char buffer[]) {
   if (strcmp(buffer, ".exit") == 0) {
     *actived = false;
   } else {
-    processState(state, buffer);
+    processState(state, trimspace(buffer));
 
     /**
      * Memproses menjadi token jika hanya kondisi

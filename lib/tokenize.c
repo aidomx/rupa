@@ -221,16 +221,14 @@ int handleTokenValue(State *state) {
   char input[MAX_BUFFER_SIZE];
   int length = 0;
 
-  trimspace(ptr);
-
   while (*ptr) {
-    if (issymbol(*ptr)) {
+    if (issymvalue(*ptr)) {
       if (length > 0) {
         input[length] = '\0';
         addToken(tokens, gettype(input), input, line, row);
         length = 0;
       }
-      addDelim(tokens, *ptr, line, row++);
+      addDelim(tokens, *ptr, line, row);
       ptr++;
       row++;
       continue;
@@ -305,7 +303,8 @@ Token *tokenize(ReplState *state) {
     if (!newState.manage->history[i])
       break;
 
-    serialize(newState.manage->history[i], newState.input);
+    snprintf(newState.input, MAX_BUFFER_SIZE, "%s",
+             newState.manage->history[i]);
   }
 
   if (!processToken(&newState))

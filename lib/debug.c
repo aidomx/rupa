@@ -11,6 +11,18 @@ void printIndent(int level) {
     printf("  "); // Gunakan 2 spasi untuk indentasi
 }
 
+void printBoolean(bool value, int level) {
+  printIndent(level);
+  printf("Boolean: %s\n", value == 1 ? "true" : "false");
+}
+
+void printFloat(char *value, int level) {
+  printIndent(level);
+  char *format = "Float: %s\n";
+
+  printf(format, value);
+}
+
 void printId(char *id, int level) {
   printIndent(level);
   printf("Identifier: %s\n", id ? id : "null");
@@ -19,6 +31,11 @@ void printId(char *id, int level) {
 void printNumber(int value, int level) {
   printIndent(level);
   printf("Number: %d\n", value);
+}
+
+void printString(char *value, int level) {
+  printIndent(level);
+  printf("String: %s\n", value);
 }
 
 // Fungsi utama untuk mencetak node AST
@@ -44,8 +61,20 @@ static void printAst(Node *node, int index, int level) {
     printAst(node, n->assign.value, level + 2);
     break;
 
+  case NODE_BOOLEAN:
+    printBoolean(n->boolean.value, level);
+    break;
+
+  case NODE_FLOAT:
+    printFloat(n->asFloat.lexeme, level);
+    break;
+
   case NODE_NUMBER:
     printNumber(n->number.value, level);
+    break;
+
+  case NODE_STRING:
+    printString(n->string.value, level);
     break;
 
   case NODE_IDENTIFIER:
