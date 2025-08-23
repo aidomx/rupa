@@ -1,12 +1,11 @@
-#include "limit.h"
-#include "package.h"
+#include <rupa/package.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-bool readfile(const char *path, char *buffer) {
+bool stream(char *path, char *buffer) {
   const char *entryfile = path;
 
   // action
@@ -36,7 +35,7 @@ bool readfile(const char *path, char *buffer) {
   return true;
 }
 
-char *getConfig(const char *line, const char *key, char *value) {
+char *getSettings(const char *line, const char *key, char *value) {
   if (strstr(line, key) == NULL)
     return NULL;
 
@@ -49,7 +48,7 @@ char *getConfig(const char *line, const char *key, char *value) {
     *end = '\0';
 
   if (strcmp(key, "entry:") == 0) {
-    size_t response = readfile(start, value);
+    size_t response = stream(start, value);
     if (!response)
       return NULL;
 

@@ -1,10 +1,5 @@
-#include "ctypes.h"
-#include "enum.h"
-#include "limit.h"
-#include "package.h"
-#include "structure.h"
-#include "utils.h"
 #include <ctype.h>
+#include <rupa/package.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -8,11 +8,7 @@
  * @author aidomx
  * @github https://github.com/aidomx/rupa.git
  */
-#include "enum.h"
-#include "limit.h"
-#include "package.h"
-#include "structure.h"
-#include "utils.h"
+#include <rupa/package.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>

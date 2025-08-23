@@ -1,8 +1,5 @@
-#include "ctypes.h"
-#include "enum.h"
-#include "package.h"
-#include "structure.h"
 #include <ctype.h>
+#include <rupa/package.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

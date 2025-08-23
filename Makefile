@@ -1,9 +1,18 @@
-# Makefile
 CC = gcc
-CFLAGS = -Wall -I./include
+CFLAGS = -Wall -Wextra -Iinclude
+SRC_DIR = src
+OBJ_DIR = build
+TARGET = rupa
 
-SRC = main.c lib/ast.c lib/config.c lib/debug.c lib/history.c lib/node.c lib/parse.c lib/repl.c lib/tokenize.c lib/utils.c 
-OUT = rupa
+SRC = $(wildcard $(SRC_DIR)/**/*.c $(SRC_DIR)/*.c)
+OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
-all:
-	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
+$(TARGET): $(OBJ)
+	$(CC) $(OBJ) -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -rf $(OBJ_DIR) $(TARGET)

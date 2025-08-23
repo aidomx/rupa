@@ -1,3 +1,7 @@
 *.swp
 *.backup
+.cache
+.clangd
+build
+compile_commands.json
 rupa

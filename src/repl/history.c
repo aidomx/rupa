@@ -1,5 +1,4 @@
-#include "package.h"
-#include "structure.h"
+#include <rupa/package.h>
 #include <stdlib.h>
 #include <string.h>
 
