@@ -76,11 +76,12 @@ typedef enum {
   NODE_IDENTIFIER,
   NODE_LITERAL_ID,
   NODE_NUMBER,
+  NODE_NULLABLE,
   NODE_PARAM,
   NODE_PROGRAM = 10,
   NODE_RETURN,
   NODE_STRING,
-  NODE_UNKNOWN,
+  NODE_UNKNOWN = -1,
   NODE_VARIABLE
 } NodeType;
 
@@ -158,6 +159,7 @@ typedef enum {
   MINUS,       // -
   NEWLINE,     // \n
   NOT_EQUAL,   // !=
+  NULLABLE,    // NULL
   NUMBER,
   PAREN_LEFT,    // (
   PAREN_RIGHT,   // )
@@ -174,7 +176,7 @@ typedef enum {
   STRING,
   TAB,   // \t
   TILDE, // ~
-  UNKNOWN
+  UNKNOWN = -1
 } TokenType;
 
 /**

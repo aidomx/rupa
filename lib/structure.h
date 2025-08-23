@@ -55,6 +55,7 @@ typedef struct {
 } AstReturn;
 
 typedef struct {
+  TokenType type;
   char *value;
 } AstString;
 
@@ -71,6 +72,7 @@ typedef struct {
 
 typedef struct {
   char *value;
+  char *safetyType;
   int line;
   int row;
   TokenType type;

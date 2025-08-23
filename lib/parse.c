@@ -23,10 +23,15 @@ int parseAtom(Request *req, DataToken *data) {
     return createFloat(req->node, data->value);
   if (match(data, IDENTIFIER))
     return createId(req->node, data->value);
+  if (match(data, LITERAL_ID))
+    return createString(req->node, data->value, LITERAL_ID);
   if (match(data, NUMBER))
     return createNumber(req->node, atoi(data->value));
+  if (match(data, NULLABLE))
+    return createString(req->node, data->value, NULLABLE);
+
   if (match(data, STRING))
-    return createString(req->node, data->value);
+    return createString(req->node, data->value, STRING);
 
   return -1;
 }
@@ -105,8 +110,8 @@ int parseFactor(Request *req, Response res) {
   if (req->left == -1 || req->right.start >= req->right.end)
     return -1;
   Token *tokens = req->tokens;
-  DataToken *t = &tokens->data[req->left];
-  return match(t, IDENTIFIER) ? createId(req->node, t->value) : -1;
+  DataToken *data = &tokens->data[req->left];
+  return match(data, IDENTIFIER) ? createId(req->node, data->value) : -1;
 }
 
 /**

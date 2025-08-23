@@ -77,6 +77,10 @@ TokenType gettype(const char *ptr) {
   if (strcmp(ptr, "true") == 0 || strcmp(ptr, "false") == 0)
     return BOOLEAN;
 
+  if (strcmp(ptr, "null") == 0) {
+    return NULLABLE;
+  }
+
   if (isquote(*ptr)) {
     char quote = *ptr;
     const char *end = ptr + 1;

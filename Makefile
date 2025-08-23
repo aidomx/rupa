@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -I./include
 
 SRC = main.c lib/ast.c lib/config.c lib/debug.c lib/history.c lib/node.c lib/parse.c lib/repl.c lib/tokenize.c lib/utils.c 
-OUT = app
+OUT = rupa
 
 all:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUT)

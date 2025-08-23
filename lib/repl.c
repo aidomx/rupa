@@ -28,7 +28,7 @@
  * @param capacity integer untuk capacity token.
  * @return Pointer ke ReplState yang sudah dialokasikan.
  */
-ReplState *createState(int capacity) {
+ReplState *createReplState(int capacity) {
   ReplState *state = malloc(sizeof(ReplState));
   state->tokens = createToken(capacity);
   state->history = NULL;
@@ -109,7 +109,7 @@ void editorRepl(ReplState *state, bool *actived, char buffer[]) {
  * dengan pengguna sampai keluar dari REPL.
  */
 void startRepl() {
-  ReplState *state = createState(10);
+  ReplState *state = createReplState(10);
   bool actived = true;
   char buffer[MAX_BUFFER_SIZE];
 

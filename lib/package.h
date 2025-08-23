@@ -129,7 +129,7 @@ int createId(Node *root, char *name);
  */
 int createNumber(Node *root, int value);
 
-int createString(Node *root, char *value);
+int createString(Node *root, char *value, TokenType type);
 
 /**
  * @brief Membuat binary operation node dalam AST.

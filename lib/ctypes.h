@@ -6,6 +6,7 @@
 #define isassign(c) ((c) == '=')
 #define isbacktick(c) ((c) == '`')
 #define isblock(c) ((c) == '{' || (c) == '}')
+#define iscolon(c) ((c) == ':')
 #define iscomma(c) ((c) == ',')
 #define isdollar(c) ((c) == '$')
 #define isdot(c) ((c) == '.')
@@ -32,14 +33,14 @@
    (c) == '^' || (c) == '~' || (c) == '?')
 
 // Simbol yang diperbolehkan di awal identifier
-#define issymallow(c)                                                          \
-  (isdollar(c) || (c) == '@' || isunderscore(c) || ishash(c))
+#define issymallow(c) (isunderscore(c))
 
 // Simbol yang dilarang di awal identifier
 #define issymdenied(c)                                                         \
-  (isassign(c) || isarray(c) || isblock(c) || isfn(c) || isoperator(c) ||      \
-   isdot(c) || iscomma(c) || issemicolon(c) || isquote(c) || isbacktick(c) ||  \
-   (c) == '\\')
+  (isassign(c) || isarray(c) || isblock(c) || isdollar(c) || ishash(c) ||      \
+   isparen(c) || isoperator(c) || isdot(c) || iscomma(c) || iscolon(c) ||      \
+   issemicolon(c) || isslash(c) || isquote(c) || isbacktick(c) ||              \
+   (c) == '\\' || (c) == '@')
 
 // Semua simbol umum (gabungan semua is* kecuali issymallow dan issymdenied)
 #define issymbol(c)                                                            \

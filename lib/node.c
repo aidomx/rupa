@@ -2,6 +2,7 @@
 #include "enum.h"
 #include "package.h"
 #include "structure.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,10 @@ void clearNode(Node *node) {
     }
 
     if (node->ast[i].type == NODE_STRING && node->ast[i].string.value) {
+      free(node->ast[i].string.value);
+    }
+
+    if (node->ast[i].type == NODE_NULLABLE && node->ast[i].string.value) {
       free(node->ast[i].string.value);
     }
   }
@@ -93,13 +98,19 @@ int createId(Node *root, char *name) {
   if (name == NULL)
     return -1;
 
-  // validasi sederhana: tidak boleh integer literal murni
-  for (int i = 0; name[i]; i++) {
-    if (isint(name[i]) && !isstr(name[i + 1])) {
+  // karakter pertama harus huruf atau underscore
+  if (!(isalpha(name[0]) || name[0] == '_')) {
+    return -1;
+  }
+
+  // sisa karakter boleh huruf/angka/underscore
+  for (int i = 1; name[i]; i++) {
+    if (!(isalnum(name[i]) || name[i] == '_')) {
       return -1;
     }
   }
 
+  // lolos validasi → buat identifier node
   AstNode node = {.type = NODE_IDENTIFIER, .identifier.name = strdup(name)};
   return createAst(root, node);
 }
@@ -112,8 +123,14 @@ int createNumber(Node *root, int value) {
   return createAst(root, node);
 }
 
-int createString(Node *root, char *value) {
-  AstNode node = {.type = NODE_STRING, .string.value = strdup(value)};
+int createString(Node *root, char *value, TokenType type) {
+  AstNode node = {
+      .type = NODE_STRING, .string.type = type, .string.value = strdup(value)};
+
+  if (type == NULLABLE) {
+    node.type = NODE_NULLABLE;
+  }
+
   return createAst(root, node);
 }
 

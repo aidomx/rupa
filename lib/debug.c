@@ -33,9 +33,21 @@ void printNumber(int value, int level) {
   printf("Number: %d\n", value);
 }
 
-void printString(char *value, int level) {
+void printNullable(char *value, int level) {
   printIndent(level);
-  printf("String: %s\n", value);
+  printf("Nullable: %s\n", value);
+}
+
+void printString(AstNode *n, int level) {
+  printIndent(level);
+
+  if (n->string.type == STRING) {
+    printf("String: %s\n", n->string.value);
+  }
+
+  else if (n->string.type == LITERAL_ID) {
+    printf("Literal ID: %s\n", n->string.value);
+  }
 }
 
 // Fungsi utama untuk mencetak node AST
@@ -73,8 +85,12 @@ static void printAst(Node *node, int index, int level) {
     printNumber(n->number.value, level);
     break;
 
+  case NODE_NULLABLE:
+    printNullable(n->string.value, level);
+    break;
+
   case NODE_STRING:
-    printString(n->string.value, level);
+    printString(n, level);
     break;
 
   case NODE_IDENTIFIER:

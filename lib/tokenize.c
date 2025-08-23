@@ -4,6 +4,7 @@
 #include "package.h"
 #include "structure.h"
 #include "utils.h"
+#include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,33 @@ Token *createToken(int capacity) {
   token->length = 0;
 
   return token;
+}
+
+int addNewToken(Token *tokens, DataToken newData) {
+  if (!tokens || tokens->length >= MAX_TOKENS)
+    return 0;
+
+  if (tokens->length >= tokens->capacity) {
+    size_t newCapacity = tokens->capacity * 2;
+    DataToken *data = realloc(tokens->data, sizeof(DataToken) * newCapacity);
+
+    if (!data) {
+      perror("Relocation of data is failed.");
+      return 1;
+    }
+
+    memset(&data[tokens->length], 0,
+           (newCapacity - tokens->capacity) * sizeof(DataToken));
+    tokens->data = data;
+    tokens->capacity = newCapacity;
+  }
+
+  if (newData.line >= 1) {
+    newData.line = newData.line - 1;
+  }
+
+  tokens->data[tokens->length] = newData;
+  return tokens->length++;
 }
 
 int addToken(Token *t, TokenType type, const char *value, int line, int row) {
@@ -48,6 +76,7 @@ int addToken(Token *t, TokenType type, const char *value, int line, int row) {
   data->line = line >= 1 ? line - 1 : line;
   data->row = row;
   data->type = type;
+  data->safetyType = NULL;
 
   return t->length++;
 }
@@ -142,7 +171,13 @@ void clearToken(Token *token, int capacity) {
     return;
 
   for (int i = 0; i < token->length; i++) {
-    free(token->data[i].value);
+    if (token->data[i].value) {
+      free(token->data[i].value);
+    }
+
+    if (token->data[i].safetyType) {
+      free(token->data[i].safetyType);
+    }
     token->data[i].line = 0;
     token->data[i].row = 0;
     token->data[i].type = 0;
@@ -180,33 +215,171 @@ char *getTokenValue(const char *input, int length) {
   return substring(input, length + 1, strlen(input));
 }
 
-int handleTokenId(State *state) {
+int createTokenId(State *state, int length) {
   if (!state)
+    return -1;
+
+  Token *tokens = state->manage->tokens;
+  char *id = substring(state->input, 0, length);
+  int line = state->manage->line;
+
+  DataToken data = {.line = line,
+                    .row = length,
+                    .safetyType = NULL,
+                    .type = IDENTIFIER,
+                    .value = strdup(id)};
+
+  free(id);
+  return addNewToken(tokens, data);
+}
+
+int setInput(State *state, int start, int end) {
+  if (!state || start >= end)
     return -1;
 
   Token *tokens = state->manage->tokens;
   int line = state->manage->line;
 
-  char *id = getTokenId(state->input, state->row);
+  char *input = state->input;
+  char inner[64];
+  int out = 0;
 
-  if (id && !issymdenied(id[0])) {
-    for (int i = 0; id[i]; i++) {
-      if (issymdenied(id[i])) {
-        if (!isarray(id[i])) {
-          printf("\033[1;30mUndefined\033[0m\n");
-        } else {
-          addToken(tokens, IDENTIFIER, id, line, state->row - 1);
-          addDelim(tokens, state->input[state->row], line, state->row);
+  for (int i = start; i < end; i++) {
+    if (!isoperator(input[i])) {
+      inner[out++] = input[i];
+    }
+  }
+
+  if (out > 0) {
+    inner[out] = '\0';
+    DataToken newData = {.line = line,
+                         .row = out,
+                         .safetyType = NULL,
+                         .type = gettype(inner),
+                         .value = strdup(inner)};
+
+    return addNewToken(tokens, newData);
+  }
+
+  return -1;
+}
+
+typedef struct {
+  int left;
+  int right;
+} Array;
+
+int handleTokenId(State *state) {
+  if (!state)
+    return -1;
+
+  Token *tokens = state->manage->tokens;
+  char *tokenId = getTokenId(state->input, state->row);
+  int line = state->manage->line;
+  int row = state->row;
+  char c = state->input[row];
+
+  if (!(isstr(tokenId[0]) || isunderscore(tokenId[0])))
+    return -1;
+
+  int length = strlen(tokenId);
+
+  Array arr = {.left = 0, .right = 0};
+  char *ptr = tokenId;
+
+  for (int i = 0; ptr[i]; i++) {
+    if (ptr[i] == '[') {
+      int depth = 1;
+
+      for (int j = i; j < length; j++) {
+        if (tokenId[j] == '[')
+          depth++;
+        else if (tokenId[j] == ']') {
+          depth--;
+          arr.left = i;
+          arr.right = j;
         }
-      } else {
-        addToken(tokens, IDENTIFIER, id, line, state->row - 1);
-        addDelim(tokens, state->input[state->row], line, state->row);
       }
     }
   }
 
-  free(id);
+  if (arr.left > 0) {
+    if (createTokenId(state, arr.left) == -1) {
+      free(tokenId);
+      return -1;
+    }
+
+    addDelim(tokens, tokenId[arr.left], line, arr.left);
+
+    if (setInput(state, arr.left + 1, arr.right) == -1) {
+      free(tokenId);
+      return -1;
+    }
+
+    addDelim(tokens, tokenId[arr.right], line, arr.right);
+  } else {
+    if (createTokenId(state, length) == -1) {
+      free(tokenId);
+      return -1;
+    }
+  }
+
+  addDelim(tokens, c, line, row);
+  free(tokenId);
   return tokens->length;
+
+  /*Token *tokens = state->manage->tokens;*/
+  /*char c = state->input[state->row];*/
+  /*char *id = getTokenId(state->input, state->row);*/
+  /*int line = state->manage->line;*/
+
+  /*if (!(isstr(id[0]) || isunderscore(id[0]))) {*/
+  /*free(id);*/
+  /*return -1;*/
+  /*}*/
+
+  /*DataToken data = advanceTokenId(id, line);*/
+  /*addNewToken(tokens, data);*/
+  /*addDelim(tokens, c, line, state->row);*/
+
+  /*free(id);*/
+  /*return tokens->length;*/
+
+  /*char c = state->input[state->row];*/
+  /*int line = state->manage->line;*/
+
+  /*char *id = getTokenId(state->input, state->row);*/
+  /*int allowed = id && !issymdenied(id[0]);*/
+
+  /*if (allowed) {*/
+  /*for (int i = 0; id[i]; i++) {*/
+  /*if (issymdenied(id[i])) {*/
+  /*if (!isarray(id[i])) {*/
+  /*printf("\033[1;30mundefined\033[0m\n");*/
+  /*} else if (isalnum(id[i])) {*/
+  /*addToken(tokens, IDENTIFIER, id, line, i);*/
+  /*addDelim(tokens, c, line, state->row);*/
+  /*} else {*/
+  /*addToken(tokens, IDENTIFIER, id, line, i);*/
+  /*addDelim(tokens, c, line, state->row);*/
+  /*}*/
+  /*} else {*/
+  /*if (iscolon(id[i])) {*/
+  /*addNewToken(tokens, safetyTokenId(state, id, i));*/
+  /*} else {*/
+  /*addToken(tokens, IDENTIFIER, id, line, i);*/
+  /*}*/
+  /*addDelim(tokens, c, line, state->row);*/
+  /*}*/
+  /*}*/
+  /*} else {*/
+  /*fprintf(stderr,*/
+  /*"\033[1;30mSymbol '%c' is not allowed for identifier!\033[0m\n",*/
+  /*id[0]);*/
+  /*}*/
+
+  /*free(id);*/
+  // return tokens->length;
 }
 
 int handleTokenValue(State *state) {
@@ -262,11 +435,11 @@ int createVar(State *state) {
   if (!state)
     return -1;
 
-  if (handleTokenId(state)) {
-    return handleTokenValue(state);
-  }
+  int tokenId = handleTokenId(state);
+  if (tokenId == -1)
+    return -1;
 
-  return -1;
+  return handleTokenValue(state);
 }
 
 int processToken(State *state) {
