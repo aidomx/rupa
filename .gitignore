@@ -4,3 +4,5 @@
 .clangd
 build
 compile_commands.json
+!/include/rupa
+rupa
