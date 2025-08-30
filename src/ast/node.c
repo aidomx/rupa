@@ -22,6 +22,10 @@ void clearNode(Node *node) {
       free(node->ast[i].asFloat.lexeme);
     }
 
+    if (node->ast[i].type == NODE_LITERAL_ID && node->ast[i].string.value) {
+      free(node->ast[i].string.value);
+    }
+
     if (node->ast[i].type == NODE_STRING && node->ast[i].string.value) {
       free(node->ast[i].string.value);
     }
@@ -120,13 +124,10 @@ int createNumber(Node *root, int value) {
   return createAst(root, node);
 }
 
-int createString(Node *root, char *value, TokenType type) {
-  AstNode node = {
-      .type = NODE_STRING, .string.type = type, .string.value = strdup(value)};
-
-  if (type == NULLABLE) {
-    node.type = NODE_NULLABLE;
-  }
+int createString(Node *root, char *value, NodeType nodeType) {
+  AstNode node = {.type = nodeType,
+                  .string.type = gettype(value),
+                  .string.value = strdup(value)};
 
   return createAst(root, node);
 }

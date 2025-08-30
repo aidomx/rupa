@@ -89,7 +89,7 @@ int addDelim(Token *t, char c, int line, int row) {
   case '-':
     return addToken(t, MINUS, del, line, row);
   case '*':
-    return addToken(t, ASTERISK, del, line, row);
+    return addToken(t, STAR, del, line, row);
   case '/':
     return addToken(t, SLASH, del, line, row);
   case '%':
@@ -135,13 +135,13 @@ int addDelim(Token *t, char c, int line, int row) {
   case '\'':
     return addToken(t, SINGLE_QUOTE, del, line, row);
   case '[':
-    return addToken(t, BLOCK_LEFT, del, line, row);
+    return addToken(t, LBLOCK, del, line, row);
   case ']':
-    return addToken(t, BLOCK_RIGHT, del, line, row);
+    return addToken(t, RBLOCK, del, line, row);
   case '{':
-    return addToken(t, BRACE_LEFT, del, line, row);
+    return addToken(t, LBRACE, del, line, row);
   case '}':
-    return addToken(t, BRACE_RIGHT, del, line, row);
+    return addToken(t, RBRACE, del, line, row);
   case '(':
     return addToken(t, LPAREN, del, line, row);
   case ')':
@@ -298,27 +298,25 @@ int handleTokenId(State *state) {
     }
   }
 
-  if (arr.left > 0) {
-    if (createTokenId(state, arr.left) == -1) {
-      free(tokenId);
-      return -1;
-    }
-
-    addDelim(tokens, tokenId[arr.left], line, arr.left);
-
-    if (setInput(state, arr.left + 1, arr.right) == -1) {
-      free(tokenId);
-      return -1;
-    }
-
-    addDelim(tokens, tokenId[arr.right], line, arr.right);
-  } else {
+  if (arr.left == 0) {
     if (createTokenId(state, length) == -1) {
       free(tokenId);
       return -1;
     }
+
+    addDelim(tokens, c, line, row);
+    free(tokenId);
+    return tokens->length;
   }
 
+  if (createTokenId(state, arr.left) == -1) {
+    free(tokenId);
+    return -1;
+  }
+
+  addDelim(tokens, tokenId[arr.left], line, arr.left);
+  setInput(state, arr.left + 1, arr.right);
+  addDelim(tokens, tokenId[arr.right], line, arr.right);
   addDelim(tokens, c, line, row);
   free(tokenId);
   return tokens->length;
@@ -389,41 +387,31 @@ int handleTokenValue(State *state) {
   char input[MAX_BUFFER_SIZE];
   int length = 0;
 
-  while (*ptr) {
-    if (issymvalue(*ptr)) {
+  for (int i = 0; ptr[i]; i++) {
+    if (issymvalue(ptr[i])) {
       if (length > 0) {
         input[length] = '\0';
-        addToken(tokens, gettype(input), input, line, row);
+        addToken(tokens, gettype(input), input, line, i);
         length = 0;
       }
-      addDelim(tokens, *ptr, line, row);
-      ptr++;
-      row++;
+      addDelim(tokens, ptr[i], line, i);
       continue;
     }
 
-    input[length++] = *ptr;
-    ptr++;
-    row++;
+    input[length++] = ptr[i];
   }
 
-  if (length > 0) {
-    input[length] = '\0';
-    TokenType type = gettype(input);
+  input[length] = '\0';
+  TokenType type = gettype(input);
 
-    switch (type) {
-    case IDENTIFIER:
-      addToken(tokens, LITERAL_ID, input, line, row);
-      break;
-
-    default:
-      addToken(tokens, type, input, line, row);
-      break;
-    }
-  }
+  DataToken newData = {.line = line,
+                       .row = length,
+                       .safetyType = NULL,
+                       .type = type == IDENTIFIER ? LITERAL_ID : type,
+                       .value = strdup(input)};
 
   free(value);
-  return tokens->length;
+  return addNewToken(tokens, newData);
 }
 
 int createVar(State *state) {

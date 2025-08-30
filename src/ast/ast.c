@@ -116,26 +116,12 @@ Node *processGenerate(Request *req) {
 
   for (int i = 0; i < tokens->length; i++) {
     if (match(&tokens->data[i], ASSIGN)) {
-      int pos = i;
-
-      while (pos >= 0) {
-        if (!match(&tokens->data[pos], IDENTIFIER)) {
-          pos--;
-          continue;
-        }
-
-        if (pos == 0)
-          break;
-        else
-          pos--;
+      // grammar: identifier = expression
+      if (!match(&tokens->data[i - 1], IDENTIFIER)) {
+        break;
       }
 
-      // grammar: identifier = expression
-      /*if (!match(&tokens->data[pos], IDENTIFIER)) {*/
-      /*break;*/
-      /*}*/
-
-      req->left = pos;
+      req->left = i - 1;
       req->right.start = i + 1;
       req->right.end = lastIndex(tokens, i);
 

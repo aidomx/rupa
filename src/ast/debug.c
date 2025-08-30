@@ -40,11 +40,11 @@ void printNullable(char *value, int level) {
 void printString(AstNode *n, int level) {
   printIndent(level);
 
-  if (n->string.type == STRING) {
+  if (n->type == NODE_STRING) {
     printf("String: %s\n", n->string.value);
   }
 
-  else if (n->string.type == LITERAL_ID) {
+  else if (n->type == NODE_LITERAL_ID) {
     printf("Literal ID: %s\n", n->string.value);
   }
 }
@@ -105,6 +105,10 @@ static void printAst(Node *node, int index, int level) {
     printIndent(level + 1);
     printf("Right:\n");
     printAst(node, n->binary.right, level + 2);
+    break;
+
+  case NODE_LITERAL_ID:
+    printString(n, level);
     break;
 
   default:
