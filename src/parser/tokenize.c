@@ -39,14 +39,12 @@ int addNewToken(Token *tokens, DataToken newData) {
     tokens->capacity = newCapacity;
   }
 
-  if (newData.line >= 1) {
-    newData.line = newData.line - 1;
-  }
-
+  newData.line = newData.line >= 1 ? newData.line - 1 : newData.line;
   tokens->data[tokens->length] = newData;
   return tokens->length++;
 }
 
+// @deprecated
 int addToken(Token *t, TokenType type, const char *value, int line, int row) {
   if (!t || t->length >= MAX_TOKENS)
     return 0;
@@ -320,59 +318,6 @@ int handleTokenId(State *state) {
   addDelim(tokens, c, line, row);
   free(tokenId);
   return tokens->length;
-
-  /*Token *tokens = state->manage->tokens;*/
-  /*char c = state->input[state->row];*/
-  /*char *id = getTokenId(state->input, state->row);*/
-  /*int line = state->manage->line;*/
-
-  /*if (!(isstr(id[0]) || isunderscore(id[0]))) {*/
-  /*free(id);*/
-  /*return -1;*/
-  /*}*/
-
-  /*DataToken data = advanceTokenId(id, line);*/
-  /*addNewToken(tokens, data);*/
-  /*addDelim(tokens, c, line, state->row);*/
-
-  /*free(id);*/
-  /*return tokens->length;*/
-
-  /*char c = state->input[state->row];*/
-  /*int line = state->manage->line;*/
-
-  /*char *id = getTokenId(state->input, state->row);*/
-  /*int allowed = id && !issymdenied(id[0]);*/
-
-  /*if (allowed) {*/
-  /*for (int i = 0; id[i]; i++) {*/
-  /*if (issymdenied(id[i])) {*/
-  /*if (!isarray(id[i])) {*/
-  /*printf("\033[1;30mundefined\033[0m\n");*/
-  /*} else if (isalnum(id[i])) {*/
-  /*addToken(tokens, IDENTIFIER, id, line, i);*/
-  /*addDelim(tokens, c, line, state->row);*/
-  /*} else {*/
-  /*addToken(tokens, IDENTIFIER, id, line, i);*/
-  /*addDelim(tokens, c, line, state->row);*/
-  /*}*/
-  /*} else {*/
-  /*if (iscolon(id[i])) {*/
-  /*addNewToken(tokens, safetyTokenId(state, id, i));*/
-  /*} else {*/
-  /*addToken(tokens, IDENTIFIER, id, line, i);*/
-  /*}*/
-  /*addDelim(tokens, c, line, state->row);*/
-  /*}*/
-  /*}*/
-  /*} else {*/
-  /*fprintf(stderr,*/
-  /*"\033[1;30mSymbol '%c' is not allowed for identifier!\033[0m\n",*/
-  /*id[0]);*/
-  /*}*/
-
-  /*free(id);*/
-  // return tokens->length;
 }
 
 int handleTokenValue(State *state) {
@@ -443,7 +388,13 @@ int processToken(State *state) {
   }
 
   if (!hasAssign) {
-    return addToken(tokens, gettype(input), input, line, row);
+    DataToken newData = {.line = line,
+                         .row = row,
+                         .safetyType = NULL,
+                         .type = gettype(input),
+                         .value = strdup(input)};
+
+    return addNewToken(tokens, newData);
   }
 
   return createVar(state);
@@ -463,7 +414,8 @@ Token *tokenize(ReplState *state) {
              newState.manage->history[i]);
   }
 
-  if (!processToken(&newState))
+  int process = processToken(&newState);
+  if (process == -1)
     return NULL;
 
   return newState.manage->tokens;

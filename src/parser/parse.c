@@ -1,3 +1,6 @@
+#include "rupa/enum.h"
+#include "rupa/structure.h"
+#include "rupa/utils.h"
 #include <rupa/package.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,13 +14,31 @@ int parseAtom(Request *req, DataToken *data) {
   if (!data)
     return -1;
 
+  Token *t = req->tokens;
+  int pos = (int)(data - t->data);
+
   if (match(data, BOOLEAN))
     return createBoolean(req->node,
                          strcmp(data->value, "true") == 0 ? true : false);
   if (match(data, FLOAT))
     return createFloat(req->node, data->value);
-  if (match(data, IDENTIFIER))
-    return createId(req->node, data->value);
+  if (match(data, IDENTIFIER)) {
+    int baseId = createId(req->node, data->value);
+
+    // Periksa jika identifier diikuti oleh LBLOCK (array access)
+    if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
+      int rblock_pos = findArr(t, pos + 1);
+      if (rblock_pos != -1) {
+        if (rblock_pos == pos + 2) { // Empty brackets []
+          return createSubscript(req->node, baseId, -1);
+        } else {
+          int index = parseBinary(req, pos + 2, rblock_pos);
+          return createSubscript(req->node, baseId, index);
+        }
+      }
+    }
+    return baseId;
+  }
   if (match(data, LITERAL_ID))
     return createString(req->node, data->value, NODE_LITERAL_ID);
   if (match(data, NUMBER))
@@ -44,13 +65,28 @@ int parseBinary(Request *req, int start, int end) {
   int minIndex = -1;
   int depth = 0;
 
+  // Skip whitespace at beginning
+  while (start < end && (match(&tokens->data[start], NEWLINE) ||
+                         match(&tokens->data[start], TAB))) {
+    start++;
+  }
+
+  // Skip whitespace at end
+  while (end > start && (match(&tokens->data[end - 1], NEWLINE) ||
+                         match(&tokens->data[end - 1], TAB))) {
+    end--;
+  }
+
+  if (start >= end)
+    return -1; // Empty after trimming
+
   // cari operator top-level (depth == 0)
   for (int i = start; i < end; i++) {
-    if (match(&tokens->data[i], LPAREN)) {
+    if (match(&tokens->data[i], LPAREN) || match(&tokens->data[i], LBLOCK)) {
       depth++;
       continue;
     }
-    if (match(&tokens->data[i], RPAREN)) {
+    if (match(&tokens->data[i], RPAREN) || match(&tokens->data[i], RBLOCK)) {
       depth--;
       continue;
     }
@@ -73,6 +109,13 @@ int parseBinary(Request *req, int start, int end) {
         return parseBinary(req, start + 1, k);
       }
     }
+
+    /*if (match(&tokens->data[start], LBLOCK)) {*/
+    /*int k = findArr(tokens, start + 1);*/
+    /*if (k == end - 1) {*/
+    /*return parseBinary(req, start + 1, k);*/
+    /*}*/
+    /*}*/
     return parseAtom(req, &tokens->data[start]);
   }
 
@@ -93,6 +136,16 @@ Response parseExpression(Request *req, Response res) {
   int start = req->right.start;
   int end = req->right.end;
 
+  // Handle expressions in parentheses
+  if (match(&req->tokens->data[start], LPAREN)) {
+    int rparen_pos = findParen(req->tokens, start, end);
+    if (rparen_pos != -1) {
+      // Parse the expression inside parentheses
+      res.rightId = parseBinary(req, start + 1, rparen_pos);
+      return res;
+    }
+  }
+
   res.rightId = parseBinary(req, start, end);
   return res;
 }
@@ -103,10 +156,36 @@ Response parseExpression(Request *req, Response res) {
 int parseFactor(Request *req, Response res) {
   if (req->left == -1 || req->right.start >= req->right.end)
     return -1;
-  Token *tokens = req->tokens;
-  DataToken *data = &tokens->data[req->left];
-  return match(data, IDENTIFIER) ? createId(req->node, data->value)
-                                 : res.leftId;
+
+  Token *t = req->tokens;
+  int pos = req->left;
+  DataToken *data = &t->data[pos];
+  int baseId = res.leftId;
+
+  if (match(data, IDENTIFIER)) {
+    baseId = createId(req->node, data->value);
+
+    // Periksa jika ada subscript (array access)
+    if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
+      int rblock_pos = findArr(t, pos + 1);
+
+      if (rblock_pos != -1) {
+        // Periksa jika bracket kosong (seperti x[])
+        if (rblock_pos == pos + 2) { // LBLOCK di pos+1, RBLOCK di pos+2
+          baseId = createSubscript(req->node, baseId, -1); // Empty subscript
+        } else {
+          // Ada ekspresi di dalam bracket
+          int bin = parseBinary(req, pos + 2, rblock_pos);
+          baseId = createSubscript(req->node, baseId, bin);
+        }
+      }
+    }
+
+    return baseId;
+  }
+
+  // Handle other cases if needed
+  return baseId;
 }
 
 /**

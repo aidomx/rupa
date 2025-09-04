@@ -28,6 +28,13 @@ typedef struct {
   bool value;
 } AstBoolean;
 
+typedef struct AstDeclaration AstDeclaration;
+
+struct AstDeclaration {
+  int nodeId;
+  AstDeclaration *next;
+};
+
 typedef struct {
   double value;
 } AstDouble;
@@ -46,18 +53,22 @@ typedef struct {
 } AstNumber;
 
 typedef struct {
-  struct AstNode *declarations;
-  struct AstNode *next;
+  AstDeclaration *declarations;
 } AstProgram;
 
 typedef struct {
-  struct AstNode *expression;
+  int expression;
 } AstReturn;
 
 typedef struct {
   TokenType type;
   char *value;
 } AstString;
+
+typedef struct {
+  int posId;
+  int index;
+} AstSubscript;
 
 typedef struct {
   VariableType type;
@@ -147,6 +158,7 @@ typedef struct AstNode {
     AstProgram program;
     AstReturn asReturn;
     AstString string;
+    AstSubscript subscript;
     AstVariable variable;
     DataToken *token;
   };
@@ -197,6 +209,7 @@ typedef struct {
   Token *tokens;
   int left;
   Position right;
+  int programId;
 } Request;
 
 /**

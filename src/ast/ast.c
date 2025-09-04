@@ -4,130 +4,60 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ====== Utility untuk token ====== */
-
-/**
- * match: cek apakah token sesuai dengan tipe T.
- */
-bool match(DataToken *data, TokenType T) {
-  return data && data->type == T ? true : false;
-}
-
 /**
  * Membuat request parser baru dari token.
  */
 Request createRequest(Token *tokens, int capacity) {
-  Request req = {0};
-  req.tokens = tokens;
-  req.node = createNode(capacity);
-  req.left = -1; // belum ada target assignment
+  Request req = {.tokens = tokens,
+                 .node = createNode(capacity),
+                 .left = -1,
+                 .right.start = -1,
+                 .right.end = -1,
+                 .programId = createProgram(req.node)};
+
   return req;
-}
-
-/* ====== Operator Helpers ====== */
-
-/**
- * Mengubah token operator menjadi enum BinaryType internal.
- */
-BinaryType getBinaryType(DataToken *token) {
-  if (!token)
-    return BINARY_NONE;
-  switch (token->type) {
-  case ASSIGN:
-    return BINARY_ASSIGN;
-  case ASTERISK:
-    return BINARY_MULTIPLY;
-  case MINUS:
-    return BINARY_SUBTRACT;
-  case PLUS:
-    return BINARY_ADD;
-  case SLASH:
-    return BINARY_DIVIDE;
-  default:
-    return BINARY_NONE;
-  }
-}
-
-/**
- * Mendapatkan precedence operator.
- * Angka lebih tinggi = precedence lebih kuat.
- */
-int getPrecedence(DataToken *token) {
-  if (!token)
-    return -1;
-  switch (token->type) {
-  case ASTERISK:
-  case SLASH:
-    return 3;
-  case MINUS:
-  case PLUS:
-    return 2;
-  case ASSIGN:
-    return 1;
-  default:
-    return -1;
-  }
-}
-
-/* ====== Helpers Parsing ====== */
-
-/**
- * Mengambil index terakhir token dalam 1 baris.
- */
-int lastIndex(Token *token, int start) {
-  if (!token)
-    return start;
-  int currentLine = token->data[start].line;
-  while (start < token->length && token->data[start].line == currentLine) {
-    start++;
-  }
-  return start;
-}
-
-/**
- * findParen: mencari kurung penutup yang cocok.
- */
-int findParen(Token *tokens, int start, int end) {
-  if (!tokens || start >= end)
-    return -1;
-
-  int depth = 1;
-  for (int i = start + 1; i < end; i++) {
-    if (match(&tokens->data[i], LPAREN))
-      depth++;
-    else if (match(&tokens->data[i], RPAREN)) {
-      depth--;
-      if (depth == 0)
-        return i;
-    }
-  }
-  return -1;
 }
 
 /**
  * processGenerate: loop utama yang membangun AST dari token.
  */
 Node *processGenerate(Request *req) {
-  if (!req)
+  if (!req || !req->tokens)
     return NULL;
 
-  Response res = {0};
-  Token *tokens = req->tokens;
+  Token *t = req->tokens;
+  int pos = 0;
 
-  for (int i = 0; i < tokens->length; i++) {
-    if (match(&tokens->data[i], ASSIGN)) {
-      // grammar: identifier = expression
-      if (!match(&tokens->data[i - 1], IDENTIFIER)) {
-        break;
-      }
-
-      req->left = i - 1;
-      req->right.start = i + 1;
-      req->right.end = lastIndex(tokens, i);
-
-      res = parseStatement(req, res);
-      createAssignment(req->node, res.leftId, res.rightId);
+  // Skip whitespace tokens at the beginning
+  while (pos < t->length && !isToken(t, pos, ENDOF)) {
+    if (isToken(t, pos, NEWLINE) || isToken(t, pos, TAB)) {
+      pos++;
+      continue;
     }
+    break;
+  }
+
+  // Process tokens to build AST
+  int i = pos;
+  while (i < t->length && !isToken(t, i, ENDOF)) {
+    Response res = generateHandler(req, t, i);
+
+    if (res.nodeId >= 0) {
+      int end = lastIndex(t, i);
+      if (end > i) {
+        i = end;
+        continue;
+      }
+    }
+
+    // If we couldn't process this token, skip it or handle error
+    if (isToken(t, i, NEWLINE) || isToken(t, i, TAB)) {
+      i++;
+      continue;
+    }
+
+    // Unknown token, skip and continue
+    i++;
   }
 
   return req->node;

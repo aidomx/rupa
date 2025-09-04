@@ -1,3 +1,4 @@
+#include "rupa/structure.h"
 #include <rupa/package.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -56,6 +57,22 @@ static void printAst(Node *node, int index, int level) {
 
   AstNode *n = &node->ast[index];
   switch (n->type) {
+  case NODE_PROGRAM:
+    printIndent(level);
+    printf("Program:\n");
+    AstDeclaration *current = n->program.declarations;
+    while (current != NULL) {
+      printAst(node, current->nodeId, level + 1);
+      current = current->next;
+    }
+    break;
+
+  case NODE_RETURN:
+    printIndent(level);
+    printf("Return:\n");
+    printAst(node, n->asReturn.expression, level + 1);
+    break;
+
   case NODE_ASSIGN:
     printIndent(level);
     printf("Assignment:\n");
@@ -65,6 +82,8 @@ static void printAst(Node *node, int index, int level) {
       AstNode *target = &node->ast[n->assign.target];
       if (target->type == NODE_IDENTIFIER) {
         printId(target->identifier.name, level + 2);
+      } else if (target->type == NODE_SUBSCRIPT) {
+        printAst(node, n->assign.target, level + 2);
       }
     }
     printIndent(level + 1);
@@ -90,6 +109,26 @@ static void printAst(Node *node, int index, int level) {
 
   case NODE_STRING:
     printString(n, level);
+    break;
+
+  case NODE_SUBSCRIPT:
+    printIndent(level);
+    printf("Subscript:\n");
+
+    // cetak identifier dasar
+    printIndent(level + 1);
+    printf("Base:\n");
+    printAst(node, n->subscript.posId, level + 2);
+
+    // cetak index ekspresi (jika ada)
+    printIndent(level + 1);
+    printf("Index:\n");
+    if (n->subscript.index >= 0 && n->subscript.index < node->length) {
+      printAst(node, n->subscript.index, level + 2);
+    } else {
+      printIndent(level + 2);
+      printf("(empty)\n");
+    }
     break;
 
   case NODE_IDENTIFIER:
@@ -125,9 +164,16 @@ void startDebug(Node *node) {
 
   printf("--- Struktur AST Node ---\n");
 
-  // Loop melalui semua node, namun hanya cetak node yang tidak memiliki orang
-  // tua. Ini biasanya merupakan node akar (root node) dari setiap ekspresi atau
-  // assignment.
+  // ✅ Cari program node (biasanya node pertama)
+  for (int i = 0; i < node->length; i++) {
+    if (node->ast[i].type == NODE_PROGRAM) {
+      printAst(node, i, 0);
+      printf("--- ENDOF ---\n");
+      return;
+    }
+  }
+
+  // Fallback: jika tidak ada program node, print semua root nodes
   for (int i = 0; i < node->length; i++) {
     bool isRoot = true;
     for (int j = 0; j < node->length; j++) {
@@ -135,7 +181,10 @@ void startDebug(Node *node) {
       if ((n->type == NODE_ASSIGN &&
            (n->assign.target == i || n->assign.value == i)) ||
           (n->type == NODE_BINARY &&
-           (n->binary.left == i || n->binary.right == i))) {
+           (n->binary.left == i || n->binary.right == i)) ||
+          (n->type == NODE_SUBSCRIPT &&
+           (n->subscript.posId == i || n->subscript.index == i)) ||
+          (n->type == NODE_RETURN && n->asReturn.expression == i)) {
         isRoot = false;
         break;
       }

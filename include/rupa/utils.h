@@ -1,9 +1,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "enum.h"
+#include "rupa/structure.h"
 
 void clearScreen();
+int findArr(Token *tokens, int pos);
 char getBracketType(const char *ptr);
 TokenType gettype(const char *ptr);
 // void replace(const char *str, const char *key, const char *value);

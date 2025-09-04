@@ -1,3 +1,5 @@
+#include "rupa/enum.h"
+#include "rupa/structure.h"
 #include <ctype.h>
 #include <rupa/package.h>
 #include <stdio.h>
@@ -10,33 +12,35 @@ void clearNode(Node *node) {
     return;
 
   for (int i = 0; i < node->length; i++) {
-    if (node->ast[i].type == NODE_IDENTIFIER && node->ast[i].identifier.name) {
+    switch (node->ast[i].type) {
+    case NODE_IDENTIFIER:
       free(node->ast[i].identifier.name);
-    }
-
-    if (node->ast[i].type == NODE_BINARY && node->ast[i].binary.op) {
+      break;
+    case NODE_BINARY:
       free(node->ast[i].binary.op);
-    }
-
-    if (node->ast[i].type == NODE_FLOAT && node->ast[i].asFloat.lexeme) {
+      break;
+    case NODE_FLOAT:
       free(node->ast[i].asFloat.lexeme);
-    }
-
-    if (node->ast[i].type == NODE_LITERAL_ID && node->ast[i].string.value) {
+      break;
+    case NODE_STRING:
+    case NODE_LITERAL_ID:
+    case NODE_NULLABLE:
       free(node->ast[i].string.value);
-    }
+      break;
+    case NODE_PROGRAM:
+      // Free linked list declarations
+      while (node->ast[i].program.declarations != NULL) {
 
-    if (node->ast[i].type == NODE_STRING && node->ast[i].string.value) {
-      free(node->ast[i].string.value);
-    }
-
-    if (node->ast[i].type == NODE_NULLABLE && node->ast[i].string.value) {
-      free(node->ast[i].string.value);
+        AstDeclaration *next = node->ast[i].program.declarations->next;
+        free(node->ast[i].program.declarations);
+        node->ast[i].program.declarations = next;
+      }
+      break;
+    default:
+      break;
     }
   }
 
-  node->capacity = NODE_PROGRAM;
-  node->length = 0;
   free(node->ast);
   free(node);
 }
@@ -124,6 +128,22 @@ int createNumber(Node *root, int value) {
   return createAst(root, node);
 }
 
+/**
+ * Membuat program node (root node)
+ */
+int createProgram(Node *root) {
+  AstNode node = {.type = NODE_PROGRAM, .program.declarations = NULL};
+  return createAst(root, node);
+}
+
+/**
+ * Membuat return statement untuk REPL expressions
+ */
+int createReturn(Node *root, int expression_id) {
+  AstNode node = {.type = NODE_RETURN, .asReturn.expression = expression_id};
+  return createAst(root, node);
+}
+
 int createString(Node *root, char *value, NodeType nodeType) {
   AstNode node = {.type = nodeType,
                   .string.type = gettype(value),
@@ -149,6 +169,14 @@ int createBinary(Node *root, DataToken *opToken, int leftId, int rightId) {
       .binary.op = op,
       .binary.type = binType,
   };
+
+  return createAst(root, node);
+}
+
+int createSubscript(Node *root, int posId, int index) {
+  AstNode node = {.type = NODE_SUBSCRIPT,
+                  .subscript.posId = posId,
+                  .subscript.index = index};
 
   return createAst(root, node);
 }

@@ -1,3 +1,4 @@
+#include "rupa/enum.h"
 #include <ctype.h>
 #include <rupa/package.h>
 #include <stdbool.h>
@@ -11,6 +12,46 @@ void clearScreen() {
 #else
   system("clear");
 #endif
+}
+
+int findArr(Token *tokens, int pos) {
+  if (!tokens || pos < 0 || pos >= tokens->length)
+    return -1;
+
+  // Jika posisi saat ini adalah LBLOCK, cari RBLOCK yang sesuai
+  if (match(&tokens->data[pos], LBLOCK)) {
+    int depth = 1;
+
+    for (int i = pos + 1; i < tokens->length; i++) {
+      if (match(&tokens->data[i], LBLOCK)) {
+        depth++;
+      } else if (match(&tokens->data[i], RBLOCK)) {
+        depth--;
+        if (depth == 0) {
+          return i; // Mengembalikan posisi RBLOCK yang sesuai
+        }
+      }
+    }
+    return -1; // Tidak ditemukan RBLOCK yang sesuai
+  }
+  // Jika posisi saat ini adalah RBLOCK, cari LBLOCK yang sesuai
+  else if (match(&tokens->data[pos], RBLOCK)) {
+    int depth = 1;
+
+    for (int i = pos - 1; i >= 0; i--) {
+      if (match(&tokens->data[i], RBLOCK)) {
+        depth++;
+      } else if (match(&tokens->data[i], LBLOCK)) {
+        depth--;
+        if (depth == 0) {
+          return i; // Mengembalikan posisi LBLOCK yang sesuai
+        }
+      }
+    }
+    return -1; // Tidak ditemukan LBLOCK yang sesuai
+  }
+
+  return -1; // Bukan LBLOCK atau RBLOCK
 }
 
 char getBracketType(const char *ptr) {

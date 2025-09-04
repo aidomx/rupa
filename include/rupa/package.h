@@ -1,10 +1,15 @@
 #ifndef RUPA_PACKAGE_H
 #define RUPA_PACKAGE_H
 
+#include "rupa/assignment.h"
+#include "rupa/ast.h"
 #include "rupa/ctypes.h"
 #include "rupa/enum.h"
+#include "rupa/expression.h"
 #include "rupa/limit.h"
+#include "rupa/operator.h"
 #include "rupa/structure.h"
+#include "rupa/token.h"
 #include "rupa/utils.h"
 
 #include <stdbool.h>
@@ -133,7 +138,11 @@ int createId(Node *root, char *name);
  */
 int createNumber(Node *root, int value);
 
+int createProgram(Node *root);
+int createReturn(Node *root, int expression_id);
 int createString(Node *root, char *value, NodeType nodeType);
+
+int createSubscript(Node *root, int posId, int index);
 
 /**
  * @brief Membuat binary operation node dalam AST.
@@ -217,41 +226,6 @@ void console(ReplState *state, bool *actived, char buffer[], int line);
  * @return Struktur Request yang terinisialisasi.
  */
 Request createRequest(Token *tokens, int capacity);
-
-/**
- * findParen: mencari kurung penutup yang cocok.
- */
-int findParen(Token *tokens, int start, int end);
-
-/**
- * @brief Mendapatkan tipe operator biner dari token.
- *
- * @param token Pointer ke DataToken operator.
- * @return Enum BinaryType.
- */
-BinaryType getBinaryType(DataToken *token);
-
-/**
- * @brief Mendapatkan precedence operator.
- *
- * @param token Pointer ke DataToken operator.
- * @return Integer precedence (lebih tinggi = lebih kuat).
- */
-int getPrecedence(DataToken *token);
-
-/**
- * @brief Mengambil indeks terakhir dari token dalam 1 baris.
- *
- * @param token Pointer ke Token.
- * @param start Index awal.
- * @return Index akhir baris.
- */
-int lastIndex(Token *token, int start);
-
-/**
- * match: cek apakah token sesuai dengan tipe T.
- */
-bool match(DataToken *data, TokenType T);
 
 /**
  * @brief Mem-parse sebuah atom (IDENTIFIER atau NUMBER).
@@ -361,6 +335,8 @@ void lexer(char *str, Token *t);
  * @param token Struktur token.
  */
 void parse(Token *token);
+
+int parseBinary(Request *req, int start, int end);
 
 /**
  * @brief Membaca isi file dan menyimpannya ke buffer.
