@@ -1,18 +1,71 @@
 #ifndef RUPA_PACKAGE_H
 #define RUPA_PACKAGE_H
 
-#include "rupa/assignment.h"
-#include "rupa/ast.h"
-#include "rupa/ctypes.h"
-#include "rupa/enum.h"
-#include "rupa/expression.h"
-#include "rupa/limit.h"
-#include "rupa/operator.h"
-#include "rupa/structure.h"
-#include "rupa/token.h"
-#include "rupa/utils.h"
-
+#include <ctype.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "rupa/core/limit.h"
+
+// ==================== FORWARD DECLARATIONS ====================
+typedef struct Token Token;
+typedef struct DataToken DataToken;
+typedef struct Node Node;
+typedef struct AstNode AstNode;
+typedef struct ReplState ReplState;
+typedef struct Request Request;
+typedef struct Response Response;
+typedef struct SystemConfig SystemConfig;
+typedef struct Error Error;
+typedef struct State State;
+
+// Forward declarations untuk semua struct di structure.h
+typedef struct AstAssignment AstAssignment;
+typedef struct AstBinary AstBinary;
+typedef struct AstBinaryExpression AstBinaryExpression;
+typedef struct AstBoolean AstBoolean;
+typedef struct AstDeclaration AstDeclaration;
+typedef struct AstDouble AstDouble;
+typedef struct AstFloat AstFloat;
+typedef struct AstIdentifier AstIdentifier;
+typedef struct AstNumber AstNumber;
+typedef struct AstProgram AstProgram;
+typedef struct AstReturn AstReturn;
+typedef struct AstString AstString;
+typedef struct AstSubscript AstSubscript;
+typedef struct AstVariable AstVariable;
+typedef struct Assignment Assignment;
+typedef struct ErrorInfo ErrorInfo;
+typedef struct SymbolTable SymbolTable;
+typedef struct SymbolToken SymbolToken;
+typedef struct Args Args;
+typedef struct Identifier Identifier;
+typedef struct Function Function;
+typedef struct Number Number;
+typedef struct Binary Binary;
+typedef struct Position Position;
+
+// ==================== ENUM DECLARATIONS ====================
+typedef enum TokenType TokenType;
+typedef enum NodeType NodeType;
+typedef enum ErrorType ErrorType;
+typedef enum BinaryType BinaryType;
+typedef enum VariableType VariableType;
+
+// #include "rupa/assignment.h"
+#include "rupa/core/ast.h"
+#include "rupa/core/ctypes.h"
+#include "rupa/core/enum.h"
+#include "rupa/parser/expression.h"
+#include "rupa/parser/operator.h"
+#include "rupa/parser/structure.h"
+#include "rupa/tokenize/package.h"
+#include "rupa/tokenize/structure.h"
+#include "rupa/tokenize/token.h"
+#include "rupa/utils/utils.h"
 
 /// ================================
 /// Start Comment: Token Utilities
@@ -359,13 +412,6 @@ bool readfile(const char *path, char *buffer);
  * @brief Memulai Read-Eval-Print Loop (REPL) utama.
  */
 void startRepl();
-
-/**
- * @brief Melakukan tokenisasi terhadap input tertentu.
- *
- * @param state ReplState
- */
-Token *tokenize(ReplState *state);
 
 /// ==============================
 /// End Comment: Entry Point

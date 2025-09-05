@@ -1,9 +1,4 @@
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 bool stream(char *path, char *buffer) {
   const char *entryfile = path;

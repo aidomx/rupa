@@ -90,7 +90,8 @@ void editorRepl(ReplState *state, bool *actived, char buffer[]) {
      * panjang dari buffer lebih dari 0.
      */
     if (state->length > 0 && strlen(buffer) > 0) {
-      Token *tokens = tokenize(state);
+      Token *tokens =
+          tokenize(state->tokens, state->history, state->length, state->line);
 
       if (tokens && tokens->length > 0)
         generateAst(tokens);

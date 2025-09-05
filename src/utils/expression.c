@@ -1,5 +1,6 @@
 #include <rupa/package.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 bool shouldSkipToken(DataToken *data, Token *t, int init) {
   switch (data->type) {
@@ -46,11 +47,10 @@ int isStandaloneToken(Token *t, int pos) {
     return -1;
 
   if (isToken(t, pos, IDENTIFIER)) {
-    if (isToken(t, pos + 1, LBLOCK)) {
-      return -1;
-    }
+    DataToken *data = getToken(t, pos + 1);
 
-    return findExpressionEnd(t, pos);
+    return (data && shouldSkipToken(data, t, pos)) ? -1
+                                                   : findExpressionEnd(t, pos);
   }
 
   return -1;

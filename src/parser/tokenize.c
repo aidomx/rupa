@@ -44,6 +44,10 @@ int addNewToken(Token *tokens, DataToken newData) {
   return tokens->length++;
 }
 
+ReplState *useManage(State *state) { return (!state) ? NULL : state->manage; }
+
+Token *useToken(ReplState *state) { return (!state) ? NULL : state->tokens; }
+
 // @deprecated
 int addToken(Token *t, TokenType type, const char *value, int line, int row) {
   if (!t || t->length >= MAX_TOKENS)
@@ -195,28 +199,23 @@ int addStringToken(Token *t, const char *value, int line, int row) {
 }
 
 char *getTokenId(const char *input, int length) {
-  if (!input || length == 0)
-    return NULL;
-
-  return substring(input, 0, length);
+  return (!input || length == 0) ? NULL : substring(input, 0, length);
 }
 
 char *getTokenValue(const char *input, int length) {
-  if (!input || length == 0)
-    return NULL;
-
-  return substring(input, length + 1, strlen(input));
+  return (!input || length == 0) ? NULL
+                                 : substring(input, length + 1, strlen(input));
 }
 
 int createTokenId(State *state, int length) {
   if (!state)
     return -1;
 
-  Token *tokens = state->manage->tokens;
-  char *id = substring(state->input, 0, length);
-  int line = state->manage->line;
+  ReplState *manage = useManage(state);
+  Token *tokens = useToken(manage);
 
-  DataToken data = {.line = line,
+  char *id = getTokenId(state->input, length);
+  DataToken data = {.line = manage->line,
                     .row = length,
                     .safetyType = NULL,
                     .type = IDENTIFIER,
@@ -230,8 +229,8 @@ int setInput(State *state, int start, int end) {
   if (!state || start >= end)
     return -1;
 
-  Token *tokens = state->manage->tokens;
-  int line = state->manage->line;
+  ReplState *manage = useManage(state);
+  Token *tokens = useToken(manage);
 
   char *input = state->input;
   char inner[64];
@@ -245,7 +244,7 @@ int setInput(State *state, int start, int end) {
 
   if (out > 0) {
     inner[out] = '\0';
-    DataToken newData = {.line = line,
+    DataToken newData = {.line = manage->line,
                          .row = out,
                          .safetyType = NULL,
                          .type = gettype(inner),
@@ -266,9 +265,11 @@ int handleTokenId(State *state) {
   if (!state)
     return -1;
 
-  Token *tokens = state->manage->tokens;
+  ReplState *manage = useManage(state);
+  Token *tokens = useToken(manage);
+
   char *tokenId = getTokenId(state->input, state->row);
-  int line = state->manage->line;
+  int line = manage->line;
   int row = state->row;
   char c = state->input[row];
 
@@ -324,8 +325,10 @@ int handleTokenValue(State *state) {
   if (!state)
     return -1;
 
-  Token *tokens = state->manage->tokens;
-  int line = state->manage->line;
+  ReplState *manage = useManage(state);
+  Token *tokens = useToken(manage);
+
+  int line = manage->line;
   int row = state->row;
   char *value = getTokenValue(state->input, row);
   char *ptr = value;
@@ -336,7 +339,14 @@ int handleTokenValue(State *state) {
     if (issymvalue(ptr[i])) {
       if (length > 0) {
         input[length] = '\0';
-        addToken(tokens, gettype(input), input, line, i);
+        DataToken newData = {.line = line,
+                             .row = i,
+                             .safetyType = NULL,
+                             .type = gettype(input),
+                             .value = strdup(input)};
+
+        addNewToken(tokens, newData);
+
         length = 0;
       }
       addDelim(tokens, ptr[i], line, i);
@@ -374,10 +384,12 @@ int processToken(State *state) {
   if (!state)
     return -1;
 
-  Token *tokens = state->manage->tokens;
+  ReplState *manage = useManage(state);
+  Token *tokens = useToken(manage);
+
   char *input = state->input;
   int hasAssign = 0;
-  int line = state->manage->line;
+  int line = manage->line;
   int row = state->row;
 
   for (; input[state->row]; state->row++) {
@@ -400,23 +412,32 @@ int processToken(State *state) {
   return createVar(state);
 }
 
-Token *tokenize(ReplState *state) {
+State createNewState(ReplState *state) {
+  State newState = {0};
+
+  newState.manage = state;
+  newState.row = 0;
+
+  return newState;
+}
+
+Token *tokenizer(ReplState *state) {
   if (state && state->length == 0)
     return NULL;
 
-  State newState = {.manage = state, .row = 0};
+  State newState = createNewState(state);
+  ReplState *manage = useManage(&newState);
 
-  for (int i = 0; i < newState.manage->length; i++) {
-    if (!newState.manage->history[i])
+  for (int i = 0; i < manage->length; i++) {
+    if (!manage->history[i])
       break;
 
-    snprintf(newState.input, MAX_BUFFER_SIZE, "%s",
-             newState.manage->history[i]);
+    snprintf(newState.input, MAX_BUFFER_SIZE, "%s", manage->history[i]);
   }
 
   int process = processToken(&newState);
   if (process == -1)
     return NULL;
 
-  return newState.manage->tokens;
+  return manage->tokens;
 }

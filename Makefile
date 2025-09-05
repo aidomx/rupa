@@ -4,7 +4,7 @@ SRC_DIR = src
 OBJ_DIR = build
 TARGET = rupa
 
-SRC = $(wildcard $(SRC_DIR)/**/*.c $(SRC_DIR)/*.c)
+SRC = $(wildcard $(SRC_DIR)/**/**/*.c $(SRC_DIR)/**/*.c $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 $(TARGET): $(OBJ)

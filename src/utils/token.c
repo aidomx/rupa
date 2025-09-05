@@ -9,9 +9,7 @@ bool isToken(Token *t, int pos, TokenType type) {
 }
 
 DataToken *getToken(Token *t, int pos) {
-  if (pos < 0 || pos >= t->length)
-    return NULL;
-  return &t->data[pos];
+  return (pos < 0 || pos >= t->length) ? NULL : &t->data[pos];
 }
 
 int lastIndex(Token *token, int start) {
