@@ -1,11 +1,4 @@
-#include "rupa/enum.h"
-#include "rupa/structure.h"
-#include "rupa/utils.h"
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * parseAtom: memproses atom (IDENTIFIER atau NUMBER).
@@ -17,13 +10,16 @@ int parseAtom(Request *req, DataToken *data) {
   Token *t = req->tokens;
   int pos = (int)(data - t->data);
 
-  if (match(data, BOOLEAN))
+  switch (data->type) {
+  case BOOLEAN:
     return createBoolean(req->node,
                          strcmp(data->value, "true") == 0 ? true : false);
-  if (match(data, FLOAT))
+
+  case FLOAT:
     return createFloat(req->node, data->value);
-  if (match(data, IDENTIFIER)) {
-    int baseId = createId(req->node, data->value);
+
+  case IDENTIFIER: {
+    int baseId = createId(req->node, data->value, data->safetyType);
 
     // Periksa jika identifier diikuti oleh LBLOCK (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
@@ -37,18 +33,25 @@ int parseAtom(Request *req, DataToken *data) {
         }
       }
     }
+
     return baseId;
-  }
-  if (match(data, LITERAL_ID))
+  };
+
+  case LITERAL_ID:
     return createString(req->node, data->value, NODE_LITERAL_ID);
-  if (match(data, NUMBER))
+
+  case NUMBER:
     return createNumber(req->node, atoi(data->value));
-  if (match(data, NULLABLE))
+
+  case NULLABLE:
     return createString(req->node, data->value, NODE_NULLABLE);
-  if (match(data, STRING))
+
+  case STRING:
     return createString(req->node, data->value, NODE_STRING);
 
-  return -1;
+  default:
+    return -1;
+  }
 }
 
 /**
@@ -163,7 +166,7 @@ int parseFactor(Request *req, Response res) {
   int baseId = res.leftId;
 
   if (match(data, IDENTIFIER)) {
-    baseId = createId(req->node, data->value);
+    baseId = createId(req->node, data->value, data->safetyType);
 
     // Periksa jika ada subscript (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {

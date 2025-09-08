@@ -1,8 +1,4 @@
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * Membuat request parser baru dari token.

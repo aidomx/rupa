@@ -80,6 +80,7 @@ struct AstFloat {
  */
 struct AstIdentifier {
   char *name;
+  char *safetyType;
 };
 
 /**

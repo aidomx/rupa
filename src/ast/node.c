@@ -1,10 +1,4 @@
-#include "rupa/enum.h"
-#include "rupa/structure.h"
-#include <ctype.h>
 #include <rupa/package.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // === CLEANUP ===
 void clearNode(Node *node) {
@@ -15,6 +9,7 @@ void clearNode(Node *node) {
     switch (node->ast[i].type) {
     case NODE_IDENTIFIER:
       free(node->ast[i].identifier.name);
+      free(node->ast[i].identifier.safetyType);
       break;
     case NODE_BINARY:
       free(node->ast[i].binary.op);
@@ -62,7 +57,7 @@ Node *createNode(int capacity) {
 
 int createAst(Node *node, AstNode n) {
   if (!node)
-    return 0;
+    return -1;
 
   if (node->length >= node->capacity) {
     int newCapacity = node->capacity * 2;
@@ -99,7 +94,7 @@ int createFloat(Node *root, char *value) {
 /**
  * Membuat node identifier (variabel).
  */
-int createId(Node *root, char *name) {
+int createId(Node *root, char *name, char *safetyType) {
   if (name == NULL)
     return -1;
 
@@ -116,7 +111,13 @@ int createId(Node *root, char *name) {
   }
 
   // lolos validasi → buat identifier node
-  AstNode node = {.type = NODE_IDENTIFIER, .identifier.name = strdup(name)};
+  AstNode node = {.type = NODE_IDENTIFIER,
+                  .identifier.name = strdup(name),
+                  .identifier.safetyType = NULL};
+
+  if (safetyType) {
+    node.identifier.safetyType = strdup(safetyType);
+  }
   return createAst(root, node);
 }
 

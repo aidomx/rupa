@@ -14,6 +14,7 @@
 typedef struct Token Token;
 typedef struct DataToken DataToken;
 typedef struct Node Node;
+typedef struct Array Array;
 typedef struct AstNode AstNode;
 typedef struct ReplState ReplState;
 typedef struct Request Request;
@@ -63,37 +64,12 @@ typedef enum VariableType VariableType;
 #include "rupa/parser/operator.h"
 #include "rupa/parser/structure.h"
 #include "rupa/tokenize/package.h"
-#include "rupa/tokenize/structure.h"
 #include "rupa/tokenize/token.h"
 #include "rupa/utils/utils.h"
 
 /// ================================
 /// Start Comment: Token Utilities
 /// ================================
-
-/**
- * @brief Menambahkan delimiter sebagai token.
- *
- * @param token Pointer ke struktur token.
- * @param c Karakter delimiter.
- * @param line Nomor baris.
- * @param row Posisi kolom.
- * @return Status keberhasilan.
- */
-int addDelim(Token *token, char c, int line, int row);
-
-/**
- * @brief Menambahkan token baru ke dalam struktur token.
- *
- * @param token Pointer ke struktur token.
- * @param type Tipe token.
- * @param value Nilai string token.
- * @param line Nomor baris.
- * @param row Posisi kolom.
- * @return Status keberhasilan.
- */
-int addToken(Token *token, TokenType type, const char *value, int line,
-             int row);
 
 /// ==============================
 /// End Comment: Token Utilities
@@ -180,7 +156,7 @@ int createFloat(Node *root, char *value);
  * @param name Nama identifier.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createId(Node *root, char *name);
+int createId(Node *root, char *name, char *safetyType);
 
 /**
  * @brief Membuat number literal node dalam AST.
@@ -416,5 +392,4 @@ void startRepl();
 /// ==============================
 /// End Comment: Entry Point
 /// ==============================
-
 #endif

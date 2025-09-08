@@ -1,9 +1,4 @@
-#include "rupa/structure.h"
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // Fungsi utilitas
 void printIndent(int level) {
@@ -23,9 +18,11 @@ void printFloat(char *value, int level) {
   printf(format, value);
 }
 
-void printId(char *id, int level) {
+void printId(char *id, char *safetyType, int level) {
   printIndent(level);
   printf("Identifier: %s\n", id ? id : "null");
+  printIndent(level);
+  printf("SafetyType: %s\n", !safetyType ? "auto" : safetyType);
 }
 
 void printNumber(int value, int level) {
@@ -81,11 +78,13 @@ static void printAst(Node *node, int index, int level) {
     if (n->assign.target >= 0 && n->assign.target < node->length) {
       AstNode *target = &node->ast[n->assign.target];
       if (target->type == NODE_IDENTIFIER) {
-        printId(target->identifier.name, level + 2);
+        printId(target->identifier.name, target->identifier.safetyType,
+                level + 2);
       } else if (target->type == NODE_SUBSCRIPT) {
         printAst(node, n->assign.target, level + 2);
       }
     }
+
     printIndent(level + 1);
     printf("Value:\n");
     printAst(node, n->assign.value, level + 2);
@@ -132,7 +131,7 @@ static void printAst(Node *node, int index, int level) {
     break;
 
   case NODE_IDENTIFIER:
-    printId(n->identifier.name, level);
+    printId(n->identifier.name, n->identifier.safetyType, level);
     break;
 
   case NODE_BINARY:

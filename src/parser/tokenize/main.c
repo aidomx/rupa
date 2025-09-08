@@ -1,12 +1,5 @@
 #include <rupa/package.h>
 
-static int handle_quotes(char c, int *in_quotes, int *quote_char);
-static int handle_braces(char c, int brace_level, State *state);
-static int handle_whitespace(const char *next_char, int in_quotes,
-                             State *state);
-static int handle_regular_char(char c, State *state);
-static int should_add_newline(int i, int length, char **history, State *state);
-
 /**
  * @brief Tokenize Interface
  *
@@ -70,79 +63,12 @@ Token *tokenize(Token *tokens, char **history, int length, int line) {
   // Finalize the input string
   if (state.row > 0) {
     state.input[state.row] = '\0';
-    printf("%d,%d,%s\n", state.line, state.row, state.input);
+
+    if (processToken(&state) == -1)
+      return NULL;
+
     return tokens;
   }
 
   return NULL;
-}
-
-/**
- * @brief Handle quote detection and state management
- */
-static int handle_quotes(char c, int *in_quotes, int *quote_char) {
-  if (isquote(c) && !*in_quotes) {
-    *in_quotes = 1;
-    *quote_char = c;
-    return 1;
-  } else if (*quote_char == c && *in_quotes) {
-    *in_quotes = 0;
-    *quote_char = '\0';
-    return 1;
-  }
-  return 0;
-}
-
-/**
- * @brief Handle brace characters and formatting
- */
-static int handle_braces(char c, int brace_level, State *state) {
-  if (c == '{') {
-    if (state->row > 0 && !isspace(state->input[state->row - 1])) {
-      state->input[state->row++] = '\n';
-    }
-    return 1;
-  } else if (c == '}') {
-    if (brace_level == 0 && state->row > 0) {
-      return 1; // Skip this character
-    }
-  }
-  return 0;
-}
-
-/**
- * @brief Handle whitespace characters with compression
- */
-static int handle_whitespace(const char *next_char, int in_quotes,
-                             State *state) {
-  if (in_quotes) {
-    return 0;
-  }
-
-  if (state->row > 0 && !isspace(state->input[state->row - 1])) {
-    state->input[state->row++] = ' ';
-  }
-
-  // Skip consecutive whitespaces
-  while (isspace(*next_char)) {
-    next_char++;
-  }
-
-  return 1;
-}
-
-/**
- * @brief Handle regular (non-whitespace) characters
- */
-static int handle_regular_char(char c, State *state) {
-  state->input[state->row++] = c;
-  return 1;
-}
-
-/**
- * @brief Determine if newline should be added between history entries
- */
-static int should_add_newline(int i, int length, char **history, State *state) {
-  return (i < length - 1 && history[i + 1] && state->row > 0 &&
-          !isspace(state->input[state->row - 1]));
 }

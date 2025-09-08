@@ -3,6 +3,8 @@
 
 // Grup karakter
 #define isarray(c) ((c) == '[' || (c) == ']')
+#define isopenarray(c) ((c) == '[')
+#define isclosearray(c) ((c) == ']')
 #define isassign(c) ((c) == '=')
 #define isbacktick(c) ((c) == '`')
 #define isblock(c) ((c) == '{' || (c) == '}')
