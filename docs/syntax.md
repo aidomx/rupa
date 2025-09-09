@@ -94,6 +94,49 @@ Assignment:
 
 ---
 
+## Complex Subscript Expressions
+
+```rupa
+x[1+2][y] = ((1+2)*3)
+```
+
+- Index pertama (`[1+2]`) → expression aritmetika.
+- Index kedua (`[y]`) → literal identifier.
+- Nilai (`((1+2)*3)`) → expression kompleks.
+
+AST Contoh:
+
+```
+Assignment:
+  Target:
+    Subscript:
+      Base:
+        Subscript:
+          Base:
+            Identifier: x
+            SafetyType: auto
+          Index:
+            Binary: +
+              Left:
+                Number: 1
+              Right:
+                Number: 2
+      Index:
+        LiteralIdentifier: y
+  Value:
+    Binary: *
+      Left:
+        Binary: +
+          Left:
+            Number: 1
+          Right:
+            Number: 2
+      Right:
+        Number: 3
+```
+
+---
+
 ## Tipe Data yang Didukung
 
 - `null`

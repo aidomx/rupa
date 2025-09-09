@@ -1,26 +1,5 @@
 #include <rupa/package.h>
 
-int setDeepToken(State *s, char inner[], int pos, int length) {
-  if (!s)
-    return -1;
-
-  char c = s->input[pos];
-
-  if (issymvalue(c)) {
-    if (length > 0) {
-      inner[length] = '\0';
-      addToken(s->tokens,
-               createDataToken(inner, NULL, gettype(inner), s->line, pos));
-      length = 0;
-    }
-
-    addDelim(s->tokens, c, NULL, s->line, pos);
-    return length;
-  }
-
-  return -1;
-}
-
 int setDeepSubscript(State *s, int start, int end) {
   if (!s)
     return -1;
@@ -30,9 +9,19 @@ int setDeepSubscript(State *s, int start, int end) {
   int length = 0;
 
   for (int i = start; i < end; i++) {
-    if (setDeepToken(s, inner, i, length) > 0)
-      continue;
+    char c = input[i];
 
+    if (issymvalue(c)) {
+      if (length > 0) {
+        inner[length] = '\0';
+        addToken(s->tokens,
+                 createDataToken(inner, NULL, gettype(inner), s->line, i));
+        length = 0;
+      }
+
+      addDelim(s->tokens, c, NULL, s->line, i);
+      continue;
+    }
     inner[length++] = input[i];
   }
 
@@ -152,9 +141,16 @@ int handleTokenValue(State *state, int start, int end) {
   int length = 0;
 
   for (int i = 0; ptr[i]; i++) {
-    if (setDeepToken(state, input, i, length) > 0)
-      continue;
+    if (issymvalue(ptr[i])) {
+      if (length > 0) {
+        input[length] = '\0';
+        addToken(tokens, createDataToken(input, NULL, gettype(input), line, i));
+        length = 0;
+      }
 
+      addDelim(tokens, ptr[i], NULL, line, i);
+      continue;
+    }
     input[length++] = ptr[i];
   }
 
