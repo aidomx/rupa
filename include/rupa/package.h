@@ -56,28 +56,16 @@ typedef enum ErrorType ErrorType;
 typedef enum BinaryType BinaryType;
 typedef enum VariableType VariableType;
 
-// #include "rupa/assignment.h"
 #include "rupa/core/ast.h"
 #include "rupa/core/ctypes.h"
 #include "rupa/core/enum.h"
+#include "rupa/parser/assignment.h"
 #include "rupa/parser/expression.h"
 #include "rupa/parser/operator.h"
 #include "rupa/parser/structure.h"
 #include "rupa/tokenize/package.h"
 #include "rupa/tokenize/token.h"
 #include "rupa/utils/utils.h"
-
-/// ================================
-/// Start Comment: Token Utilities
-/// ================================
-
-/// ==============================
-/// End Comment: Token Utilities
-/// ==============================
-
-/// ==============================
-/// Start Comment: REPL Handling
-/// ==============================
 
 /**
  * @brief Menambahkan input pengguna ke dalam history REPL.

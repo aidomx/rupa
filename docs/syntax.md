@@ -57,6 +57,43 @@ x = ((1+2)*3)/((4+5)-6)
 
 ---
 
+## Subscript & Nested Access
+
+```rupa
+x[0] = 1
+x[0][1] = 2
+x[0][1][2] = 3
+```
+
+- `x[0] = 1` → assignment ke elemen tunggal.
+- `x[0][1] = 2` → akses nested (array dalam array).
+- `x[0][1][2] = 3` → nested lebih dalam.
+
+AST Contoh:
+
+```
+Assignment:
+  Target:
+    Subscript:
+      Base:
+        Subscript:
+          Base:
+            Subscript:
+              Base:
+                Identifier: x
+                SafetyType: auto
+              Index:
+                Number: 0
+          Index:
+            Number: 1
+      Index:
+        Number: 2
+  Value:
+    Number: 3
+```
+
+---
+
 ## Tipe Data yang Didukung
 
 - `null`

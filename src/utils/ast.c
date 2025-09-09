@@ -1,6 +1,4 @@
 #include <rupa/package.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 void addToProgram(Node *node, int programId, int declId) {
   if (!node || programId < 0 || programId >= node->length || declId < 0 ||

@@ -1,5 +1,4 @@
 #include <rupa/package.h>
-#include <stdbool.h>
 
 bool isAssignmentStatement(Token *t, int init) {
   // Cek jika ini pattern assignment: identifier/lbracket diikuti =
@@ -63,19 +62,37 @@ int findLeftHandSide(DataToken *data, int start, int end) {
   return -1;
 }
 
+/**
+ * getLeftSide: Mencari starting position untuk left-hand side expression
+ * Mendukung multiple array subscripts seperti x[0][1][2]
+ */
 int getLeftSide(Token *t, int pos) {
-  int newPos = -1;
+  if (!t || pos < 0 || pos >= t->length)
+    return -1;
 
+  // Case 1: Simple identifier (x)
   if (isToken(t, pos, IDENTIFIER)) {
-    newPos = pos;
+    return pos;
   }
 
-  else if (isToken(t, pos, RBLOCK)) {
-    int left = findArr(t, pos);
-    if (left > 0 && isToken(t, left - 1, IDENTIFIER)) {
-      newPos = left - 1;
+  // Case 2: Array access (x[0], x[0][1], etc.)
+  if (isToken(t, pos, RBLOCK)) {
+    // Temukan bracket pembuka yang sesuai
+    int lblock_pos = findArr(t, pos);
+    if (lblock_pos == -1)
+      return -1;
+
+    // Sekarang kita punya: [something]
+    // Cari identifier di sebelum bracket pembuka
+    if (lblock_pos > 0 && isToken(t, lblock_pos - 1, IDENTIFIER)) {
+      // Simple case: identifier langsung sebelum bracket (x[0])
+      return lblock_pos - 1;
+    } else if (lblock_pos > 0 && isToken(t, lblock_pos - 1, RBLOCK)) {
+      // Nested case: another array access before (x[0][1])
+      // Rekursif mencari identifier dasar
+      return getLeftSide(t, lblock_pos - 1);
     }
   }
 
-  return newPos;
+  return -1;
 }

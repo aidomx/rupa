@@ -1,5 +1,28 @@
 #include <rupa/package.h>
 
+int parseSubscripts(Request *req, int baseId, int start) {
+  Token *t = req->tokens;
+  int pos = start;
+  int currentId = baseId;
+
+  while (pos < t->length && match(&t->data[pos], LBLOCK)) {
+    int rblock_pos = findArr(t, pos);
+    if (rblock_pos == -1)
+      break;
+
+    if (rblock_pos == pos + 1) { // Empty brackets []
+      currentId = createSubscript(req->node, currentId, -1);
+    } else {
+      int index = parseBinary(req, pos + 1, rblock_pos);
+      currentId = createSubscript(req->node, currentId, index);
+    }
+
+    pos = rblock_pos + 1;
+  }
+
+  return currentId;
+}
+
 /**
  * parseAtom: memproses atom (IDENTIFIER atau NUMBER).
  */
@@ -23,15 +46,7 @@ int parseAtom(Request *req, DataToken *data) {
 
     // Periksa jika identifier diikuti oleh LBLOCK (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
-      int rblock_pos = findArr(t, pos + 1);
-      if (rblock_pos != -1) {
-        if (rblock_pos == pos + 2) { // Empty brackets []
-          return createSubscript(req->node, baseId, -1);
-        } else {
-          int index = parseBinary(req, pos + 2, rblock_pos);
-          return createSubscript(req->node, baseId, index);
-        }
-      }
+      baseId = parseSubscripts(req, baseId, pos + 1);
     }
 
     return baseId;
@@ -113,7 +128,7 @@ int parseBinary(Request *req, int start, int end) {
       }
     }
 
-    /*if (match(&tokens->data[start], LBLOCK)) {*/
+    /*if (match(&tokens->data[start], LBLOCK)) { */
     /*int k = findArr(tokens, start + 1);*/
     /*if (k == end - 1) {*/
     /*return parseBinary(req, start + 1, k);*/
@@ -170,18 +185,7 @@ int parseFactor(Request *req, Response res) {
 
     // Periksa jika ada subscript (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
-      int rblock_pos = findArr(t, pos + 1);
-
-      if (rblock_pos != -1) {
-        // Periksa jika bracket kosong (seperti x[])
-        if (rblock_pos == pos + 2) { // LBLOCK di pos+1, RBLOCK di pos+2
-          baseId = createSubscript(req->node, baseId, -1); // Empty subscript
-        } else {
-          // Ada ekspresi di dalam bracket
-          int bin = parseBinary(req, pos + 2, rblock_pos);
-          baseId = createSubscript(req->node, baseId, bin);
-        }
-      }
+      baseId = parseSubscripts(req, baseId, pos + 1);
     }
 
     return baseId;

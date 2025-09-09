@@ -15,6 +15,7 @@ Array getArrayIndex(const char *input, int start, int end) {
       if (depth >= 0) {
         array.left = start;
         array.right = i;
+        break;
       }
     }
   }

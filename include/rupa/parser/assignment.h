@@ -1,6 +1,5 @@
 #pragma once
-//#ifndef RUPA_UTILS_ASSIGNMENT_H
-//#define RUPA_UTILS_ASSIGNMENT_H
+
 #include "rupa/package.h"
 
 extern bool isPartOfAssignment(Token *t, int pos);

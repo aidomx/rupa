@@ -1,10 +1,4 @@
-#include "rupa/enum.h"
-#include <ctype.h>
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 void clearScreen() {
 #ifdef _WIN32

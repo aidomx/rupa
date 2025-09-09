@@ -1,91 +1,139 @@
 #include <rupa/package.h>
 
-int setSubscript(State *state, int start, int end) {
-  if (!state || start >= end)
+int setDeepToken(State *s, char inner[], int pos, int length) {
+  if (!s)
     return -1;
 
-  Token *tokens = state->tokens;
-  char *input = state->input;
+  char c = s->input[pos];
+
+  if (issymvalue(c)) {
+    if (length > 0) {
+      inner[length] = '\0';
+      addToken(s->tokens,
+               createDataToken(inner, NULL, gettype(inner), s->line, pos));
+      length = 0;
+    }
+
+    addDelim(s->tokens, c, NULL, s->line, pos);
+    return length;
+  }
+
+  return -1;
+}
+
+int setDeepSubscript(State *s, int start, int end) {
+  if (!s)
+    return -1;
+
+  char *input = s->input;
   char inner[1024];
   int length = 0;
 
   for (int i = start; i < end; i++) {
-    char c = input[i];
-
-    if (issymvalue(c)) {
-      if (length > 0) {
-        inner[length] = '\0';
-        DataToken newData = {.line = state->line,
-                             .row = i,
-                             .safetyType = NULL,
-                             .type = gettype(inner),
-                             .value = strdup(inner)};
-
-        addToken(tokens, newData);
-
-        length = 0;
-      }
-      addDelim(tokens, c, NULL, state->line, i);
+    if (setDeepToken(s, inner, i, length) > 0)
       continue;
-    }
 
-    inner[length++] = c;
+    inner[length++] = input[i];
   }
 
   inner[length] = '\0';
-  DataToken newData = {.line = state->line,
-                       .row = length,
-                       .safetyType = NULL,
-                       .type = gettype(inner),
-                       .value = strdup(inner)};
+  TokenType type = gettype(inner);
+  type = type == IDENTIFIER ? LITERAL_ID : type;
 
-  return addToken(tokens, newData);
+  return addToken(s->tokens,
+                  createDataToken(inner, NULL, type, s->line, length));
+}
+
+int setSubscript(State *state, int start, int end) {
+  if (!state || start >= end)
+    return -1;
+
+  return setDeepSubscript(state, start, end);
+}
+
+int setDeepTokenId(State *s, int start, int end) {
+  if (!s || start >= end)
+    return -1;
+
+  int capacity = 10;
+  Array *subscripts = malloc(capacity * sizeof(Array));
+
+  char *input = s->input;
+  int array_length = 0, i = start;
+
+  while (i < end) {
+    if (isassign(input[i])) {
+      end = i++;
+      break;
+    }
+
+    if (isopenarray(input[i])) {
+      Array arr = getArrayIndex(input, i, end);
+
+      if (arr.left > 0 && arr.right > 0) {
+        if (array_length >= capacity) {
+          int newCapacity = capacity * 2;
+
+          Array *newSubscripts =
+              realloc(subscripts, newCapacity * sizeof(Array));
+          if (!newSubscripts) {
+            free(newSubscripts);
+            return -1;
+          }
+
+          subscripts = newSubscripts;
+        }
+
+        subscripts[array_length++] = arr;
+        i = arr.right;
+      }
+    }
+    i++;
+  }
+
+  if (array_length == 0) {
+    int tokenId = createTokenId(s, start, end);
+    if (tokenId == -1)
+      return -1;
+
+    addDelim(s->tokens, input[end], NULL, s->line, end);
+    free(subscripts);
+    return end;
+  }
+
+  int tokenId = createTokenId(s, start, subscripts[0].left);
+  if (tokenId == -1) {
+    free(subscripts);
+    return -1;
+  }
+
+  for (int index = 0; index < array_length; index++) {
+    Array arr = subscripts[index];
+
+    char prev = input[arr.left], next = input[arr.right];
+
+    addDelim(s->tokens, prev, NULL, s->line, arr.left);
+    setSubscript(s, arr.left + 1, arr.right);
+    addDelim(s->tokens, next, NULL, s->line, arr.right);
+  }
+
+  addDelim(s->tokens, input[end], NULL, s->line, end);
+
+  free(subscripts);
+  return end;
 }
 
 int handleTokenId(State *state, int start, int end) {
   if (!state)
     return -1;
 
-  Token *tokens = state->tokens;
   char *input = state->input;
   char ptr = input[start];
-
-  Array array = {.left = 0, .right = 0};
 
   if (!(isstr(ptr) || isunderscore(ptr)))
     return -1;
 
-  for (int i = start; i < end; i++) {
-    ptr = input[i];
-
-    if (isopenarray(ptr)) {
-      array = getArrayIndex(input, i, end);
-    }
-
-    if (isassign(ptr)) {
-      end = i;
-    }
-  }
-
-  if (array.left == 0) {
-    int tokenId = createTokenId(state, start, end);
-    if (tokenId == -1)
-      return -1;
-
-    addDelim(tokens, input[end], NULL, state->line, end);
-
-    return end;
-  }
-
-  if (createTokenId(state, start, array.left) == -1)
-    return -1;
-
-  addDelim(tokens, input[array.left], NULL, state->line, array.left);
-  setSubscript(state, array.left + 1, array.right);
-  addDelim(tokens, input[array.right], NULL, state->line, array.right);
-  addDelim(tokens, input[end], NULL, state->line, state->row);
-
-  return end;
+  return setDeepTokenId(state, start, end);
 }
 
 int handleTokenValue(State *state, int start, int end) {
@@ -94,7 +142,6 @@ int handleTokenValue(State *state, int start, int end) {
 
   Token *tokens = state->tokens;
   int line = state->line;
-  // int row = state->row;
   char *value = getTokenValue(state->input, start, end);
 
   if (!value)
@@ -105,37 +152,21 @@ int handleTokenValue(State *state, int start, int end) {
   int length = 0;
 
   for (int i = 0; ptr[i]; i++) {
-    if (issymvalue(ptr[i])) {
-      if (length > 0) {
-        input[length] = '\0';
-        DataToken newData = {.line = line,
-                             .row = i,
-                             .safetyType = NULL,
-                             .type = gettype(input),
-                             .value = strdup(input)};
-
-        addToken(tokens, newData);
-
-        length = 0;
-      }
-      addDelim(tokens, ptr[i], NULL, line, i);
+    if (setDeepToken(state, input, i, length) > 0)
       continue;
-    }
 
     input[length++] = ptr[i];
   }
 
   input[length] = '\0';
   TokenType type = gettype(input);
+  type = type == IDENTIFIER ? LITERAL_ID : type;
 
-  DataToken newData = {.line = line,
-                       .row = length,
-                       .safetyType = NULL,
-                       .type = type == IDENTIFIER ? LITERAL_ID : type,
-                       .value = strdup(input)};
+  int result =
+      addToken(tokens, createDataToken(input, NULL, type, line, length));
 
   free(value);
-  return addToken(tokens, newData);
+  return result;
 }
 
 int handleNextToken(State *state, int start, int end) {
