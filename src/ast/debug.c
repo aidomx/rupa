@@ -1,5 +1,7 @@
 #include <rupa/package.h>
 
+static void printAst(Node *node, int index, int level);
+
 // Fungsi utilitas
 void printIndent(int level) {
   for (int i = 0; i < level; i++)
@@ -68,6 +70,20 @@ static void printAst(Node *node, int index, int level) {
     printIndent(level);
     printf("Return:\n");
     printAst(node, n->asReturn.expression, level + 1);
+    break;
+
+  case NODE_ARRAY:
+    printIndent(level);
+    if (n->array.length == 0) {
+      printf("ArrayLiteral: (empty)\n");
+    }
+
+    else {
+      printf("ArrayLiteral:\n");
+      for (int i = 0; i < n->array.length; i++) {
+        printAst(node, n->array.elements[i], level + 1);
+      }
+    }
     break;
 
   case NODE_ASSIGN:

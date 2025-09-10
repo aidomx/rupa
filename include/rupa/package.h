@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "rupa/core/enum.h"
 #include "rupa/core/limit.h"
 
 // ==================== FORWARD DECLARATIONS ====================
@@ -24,6 +25,7 @@ typedef struct Error Error;
 typedef struct State State;
 
 // Forward declarations untuk semua struct di structure.h
+typedef struct AstArray AstArray;
 typedef struct AstAssignment AstAssignment;
 typedef struct AstBinary AstBinary;
 typedef struct AstBinaryExpression AstBinaryExpression;
@@ -56,15 +58,9 @@ typedef enum ErrorType ErrorType;
 typedef enum BinaryType BinaryType;
 typedef enum VariableType VariableType;
 
-#include "rupa/core/ast.h"
-#include "rupa/core/ctypes.h"
-#include "rupa/core/enum.h"
-#include "rupa/parser/assignment.h"
-#include "rupa/parser/expression.h"
-#include "rupa/parser/operator.h"
-#include "rupa/parser/structure.h"
+#include "rupa/core/package.h"
+#include "rupa/parser/package.h"
 #include "rupa/tokenize/package.h"
-#include "rupa/tokenize/token.h"
 #include "rupa/utils/utils.h"
 
 /**
@@ -133,7 +129,6 @@ Node *createNode(int capacity);
  * @return Status keberhasilan.
  */
 int createAst(Node *node, AstNode n);
-
 int createBoolean(Node *root, bool value);
 int createFloat(Node *root, char *value);
 

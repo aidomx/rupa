@@ -5,6 +5,7 @@
 #include "rupa/tokenize/helper.h"
 #include "rupa/tokenize/processor.h"
 #include "rupa/tokenize/structure.h"
+#include "rupa/tokenize/token.h"
 
 /**
  * @brief Menambahkan delimiter sebagai token.

@@ -1,5 +1,7 @@
 #include <rupa/package.h>
 
+static int parseArray(Request *req, Response res, int start, int end);
+
 int parseSubscripts(Request *req, int baseId, int start) {
   Token *t = req->tokens;
   int pos = start;
@@ -69,6 +71,69 @@ int parseAtom(Request *req, DataToken *data) {
   }
 }
 
+Response parseDeepArray(Request *req, Response res, int start, int end) {
+  if (!req)
+    return res;
+
+  Token *t = req->tokens;
+
+  if (isToken(t, start, LBLOCK)) {
+    int r = findArr(t, start);
+    res.rightId = parseArray(req, res, start + 1, r);
+    res.nextId = isToken(t, r + 1, COMMA) ? r + 2 : r + 1;
+    return res;
+  }
+
+  int pos = start;
+  while (pos < end && !isToken(t, pos, COMMA)) {
+    pos++;
+  }
+
+  if (start >= pos)
+    return res;
+
+  res.rightId = parseBinary(req, start, pos);
+  res.nextId = isToken(t, pos, COMMA) ? pos + 1 : pos;
+  return res;
+}
+
+int parseArray(Request *req, Response res, int start, int end) {
+  if (!req)
+    return -1;
+
+  int capacity = 10;
+  int *elements = malloc(capacity * sizeof(int));
+  if (!elements)
+    return -1;
+
+  int length = 0;
+  int pos = start;
+
+  while (pos < end) {
+    res = parseDeepArray(req, res, pos, end);
+    if (res.rightId > 0) {
+      // expand kalau perlu
+      if (length >= capacity) {
+        int newCapacity = capacity * 2;
+        int *newElements = realloc(elements, newCapacity * sizeof(int));
+        if (!newElements) {
+          free(elements);
+          return -1;
+        }
+        elements = newElements;
+        capacity = newCapacity;
+      }
+      elements[length++] = res.rightId;
+    }
+
+    if (res.nextId <= pos)
+      break; // safety biar nggak infinite loop
+    pos = res.nextId;
+  }
+
+  return createArray(req->node, elements, length);
+}
+
 /**
  * parseBinary: parser rekursif untuk binary expression.
  * - Menjaga precedence.
@@ -100,7 +165,8 @@ int parseBinary(Request *req, int start, int end) {
 
   // cari operator top-level (depth == 0)
   for (int i = start; i < end; i++) {
-    if (match(&tokens->data[i], LPAREN) || match(&tokens->data[i], LBLOCK)) {
+    if (match(&tokens->data[i], LPAREN) || match(&tokens->data[i], LBLOCK) ||
+        match(&tokens->data[i], COMMA)) {
       depth++;
       continue;
     }
@@ -108,6 +174,7 @@ int parseBinary(Request *req, int start, int end) {
       depth--;
       continue;
     }
+
     if (depth > 0)
       continue;
 
@@ -128,12 +195,13 @@ int parseBinary(Request *req, int start, int end) {
       }
     }
 
-    /*if (match(&tokens->data[start], LBLOCK)) { */
-    /*int k = findArr(tokens, start + 1);*/
-    /*if (k == end - 1) {*/
-    /*return parseBinary(req, start + 1, k);*/
-    /*}*/
-    /*}*/
+    else if (match(&tokens->data[start], LBLOCK)) {
+      int k = findArr(tokens, start + 1);
+      if (k == end - 1) {
+        return parseBinary(req, start + 1, k);
+      }
+    }
+
     return parseAtom(req, &tokens->data[start]);
   }
 
@@ -151,17 +219,23 @@ Response parseExpression(Request *req, Response res) {
   if (req->right.start >= req->right.end)
     return res;
 
+  Token *t = req->tokens;
   int start = req->right.start;
   int end = req->right.end;
 
   // Handle expressions in parentheses
-  if (match(&req->tokens->data[start], LPAREN)) {
-    int rparen_pos = findParen(req->tokens, start, end);
+  if (match(&t->data[start], LPAREN)) {
+    int rparen_pos = findParen(t, start, end);
     if (rparen_pos != -1) {
       // Parse the expression inside parentheses
       res.rightId = parseBinary(req, start + 1, rparen_pos);
       return res;
     }
+  }
+
+  else if (match(&t->data[start], LBLOCK)) {
+    res.rightId = parseArray(req, res, start + 1, end);
+    return res;
   }
 
   res.rightId = parseBinary(req, start, end);

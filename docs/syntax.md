@@ -45,6 +45,7 @@ x: number = 1
 ```rupa
 x = (1+2)
 x = ((1+2)*3)/((4+5)-6)
+x = 5 % 2
 ```
 
 - Mendukung operasi aritmetika dasar:
@@ -53,6 +54,7 @@ x = ((1+2)*3)/((4+5)-6)
   - Pengurangan (`-`)
   - Perkalian (`*`)
   - Pembagian (`/`)
+  - Modulus (`%`)
   - Tanda kurung `()` untuk prioritas operasi
 
 ---
@@ -144,6 +146,71 @@ Assignment:
 - `number` (bilangan bulat)
 - `float` (bilangan desimal)
 - `string` (teks)
+
+---
+
+# Roadmap Syntax
+
+Fitur berikut **belum sepenuhnya tersedia** tapi sudah dalam tahap desain:
+
+## Array Literal
+
+- [x] Array kosong → `[]`
+- [x] Array dengan elemen literal → `[1, 2, 3]`
+- [x] Array dengan ekspresi → `[1+2, 3*4]`
+- [x] Nested array → `[1, [2, 3], 4]`
+- [ ] Spread element (`[...arr, 5]`) → _planned_
+- [ ] Destructuring assignment (`[a, b] = [1,2]`) → _planned_
+
+---
+
+## Struct / Blueprint
+
+```rupa
+Person {
+   name: string
+   age: number
+}
+
+person: Person = { name: "Rupa", age: 20 }
+person.name = "Rupa"
+```
+
+- `StructName {}` mendefinisikan tipe.
+- Deklarasi variabel dengan tipe struct: `var: StructName = {...}`.
+- Tidak ada `new Struct()` untuk saat ini.
+
+---
+
+## Function
+
+```rupa
+sayHello() {
+  print("Hello Rupa")
+}
+
+add(x: number, y: number) {
+  return x + y
+}
+```
+
+- Fungsi cukup dengan `nameFn() {}`.
+- Parameter bisa tanpa tipe (`x, y`) atau dengan tipe (`x: number`).
+- Tipe bersifat dinamis dan strict.
+
+---
+
+## Import
+
+```rupa
+import sys from rupa
+import sys, render, resources from rupa
+import rupa.system as sys
+```
+
+- **Single Import:** `import mod from pkg`.
+- **Multiple Import:** `import mod1, mod2 from pkg`.
+- **Alias Import:** `import pkg.module as alias`.
 
 ---
 

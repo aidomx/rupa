@@ -1,6 +1,4 @@
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stdio.h>
 
 bool shouldSkipToken(DataToken *data, Token *t, int init) {
   switch (data->type) {

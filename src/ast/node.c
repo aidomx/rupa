@@ -7,6 +7,10 @@ void clearNode(Node *node) {
 
   for (int i = 0; i < node->length; i++) {
     switch (node->ast[i].type) {
+    case NODE_ARRAY:
+      free(node->ast[i].array.elements);
+      node->ast[i].array.length = 0;
+      break;
     case NODE_IDENTIFIER:
       free(node->ast[i].identifier.name);
       free(node->ast[i].identifier.safetyType);
@@ -76,6 +80,14 @@ int createAst(Node *node, AstNode n) {
 
   node->ast[node->length] = n;
   return node->length++;
+}
+
+int createArray(Node *root, int *elements, int length) {
+  AstNode node = {.type = NODE_ARRAY};
+  node.array.elements = elements;
+  node.array.length = length;
+
+  return createAst(root, node);
 }
 
 /* ====== Node Builders ====== */

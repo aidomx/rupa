@@ -67,6 +67,7 @@ enum ErrorType {
  */
 enum NodeType {
   NODE_UNKNOWN = -1,
+  NODE_ARRAY = 16,
   NODE_ASSIGN = 0,
   NODE_BOOLEAN = 1,
   NODE_BINARY = 2,

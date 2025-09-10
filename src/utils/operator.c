@@ -9,14 +9,16 @@ BinaryType getBinaryType(DataToken *token) {
   switch (token->type) {
   case ASSIGN:
     return BINARY_ASSIGN;
-  case ASTERISK:
-    return BINARY_MULTIPLY;
   case MINUS:
     return BINARY_SUBTRACT;
+  case PERCENT:
+    return BINARY_MODULES;
   case PLUS:
     return BINARY_ADD;
   case SLASH:
     return BINARY_DIVIDE;
+  case STAR:
+    return BINARY_MULTIPLY;
   default:
     return BINARY_NONE;
   }
@@ -30,15 +32,15 @@ int getPrecedence(DataToken *token) {
   if (!token)
     return -1;
   switch (token->type) {
-  case ASTERISK:
+  case PERCENT:
   case SLASH:
   case STAR:
-    return 3;
+    return 13;
   case MINUS:
   case PLUS:
-    return 2;
+    return 12;
   case ASSIGN:
-    return 1;
+    return 9;
   default:
     return -1;
   }

@@ -51,6 +51,7 @@
    isparen(c) || isplus(c) || isquote(c) || issemicolon(c) || isslash(c) ||    \
    isoperator(c))
 
-#define issymvalue(c) (isarray(c) || isblock(c) || isparen(c) || isoperator(c))
+#define issymvalue(c)                                                          \
+  (isarray(c) || isblock(c) || isparen(c) || isoperator(c) || iscomma(c))
 
 #endif

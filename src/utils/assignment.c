@@ -1,7 +1,7 @@
 #include <rupa/package.h>
 
 bool isAssignmentStatement(Token *t, int init) {
-  // Cek jika ini pattern assignment: identifier/lbracket diikuti =
+  // Cek jika ini pattern assignment: identifier/[] diikuti =
   if (init + 1 >= t->length)
     return false;
 

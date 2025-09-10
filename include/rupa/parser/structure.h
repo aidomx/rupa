@@ -3,6 +3,11 @@
 #include "rupa/package.h"
 // ==================== STRUCT DEFINITIONS ====================
 
+struct AstArray {
+  int *elements;
+  int length;
+};
+
 /**
  * @brief Representasi AST untuk assignment statement.
  *
@@ -259,6 +264,7 @@ struct Binary {
 struct AstNode {
   NodeType type;
   union {
+    AstArray array;
     AstAssignment assign;                 ///< Assignment operation
     AstBinary binary;                     ///< Binary operation
     AstBinaryExpression binaryExpression; ///< Binary expression
@@ -333,6 +339,7 @@ struct Response {
   int nodeId;
   int leftId;
   int rightId;
+  int nextId;
 };
 
 /**
