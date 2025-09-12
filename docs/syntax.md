@@ -17,14 +17,34 @@ x = x
 - `x = 1` → assignment sederhana.
 - `x = x` → assignment yang membedakan **Identifier** di sisi kiri dengan **Literal Identifier** di sisi kanan.
 
-AST Contoh:
+### AST Contoh:
 
 ```
-Assignment:
-  Target:
-    Identifier: x
-  Value:
-    LiteralIdentifier: x
+--- Struktur AST Node ---
+Program:
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Identifier: x
+          SafetyType: auto
+        Index:
+          (empty)
+    Value:
+      Nullable: null
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: auto
+    Value:
+      Number: 1
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: auto
+    Value:
+      Literal ID: x
+--- ENDOF ---
 ```
 
 ---
@@ -37,6 +57,20 @@ x: number = 1
 
 - `: number` → deklarasi tipe variabel.
 - Rupa mendukung tipe dasar: `null`, `true`, `false`, `number`, `string`, `float`.
+
+### AST Contoh:
+
+```
+--- Struktur AST Node ---
+Program:
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: number
+    Value:
+      Number: 1
+--- ENDOF ---
+```
 
 ---
 
@@ -57,84 +91,165 @@ x = 5 % 2
   - Modulus (`%`)
   - Tanda kurung `()` untuk prioritas operasi
 
+### AST Contoh:
+
+```
+--- Struktur AST Node ---
+Program:
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: auto
+    Value:
+      Binary: +
+        Left:
+          Number: 1
+        Right:
+          Number: 2
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: auto
+    Value:
+      Binary: *
+        Left:
+          Binary: +
+            Left:
+              Number: 1
+            Right:
+              Number: 2
+        Right:
+          Number: 3
+  Assignment:
+    Target:
+      Identifier: x
+      SafetyType: auto
+    Value:
+      Binary: %
+        Left:
+          Number: 5
+        Right:
+          Number: 2
+--- ENDOF ---
+```
+
+---
+
+## Array Literal
+
+- [x] Array kosong → `[]`
+- [x] Array dengan elemen literal → `[1, 2, 3]`
+- [x] Array dengan ekspresi → `[1+2, 3*4]`
+- [x] Nested array → `[1, [2, 3], 4]`
+- [ ] Spread element (`[...arr, 5]`) → _planned_
+- [ ] Destructuring assignment (`[a, b] = [1,2]`) → _planned_
+
 ---
 
 ## Subscript & Nested Access
+
+- [x] Akses elemen tunggal → `x[0]`
+- [x] Nested subscript (array dalam array) → `x[0][1]`
+- [x] Nested lebih dalam → `x[0][1][2]`
+- [x] Subscript dengan ekspresi aritmetika → `x[1+2]`
+- [x] Subscript dengan identifier → `x[y]`
+- [x] Kombinasi nested & ekspresi → `x[1+2][y]`
+- [ ] Optional chaining (`x?[0]`) → _planned_
+- [ ] Negative index (`x[-1]`) → _planned_
+
+### Contoh
 
 ```rupa
 x[0] = 1
 x[0][1] = 2
 x[0][1][2] = 3
-```
-
-- `x[0] = 1` → assignment ke elemen tunggal.
-- `x[0][1] = 2` → akses nested (array dalam array).
-- `x[0][1][2] = 3` → nested lebih dalam.
-
-AST Contoh:
-
-```
-Assignment:
-  Target:
-    Subscript:
-      Base:
-        Subscript:
-          Base:
-            Subscript:
-              Base:
-                Identifier: x
-                SafetyType: auto
-              Index:
-                Number: 0
-          Index:
-            Number: 1
-      Index:
-        Number: 2
-  Value:
-    Number: 3
-```
-
----
-
-## Complex Subscript Expressions
-
-```rupa
 x[1+2][y] = ((1+2)*3)
 ```
 
-- Index pertama (`[1+2]`) → expression aritmetika.
-- Index kedua (`[y]`) → literal identifier.
-- Nilai (`((1+2)*3)`) → expression kompleks.
-
-AST Contoh:
+### AST Contoh
 
 ```
-Assignment:
-  Target:
-    Subscript:
-      Base:
-        Subscript:
-          Base:
-            Identifier: x
-            SafetyType: auto
-          Index:
-            Binary: +
-              Left:
-                Number: 1
-              Right:
-                Number: 2
-      Index:
-        LiteralIdentifier: y
-  Value:
-    Binary: *
-      Left:
-        Binary: +
-          Left:
-            Number: 1
-          Right:
-            Number: 2
-      Right:
-        Number: 3
+--- Struktur AST Node ---
+Program:
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Identifier: x
+          SafetyType: auto
+        Index:
+          (empty)
+    Value:
+      Number: 1
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Identifier: x
+          SafetyType: auto
+        Index:
+          Number: 0
+    Value:
+      Number: 2
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Subscript:
+            Base:
+              Identifier: x
+              SafetyType: auto
+            Index:
+              Number: 0
+        Index:
+          Number: 1
+    Value:
+      Number: 3
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Subscript:
+            Base:
+              Subscript:
+                Base:
+                  Identifier: x
+                  SafetyType: auto
+                Index:
+                  Number: 0
+            Index:
+              Number: 1
+        Index:
+          Number: 2
+    Value:
+      Number: 4
+  Assignment:
+    Target:
+      Subscript:
+        Base:
+          Subscript:
+            Base:
+              Identifier: x
+              SafetyType: auto
+            Index:
+              Binary: +
+                Left:
+                  Number: 1
+                Right:
+                  Number: 2
+        Index:
+          Literal ID: y
+    Value:
+      Binary: *
+        Left:
+          Binary: +
+            Left:
+              Number: 1
+            Right:
+              Number: 2
+        Right:
+          Number: 3
+--- ENDOF ---
 ```
 
 ---
