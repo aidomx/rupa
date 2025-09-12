@@ -83,6 +83,7 @@ enum NodeType {
   NODE_RETURN = 12,
   NODE_STRING = 13,
   NODE_SUBSCRIPT = 14,
+  NODE_STRUCT = 17,
   NODE_VARIABLE = 15
 };
 

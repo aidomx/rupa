@@ -1,7 +1,8 @@
-#pragma once
+#ifndef RUPA_CORE_H
+#define RUPA_CORE_H
 
-#include "rupa/package.h"
-
-#include "rupa/core/ast.h"
 #include "rupa/core/ctypes.h"
-#include "rupa/core/node.h"
+#include "rupa/core/enum.h"
+#include "rupa/core/limit.h"
+
+#endif
