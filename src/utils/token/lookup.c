@@ -24,6 +24,10 @@ BinaryType getBinaryType(DataToken *token) {
   }
 }
 
+DataToken *getToken(Token *t, int pos) {
+  return (pos < 0 || pos >= t->length) ? NULL : &t->data[pos];
+}
+
 /**
  * Mendapatkan precedence operator.
  * Angka lebih tinggi = precedence lebih kuat.
