@@ -3,6 +3,14 @@
 #include "rupa/package.h"
 
 /**
+ * @brief Membuat struktur token baru.
+ *
+ * @param capacity Jumlah awal kapasitas token.
+ * @return Pointer ke Token.
+ */
+extern Token *createToken(int capacity);
+
+/**
  * Mencari posisi terakhir dari RBLOCK
  */
 extern int findArr(Token *tokens, int pos);

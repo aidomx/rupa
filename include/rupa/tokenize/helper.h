@@ -3,6 +3,7 @@
 #include "rupa/package.h"
 
 extern Array getArrayIndex(const char *input, int start, int end);
+extern Position getSymbolIndex(const char *input, int start, int end);
 extern char *getTokenId(const char *input, int start, int end);
 extern char *getTokenValue(const char *input, int start, int end);
 extern int handle_quotes(char c, int *in_quotes, int *quote_char);

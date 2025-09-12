@@ -1,10 +1,10 @@
 #pragma once
 
 #include "rupa/package.h"
+
 #include "rupa/tokenize/factory.h"
 #include "rupa/tokenize/helper.h"
 #include "rupa/tokenize/processor.h"
-#include "rupa/tokenize/structure.h"
 #include "rupa/tokenize/token.h"
 
 /**
@@ -27,6 +27,14 @@ extern int addDelim(Token *tokens, char c, char *safetyType, int line, int row);
  * @return Status keberhasilan.
  */
 extern int addToken(Token *tokens, DataToken data);
+
+/**
+ * @brief Menghapus seluruh token dan mengosongkan buffer.
+ *
+ * @param token Pointer ke struktur token.
+ * @param capacity Kapasitas awal token.
+ */
+extern void clearToken(Token *token, int capacity);
 
 /**
  * @brief Melakukan tokenisasi terhadap input tertentu.
