@@ -9,11 +9,6 @@
  * @github https://github.com/aidomx/rupa.git
  */
 #include <rupa/package.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * @brief Membuat dan menginisialisasi state baru untuk REPL.
@@ -90,10 +85,12 @@ void editorRepl(ReplState *state, bool *actived, char buffer[]) {
      * panjang dari buffer lebih dari 0.
      */
     if (state->length > 0 && strlen(buffer) > 0) {
+      // src/parser/tokenize/main.c
       Token *tokens =
           tokenize(state->tokens, state->history, state->length, state->line);
 
       if (tokens && tokens->length > 0)
+        // src/ast/ast.c
         generateAst(tokens);
     }
   }
