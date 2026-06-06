@@ -1,10 +1,11 @@
-#include <rupa/package.h>
+#include <rupa.h>
 
-int main(int argc, char *argv[]) {
-  if (argc > 1) {
-    printf("%s\n", argv[0]);
+int main(int argc, const char *argv[]) {
+  if (argc > 3) {
+    perror("3 arguments maximal!\n");
+    return 0;
   }
 
-  startRepl();
-  return 0;
+  // forward to bootstrap loader
+  return loader(argv, argc);
 }
