@@ -23,7 +23,7 @@ extern Atom init_atom(Input *input);
  * @param content Source input
  * @param flags Lexer flags
  */
-void primaryAtom(Atom *atom, const char *content, Flags *flags);
+extern void primaryAtom(Atom *atom, const char *content, Flags *flags);
 
 extern int scanAtom(Atom *atom);
 

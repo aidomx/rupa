@@ -7,7 +7,7 @@ SRC_DIR = src
 OBJ_DIR = build
 TARGET = bin/rupa
 
-SRC = $(wildcard $(SRC_DIR)/**/**/*.c $(SRC_DIR)/**/*.c $(SRC_DIR)/*.c)
+SRC = $(shell find $(SRC_DIR) -type f -name "*.c")
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 $(TARGET): $(OBJ)

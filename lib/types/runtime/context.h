@@ -18,11 +18,13 @@ struct Context {
  */
 struct StateContext {
   int brace;
+  int bracket;
   int colon;
   int paren;
   int inStrictType;
   int inFunc;
   int inStruct;
+  int objectDepth;
   int line;
   int lineStart;
   int space;

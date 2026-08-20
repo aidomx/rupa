@@ -109,48 +109,56 @@ void clearGlobalState(State *state, int capacity) {
 
   if (state->tokens) {
     clearToken(state->tokens, capacity);
-    free(state->tokens->data);
-    free(state->tokens);
+    gcfree(state->tokens->data);
+    state->tokens->data = NULL;
+    gcfree(state->tokens);
+    state->tokens = NULL;
   }
 
   if (state->repl) {
-    // Untuk .exit, free semua memory
-    for (int i = 0; i < state->repl->capacity; i++) {
-      if (state->repl->history->entries[i]) {
-        free(state->repl->history->entries[i]);
-        state->repl->history->entries[i] = NULL;
-      }
-    }
-
+    /* ReplState and its children are GC-owned allocations. */
     if (state->repl->history) {
-      free(state->repl->history->entries);
-      free(state->repl->history);
+      History *history = state->repl->history;
+      for (int i = 0; i < history->capacity; i++) {
+        if (history->entries && history->entries[i]) {
+          gcfree(history->entries[i]);
+          history->entries[i] = NULL;
+        }
+      }
+      gcfree(history->entries);
+      history->entries = NULL;
+      gcfree(history);
       state->repl->history = NULL;
     }
 
     if (state->repl->buffer) {
-      free(state->repl->buffer->value);
-      free(state->repl->buffer);
+      gcfree(state->repl->buffer->value);
+      state->repl->buffer->value = NULL;
+      gcfree(state->repl->buffer);
       state->repl->buffer = NULL;
     }
 
     if (state->repl->editor) {
-      free(state->repl->editor);
+      gcfree(state->repl->editor);
       state->repl->editor = NULL;
     }
 
-    free(state->repl);
+    gcfree(state->repl);
     state->repl = NULL;
   }
 
   if (state->context) {
     clearStateContext(state->context);
+    gcfree(state->context);
+    state->context = NULL;
   }
 
   if (state->input) {
     clearStateInput(state->input);
+    gcfree(state->input);
+    state->input = NULL;
   }
 
   state->isRepl = false;
-  free(state);
+  gcfree(state);
 }

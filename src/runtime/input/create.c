@@ -11,7 +11,7 @@ Input *createInput(int capacity) {
   /*}*/
 
   if (!input->content) {
-    free(input->content);
+    gcfree(input->content);
     return NULL;
   }
   /*input->context = createContext(capacity * sizeof(Context));*/

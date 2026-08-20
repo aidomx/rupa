@@ -63,7 +63,7 @@ _render_bar() {
 
 _render_percentage() {
   local percent=$1
-  echo -ne "\r${CYAN}${PROGRESS_MSG}${NC}: ${percent}%"
+  echo -ne "\r${CYAN}${PROGRESS_MSG}: ${NC}${percent}%"
 }
 
 _render_spinner() {

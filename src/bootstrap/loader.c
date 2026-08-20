@@ -18,6 +18,12 @@ int loader(const char *args[], int length) {
       break;
     }
 
+    else if (strcmp(args[i], "--test") == 0) {
+      test(args + i + 1, length - i - 1);
+      handled = true;
+      break;
+    }
+
     else if (strcmp(args[i], "--version") == 0) {
       version();
       handled = true;

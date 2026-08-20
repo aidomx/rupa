@@ -3,21 +3,10 @@
 # Set strict-ish mode
 set -euo pipefail
 
-APP_NAME="rupa"
-APP_ROOT="$(dirname "${BASH_SOURCE[0]}")"
-APP_VERSION="1.0.0"
-DEV_MODE="${DEV_MODE:-0}"
-
-if [ $DEV_MODE -eq 0 ] && command -v bee >/dev/null 2>&1; then
-  APP_ROOT="$HOME/$APP_NAME"
-else
-  APP_ROOT="$(realpath "$APP_ROOT")"
-fi
-
 # Load library
 while IFS= read -r lib; do
   . "$lib"
-done < <(find "$APP_ROOT/lib" -name "*.sh")
+done < <(find "$APP_LIB" -name "*.sh")
 
 set_color
 set_default_compiler

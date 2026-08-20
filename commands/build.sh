@@ -7,23 +7,48 @@ build_clean() {
 }
 
 build_common() {
-  printf "%-4s %-20s %-8s %-8s %-8s\n" "#" "source" "time" "size" "status"
+  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+  local compact=false
+  (( width < 64 )) && compact=true
 
-  local STATUS="?"
+  # The progress line is temporary and always remains directly below the
+  # completed source rows. Before printing a new row, erase it and move the
+  # cursor one line up so the new row is inserted above the progress line.
+  local progress_active=false
+
+  printf "# | source"
+  if ! $compact; then
+    printf " | time   | size | status"
+  else
+    printf " | status"
+  fi
+  printf "\n"
 
   for file in "${SRC[@]}"; do
+    if $progress_active; then
+      # Progress occupies the last line. Insert a new source row immediately
+      # above it so the progress line stays fixed at the bottom.
+      printf '\033[2K\r\033[1L'
+    fi
+
     COMPILED_FILES=$((COMPILED_FILES + 1))
-    SOURCE="${file##*${APP_NAME}-v${TARGET_RELEASE_VERSION}}"
+    SOURCE="${file#"$APP_ROOT"/}"
+    [[ "$SOURCE" == "$file" ]] && SOURCE="${file#"$SRC_DIR"/}"
 
     start=$(date +%s.%N)
-    output=$(compile_file "$file" 2>&1)
+    if output=$(compile_file "$file" 2>&1); then
+      COMPILE_STATUS=0
+    else
+      COMPILE_STATUS=$?
+    fi
     end=$(date +%s.%N)
-
     TIME=$(awk "BEGIN {printf \"%.2fs\", $end - $start}")
 
-    if [[ -z "$output" ]]; then
+    if [ "$COMPILE_STATUS" -ne 0 ]; then
       STATUS="FAIL"
       SIZE="-"
+      ERROR_TOTAL=$((ERROR_TOTAL + 1))
+      printf "%s\n" "$output"
     else
       STATUS="OK"
       if [[ -f "$output" ]]; then
@@ -34,79 +59,51 @@ build_common() {
       fi
     fi
 
-    # POTONG source biar rapi
-    SRC_SHORT=$(basename "$SOURCE")
-    SRC_SHORT=${SRC_SHORT:0:20}
+    # Width belongs to the whole row. Keep # and status fixed and give the
+    # remaining space to source. Long paths are shortened from the left.
+    if $compact; then
+      local fixed=$((4 + 8)) # index + separators/status
+      local max_source=$((width - fixed))
+      (( max_source < 10 )) && max_source=10
+      if (( ${#SOURCE} > max_source )); then
+        SOURCE="...${SOURCE: -$((max_source - 3))}"
+      fi
+      printf "%d | %-*s | %s\n" "$COMPILED_FILES" "$max_source" "$SOURCE" "$STATUS"
+    else
+      local max_source=$((width - 31))
+      (( max_source < 12 )) && max_source=12
+      if (( ${#SOURCE} > max_source )); then
+        SOURCE="...${SOURCE: -$((max_source - 3))}"
+      fi
+      printf "%d | %-*s | %-6s | %-4s | %s\n" \
+        "$COMPILED_FILES" "$max_source" "$SOURCE" "$TIME" "$SIZE" "$STATUS"
+    fi
 
-    printf "%-4d %-20s %-8s %-8s %-8s\n" \
-      "$COMPILED_FILES" "$SRC_SHORT" "$TIME" "$SIZE" "$STATUS"
-
-    # ===== BARIS FIX =====
-    printf "\033[K${CYAN}(%d/%d)${NC} %s\r" \
-      "$COMPILED_FILES" "$TOTAL_FILES" "$SOURCE"
+    PERCENT=$((COMPILED_FILES * 100 / TOTAL_FILES))
+    printf "(%d/%d) processing... %d%%" "$COMPILED_FILES" "$TOTAL_FILES" "$PERCENT"
+    progress_active=true
   done
 
-  # newline terakhir biar prompt ga nempel
-  printf "\n"
-  #for file in "${SRC[@]}"; do
-  #COMPILED_FILES=$((COMPILED_FILES + 1))
+  if $progress_active; then
+    # Remove the final progress line before linking/summary output.
+    printf '\033[2K\r'
+    printf '\n'
+  fi
 
-  #printf "\r\033[K${CYAN}[%2d/%2d]${NC} %-30s" $COMPILED_FILES $TOTAL_FILES "${file##*${APP_NAME}-v${TARGET_RELEASE_VERSION}}"
-  ## Move to column 55 for percentage
-  #printf "\033[55G%3d%%" $PERCENT
+  if [ "$ERROR_TOTAL" -eq 0 ]; then
+    link_executable
+  else
+    echo -e "${RED}Build failed; linking skipped.${NC}"
+    return 1
+  fi
 
-  #local result=$(compile_file "$file" 2>&1)
-
-  ## Compile file
-  #if [[ -n "$result" ]]; then
-  #local end_time=$(date +%s.%N)
-  #if [ -f "$result" ]; then
-  #(stat -c%s "$result") >/dev/null 2>&1 &
-  #local PID=$!
-  #local duration=0
-  #local max_duration=60
-
-  #while [[ "$PERCENT" -lt 100 ]]; do
-  #PERCENT=$((duration * 100 / max_duration))
-  #printf "\r\033[55G%3d%%" $PERCENT
-  #duration=$((duration + 1))
-  #done
-  #wait $PID
-
-  #printf "\r\033[55G\033[K" # Clear percentage
-  #printf "\033[55G${GREEN}✓${NC}\n"
-  #PERCENT=0
-
-  ## Simulate progress (karena compile cepat)
-  ##for i in $(seq 0 25 100); do
-  ##printf "\r\033[55G%3d%%" $i
-  ##sleep 0.01
-  ##done
-  #fi
-  #else
-  #printf "\r\033[55G\033[K"
-  #printf "\033[55G${RED}✗${NC}\n"
-  #return 1
-  #fi
-  #done
-
-  # Link
-  link_executable
-
-  # Show result
   local size=$(stat -c%s "$TARGET" 2>/dev/null | numfmt --to=iec 2>/dev/null || echo "unknown")
   echo ""
   echo -e "${CYAN}> Summary${NC}"
   echo -e "Target   : ${YELLOW}$TARGET${NC}"
   echo -e "Size     : ${YELLOW}$size${NC}"
   echo -e "Files    : ${YELLOW}$TOTAL_FILES${NC}"
-
-  if [ "$ERROR_TOTAL" -gt 0 ]; then
-    echo -e "Status   : ${RED}Error${NC}"
-  else
-    echo -e "Status   : ${GREEN}Success${NC}"
-  fi
-
+  echo -e "Status   : ${GREEN}Success${NC}"
   echo -e "Errors   : ${ERROR_TOTAL:-0}"
   echo -e "Warnings : ${UNUSED_TOTAL:-0}"
   echo ""

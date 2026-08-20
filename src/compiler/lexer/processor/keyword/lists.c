@@ -23,11 +23,11 @@ KeywordType keywordType[] = {
     KEYWORD_REV,     // rev
     KEYWORD_WHILE,   // while
     KEYWORD_PRINT,   // print
+    KEYWORD_IMPORT,  // import
     KEYWORD_EXPORT,  // export
     KEYWORD_EXTENDS, // extends
-    KEYWORD_IMPORT,  // import
     KEYWORD_RETURN,  // return
-    KEYWORD_NULL     // null
+    KEYWORD_NULL     // sentinel
 };
 
 const int keywordListSize = sizeof(keywordList) / sizeof(keywordList[0]) - 1;

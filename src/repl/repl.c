@@ -24,6 +24,7 @@ void editorRepl(State *state) {
     return;
 
   ReplState *repl = state->repl;
+
   if (!repl)
     return;
 

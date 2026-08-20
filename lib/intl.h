@@ -107,4 +107,4 @@ int loader(const char *args[], int length);
  * @param buffer Buffer tujuan.
  * @return True jika berhasil dibaca.
  */
-bool readfile(const char *path, char *buffer);
+bool readfile(const char *path, Buffer *buffer);

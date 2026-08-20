@@ -1,41 +1,30 @@
 # Vision
 
-Visi Rupa sederhana namun kuat:
-**menjadi bahasa yang mampu bertahan dalam segala konteks,
-kuat dalam fondasi, dan fleksibel untuk setiap kebutuhan.**
+Visi Rupa adalah menjadi bahasa yang mampu bertahan dan berkembang dalam berbagai konteks tanpa kehilangan fondasi dan identitasnya.
 
-Rupa tidak hanya sekadar bahasa pemrograman,
-tetapi fondasi untuk membangun ide, sistem, dan masa depan.
+## Arah jangka panjang
 
-## Future Direction
+Rupa diarahkan untuk memiliki fondasi yang cukup dekat dengan sistem agar dapat berkembang ke kebutuhan low-level, sekaligus cukup nyaman untuk construct tingkat tinggi.
 
-Salah satu arah pengembangan Rupa di masa depan adalah mendukung
-**penulisan sintaks dalam bahasa Ibu**.
-Dengan menggunakan direktif `#lang`, programmer dapat menulis kode
-dengan gaya penulisan sesuai bahasa lokal, tanpa mengorbankan kompatibilitas global.
+Salah satu arah masa depan adalah dukungan penulisan syntax dalam bahasa lokal melalui direktif seperti `#lang`, tanpa mengorbankan representasi atau kompatibilitas global.
 
-Contoh:
+Contoh konsep:
 
 ```rupa
 #lang: id_ID
 jika x == 10 {
-  tulis(x)
+    tulis(x)
 }
 ```
 
-```rupa
-#lang: pt_BR
-se x == 10 {
-  escreva(x)
-}
-```
-
-Tanpa `#lang`, Rupa akan menggunakan **bahasa Inggris** sebagai standar global:
+Tanpa direktif bahasa, syntax standar menggunakan bentuk global yang ditetapkan Rupa:
 
 ```rupa
 if x == 10 {
-  print(x)
+    print(x)
 }
 ```
 
-> **Satu bahasa, banyak cara bicara.**
+Contoh `#lang` adalah arah desain masa depan, bukan klaim bahwa fitur tersebut sudah diimplementasikan.
+
+> Satu bahasa, banyak cara berbicara.

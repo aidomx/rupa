@@ -24,10 +24,4 @@ LexerState init_lex(Editor *editor, Input *input, Token *token) {
                       .token = token};
 }
 
-void *lexer(State *state) {
-  if (check_state(state))
-    return NULL;
-
-  return (!getKeyword(state->input)) ? process(state, "program")
-                                     : process(state, "keyword");
-}
+void *lexer(State *state) { return check_state(state) ? NULL : process(state); }

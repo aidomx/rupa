@@ -7,5 +7,6 @@ extern ReplState *createReplState(int capacity);
  * @brief Memulai Read-Eval-Print Loop (REPL) utama.
  */
 extern void startRepl(bool actived);
+extern void processInput(State *state);
 
 #endif

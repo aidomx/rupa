@@ -72,11 +72,11 @@ int createTokenId(State *state, int start, int end) {
                     .type = IDENTIFIER,
                     .value = strdup(id)};
 
-  free(id);
+  gcfree(id);
 
   if (safetyType) {
     data.safetyType = strdup(safetyType);
-    free(safetyType);
+    gcfree(safetyType);
   }
 
   return addToken(tokens, data);
@@ -89,7 +89,7 @@ int addToken(Token *tokens, DataToken data) {
   if (tokens->length >= tokens->capacity) {
     size_t newCapacity = tokens->capacity * 2;
     DataToken *old_data =
-        realloc(tokens->data, sizeof(DataToken) * newCapacity);
+        gcrealloc(tokens->data, sizeof(DataToken) * newCapacity);
 
     if (!old_data) {
       perror("Relocation of data is failed.");
@@ -112,7 +112,7 @@ DataToken createDataToken(char *input, char *safetyType, TokenType tokenType,
                           int line, int row) {
   DataToken data = {.line = line,
                     .row = row,
-                    .safetyType = safetyType,
+                    .safetyType = safetyType ? strdup(safetyType) : NULL,
                     .type = tokenType,
                     .value = strdup(input)};
 

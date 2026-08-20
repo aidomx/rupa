@@ -1,8 +1,7 @@
 #pragma once
 
 #include "lexeme/lexeme.h"
-#include "processor.h"
-#include "resolve/resolve.h"
+#include "processor/processor.h"
 
 #if defined(RUPA_PACKAGE_H)
 /**

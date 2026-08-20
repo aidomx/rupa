@@ -6,7 +6,7 @@ History *createHistory(int capacity) {
   h->currentIndex = -1;
   h->entries = gcmall(capacity * sizeof(char *));
   if (!h->entries) {
-    free(h->entries);
+    gcfree(h->entries);
     return NULL;
   }
 
@@ -27,7 +27,7 @@ History *addToHistory(State *state) {
 
   if (h->size >= h->capacity) {
     if (h->entries[0] != NULL) {
-      free(h->entries[0]);
+      gcfree(h->entries[0]);
       h->entries[0] = NULL;
     }
 

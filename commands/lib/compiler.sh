@@ -12,9 +12,11 @@ set_default_compiler() {
   export UB_FLAGS="-fsanitize=undefined"
 
   export CC="gcc"
+
   if $compdb && command -v ccache >/dev/null 2>&1; then
     export CC="ccache gcc"
   fi
+
   export CFLAGS="${INCLUDE_FLAGS} ${WALL_FLAGS} ${CLANGD_FLAGS}"
   export LDFLAGS=""
 }
@@ -50,7 +52,7 @@ set_default_tracking() {
   # Progress tracking
   export TOTAL_FILES=0
   export COMPILED_FILES=0
-  export COMPILED_SYNC="compile_commands.json"
+  export COMPILED_SYNC="$COMPDB_FILE"
   export PERCENT=0
   export DEBUGGING=false
   export ERROR_TOTAL=0

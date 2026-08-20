@@ -29,13 +29,13 @@ void handleNormalMode(ReplState *repl, int key) {
     setEditorAttr(editor, EDITOR_ATTR_ARROW_DOWN);
     navigateHistory(repl, 1);
     break;
-  // case 'C':
+  case 'C':
   case ARROW_RIGHT:
     setEditorMode(editor, EDITOR_MODE_INSERT);
     setEditorAttr(editor, EDITOR_ATTR_ARROW_RIGHT);
     moveCursor(repl, 1);
     break;
-  // case 'D':
+  case 'D':
   case ARROW_LEFT:
     setEditorMode(editor, EDITOR_MODE_INSERT);
     setEditorAttr(editor, EDITOR_ATTR_ARROW_LEFT);

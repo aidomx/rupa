@@ -1,9 +1,13 @@
 # Mission
 
-Rupa adalah bahasa yang dirancang untuk:
+Rupa dibangun sebagai bahasa pemrograman yang memiliki fondasi sederhana tetapi tidak membatasi arah penggunaannya.
 
-- **Serbaguna** → bisa digunakan di berbagai konteks.
-- **Ringan** → cepat, sederhana, tanpa beban berlebih.
-- **Fleksibel** → bebas membangun dari eksperimen kecil hingga proyek besar.
+## Tujuan
 
-<i>Rupa is for everything.</i>
+- **Serbaguna** — dapat berkembang untuk berbagai konteks.
+- **Ringan** — menghindari kompleksitas dan beban yang tidak diperlukan.
+- **Fleksibel** — dapat digunakan dari eksperimen kecil hingga sistem yang lebih besar.
+- **Berfondasi kuat** — perubahan fitur tidak boleh mengorbankan struktur inti tanpa alasan yang jelas.
+- **Dapat berkembang** — desain hari ini tidak boleh menutup kemungkinan kebutuhan masa depan.
+
+> Rupa is for everything.
