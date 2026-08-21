@@ -1,14 +1,14 @@
 #include <rupa.h>
 
 Node *createNode(int capacity) {
-  Node *node = malloc(sizeof(Node));
+  Node *node = gccalloc(1, sizeof(Node));
 
   if (!node) {
     perror("Memory allocation for node tree is failed.");
     exit(1);
   }
 
-  node->ast = calloc(capacity, sizeof(AstNode));
+  node->ast = gccalloc(capacity, sizeof(AstNode));
   node->capacity = capacity;
   node->length = 0;
 

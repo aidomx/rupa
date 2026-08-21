@@ -27,14 +27,13 @@ enum TokenType {
   DIVIDE = 16,          // /
   DOLLAR = 17,          // $
   DOT = 18,             // .
-  DOUBLE = 19,
+  DECIMAL = 19, // decimal literal; precision resolved by type context
   ELLIPSIS = 20, // ...
   ENDOF = '\0',
   EQUAL = 21,       // ==
   EQUAL_THAN = 22,  // =
   EXCLAMATION = 23, // !
   FAT_ARROW = 24,   // =>
-  FLOAT = 25,
   FORM_FEED = 26,     // \f
   GREATER_EQUAL = 27, // >=
   GREATER_THAN = 28,  // >

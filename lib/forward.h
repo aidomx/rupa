@@ -50,7 +50,7 @@ typedef struct AstBinaryExpression AstBinaryExpression;
 typedef struct AstBoolean AstBoolean;
 typedef struct AstDeclaration AstDeclaration;
 typedef struct AstDouble AstDouble;
-typedef struct AstFloat AstFloat;
+typedef struct AstDecimal AstDecimal;
 typedef struct AstIdentifier AstIdentifier;
 typedef struct AstNumber AstNumber;
 typedef struct AstProgram AstProgram;

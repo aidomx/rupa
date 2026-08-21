@@ -45,6 +45,14 @@ int getPrecedence(DataToken *token) {
     return 12;
   case ASSIGN:
     return 9;
+  case EQUAL:
+  case NOT_EQUAL:
+    return 8;
+  case LESS_THAN:
+  case LESS_EQUAL:
+  case GREATER_THAN:
+  case GREATER_EQUAL:
+    return 10;
   default:
     return -1;
   }

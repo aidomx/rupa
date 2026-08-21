@@ -28,7 +28,7 @@ void addToProgram(Node *node, int programId, int declId) {
     return;
   }
 
-  AstDeclaration *new_decl = malloc(sizeof(AstDeclaration));
+  AstDeclaration *new_decl = gccalloc(1, sizeof(AstDeclaration));
   if (!new_decl) {
     perror("Failed to allocate declaration node");
     return;
@@ -96,9 +96,20 @@ void generateAst(Token *tokens) {
 
   if (node->length > 0) {
     printf("Total node: %d\n", node->length);
-    // src/ast/debug.c
+    // src/interpreter/debug/printAst.c
     startDebug(node); // debug print AST
   }
 
-  clearNode(node);
+  (void)node; // GC owns AST lifetime.
+}
+
+bool hasAstDeclarations(Token *tokens) {
+  if (!tokens || tokens->length == 0)
+    return false;
+  Request request = createRequest(tokens, 10);
+  Node *node = processGenerate(&request);
+  bool ok = node && request.programId >= 0 &&
+            node->ast[request.programId].program.declarations != NULL;
+  (void)node;
+  return ok;
 }

@@ -15,11 +15,11 @@ int parseAtom(Request *req, DataToken *data) {
     return createBoolean(req->node,
                          strcmp(data->value, "true") == 0 ? true : false);
 
-  case FLOAT:
-    return createFloat(req->node, data->value);
+  case DECIMAL:
+    return createDecimal(req->node, data->value);
 
   case IDENTIFIER: {
-    int baseId = createId(req->node, data->value, data->safetyType);
+    int baseId = createId(req->node, data->value);
 
     // Periksa jika identifier diikuti oleh LBLOCK (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {

@@ -13,18 +13,16 @@ void printBoolean(bool value, int level) {
   printf("Boolean: %s\n", value == 1 ? "true" : "false");
 }
 
-void printFloat(char *value, int level) {
+void printDecimal(char *value, int level) {
   printIndent(level);
-  char *format = "Float: %s\n";
+  char *format = "Decimal: %s\n";
 
   printf(format, value);
 }
 
-void printId(char *id, char *safetyType, int level) {
+void printId(char *id, int level) {
   printIndent(level);
   printf("Identifier: %s\n", id ? id : "null");
-  printIndent(level);
-  printf("SafetyType: %s\n", !safetyType ? "auto" : safetyType);
 }
 
 void printNumber(int value, int level) {
@@ -94,11 +92,16 @@ static void printAst(Node *node, int index, int level) {
     if (n->assign.target >= 0 && n->assign.target < node->length) {
       AstNode *target = &node->ast[n->assign.target];
       if (target->type == NODE_IDENTIFIER) {
-        printId(target->identifier.name, target->identifier.safetyType,
-                level + 2);
+        printId(target->identifier.name, level + 2);
       } else if (target->type == NODE_SUBSCRIPT) {
         printAst(node, n->assign.target, level + 2);
       }
+    }
+
+    if (n->assign.type >= 0 && n->assign.type < node->length) {
+      printIndent(level + 1);
+      printf("Type:\n");
+      printAst(node, n->assign.type, level + 2);
     }
 
     printIndent(level + 1);
@@ -110,8 +113,8 @@ static void printAst(Node *node, int index, int level) {
     printBoolean(n->boolean.value, level);
     break;
 
-  case NODE_FLOAT:
-    printFloat(n->asFloat.lexeme, level);
+  case NODE_DECIMAL:
+    printDecimal(n->decimal.lexeme, level);
     break;
 
   case NODE_NUMBER:
@@ -147,7 +150,7 @@ static void printAst(Node *node, int index, int level) {
     break;
 
   case NODE_IDENTIFIER:
-    printId(n->identifier.name, n->identifier.safetyType, level);
+    printId(n->identifier.name, level);
     break;
 
   case NODE_BINARY:
@@ -163,6 +166,120 @@ static void printAst(Node *node, int index, int level) {
 
   case NODE_LITERAL_ID:
     printString(n, level);
+    break;
+
+  case NODE_CALL:
+    printIndent(level);
+    printf("Call:\n");
+    printIndent(level + 1);
+    printf("Callee:\n");
+    printAst(node, n->call.callee, level + 2);
+    for (int i = 0; i < n->call.length; i++) {
+      printIndent(level + 1);
+      printf("Arg %d:\n", i + 1);
+      printAst(node, n->call.args[i], level + 2);
+    }
+    break;
+  case NODE_PRINT:
+    printIndent(level);
+    printf("Print:\n");
+    for (int i = 0; i < n->print.length; i++)
+      printAst(node, n->print.args[i], level + 1);
+    break;
+  case NODE_BLOCK:
+    printIndent(level);
+    printf("Block:\n");
+    for (int i = 0; i < n->block.length; i++)
+      printAst(node, n->block.statements[i], level + 1);
+    break;
+  case NODE_IF:
+    printIndent(level);
+    printf("If:\n");
+    if (n->asIf.condition >= 0) {
+      printIndent(level + 1);
+      printf("Condition:\n");
+      printAst(node, n->asIf.condition, level + 2);
+    }
+    if (n->asIf.thenBlock >= 0) {
+      printIndent(level + 1);
+      printf("Body:\n");
+      printAst(node, n->asIf.thenBlock, level + 2);
+    }
+    if (n->asIf.elseBlock >= 0) {
+      printIndent(level + 1);
+      printf("Else:\n");
+      printAst(node, n->asIf.elseBlock, level + 2);
+    }
+    break;
+  case NODE_LOOP:
+    printIndent(level);
+    printf("Loop: %s\n", n->loop.kind);
+    if (n->loop.condition >= 0)
+      printAst(node, n->loop.condition, level + 1);
+    if (n->loop.body >= 0)
+      printAst(node, n->loop.body, level + 1);
+    break;
+  case NODE_FUNCTION_DECL:
+    printIndent(level);
+    printf("Function:\n");
+    printIndent(level + 1);
+    printf("Name:\n");
+    printAst(node, n->function.name, level + 2);
+    printIndent(level + 1);
+    printf("Parameters:\n");
+    for (int i = 0; i < n->function.paramLength; i++)
+      printAst(node, n->function.params[i], level + 2);
+    if (n->function.body >= 0) {
+      printIndent(level + 1);
+      printf("Body:\n");
+      printAst(node, n->function.body, level + 2);
+    }
+    break;
+  case NODE_STRUCT_DECL:
+    printIndent(level);
+    printf("Struct:\n");
+    printAst(node, n->asStruct.name, level + 1);
+    if (n->asStruct.body >= 0)
+      printAst(node, n->asStruct.body, level + 1);
+    break;
+  case NODE_ANNOTATION:
+    printIndent(level);
+    printf("Annotation:\n");
+    printIndent(level + 1);
+    printf("Name:\n");
+    printAst(node, n->annotation.name, level + 2);
+    if (n->annotation.type >= 0) {
+      printIndent(level + 1);
+      printf("Type:\n");
+      printAst(node, n->annotation.type, level + 2);
+    }
+    if (n->annotation.value >= 0) {
+      printIndent(level + 1);
+      printf("Value:\n");
+      printAst(node, n->annotation.value, level + 2);
+    }
+    break;
+  case NODE_OBJECT:
+    printIndent(level);
+    printf("Object:\n");
+    for (int i = 0; i < n->object.length; i++) {
+      printIndent(level + 1);
+      printf("Entry %d:\n", i + 1);
+      printIndent(level + 2);
+      printf("Key:\n");
+      printAst(node, n->object.entries[i].key, level + 3);
+      printIndent(level + 2);
+      printf("Value:\n");
+      printAst(node, n->object.entries[i].value, level + 3);
+    }
+    break;
+  case NODE_IMPORT:
+  case NODE_EXPORT:
+  case NODE_EXTENDS:
+    printIndent(level);
+    printf("Module statement:\n");
+    if (n->module.value >= 0)
+      printAst(node, n->module.value, level + 1);
     break;
 
   default:

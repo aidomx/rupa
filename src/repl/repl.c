@@ -112,9 +112,15 @@ void processInput(State *state) {
 
   lexer(state);
 
-  printf("token length: %d\n", state->tokens->length);
+  Flags *flags = state->input->flags;
+  Token *tokens = state->tokens;
 
-  resetFlags(state->input->flags);
+  printf("token length: %d\n", tokens->length);
+
+  if (!flags->isWaiting && (tokens && tokens->length > 0))
+    generateAst(tokens);
+
+  resetFlags(flags);
   // atur konteks dengan membaca hasil input.
   // processContextInput(state);
   // setContextInput(state);

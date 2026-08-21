@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(RUPA_PACKAGE_H)
-#include <stdbool.h>
 // ==================== STRUCT DEFINITIONS ====================
 
 struct AstArray {
@@ -16,6 +15,7 @@ struct AstArray {
  */
 struct AstAssignment {
   int target;
+  int type;  // -1 jika tidak ada explicit type annotation
   int value;
 };
 
@@ -70,13 +70,11 @@ struct AstDouble {
 };
 
 /**
- * @brief Representasi AST untuk floating-point number.
- *
- * Menyimpan lexeme dan nilai float.
+ * @brief Representasi literal decimal tanpa menentukan precision runtime.
  */
-struct AstFloat {
+struct AstDecimal {
   char *lexeme;
-  float value;
+  double value; // cache numerik; float/double runtime ditentukan kemudian
 };
 
 /**
@@ -86,7 +84,6 @@ struct AstFloat {
  */
 struct AstIdentifier {
   char *name;
-  char *safetyType;
 };
 
 /**
@@ -147,6 +144,71 @@ struct AstVariable {
   struct AstNode *next;
 };
 
+struct AstList {
+  int *items;
+  int length;
+};
+
+struct AstCall {
+  int callee;
+  int *args;
+  int length;
+};
+
+struct AstPrint {
+  int *args;
+  int length;
+};
+
+struct AstBlock {
+  int *statements;
+  int length;
+};
+
+struct AstIf {
+  int condition;
+  int thenBlock;
+  int elseBlock;
+};
+
+struct AstLoop {
+  char *kind;
+  int condition;
+  int body;
+};
+
+struct AstFunctionDecl {
+  int name;
+  int *params;
+  int paramLength;
+  int body;
+};
+
+struct AstStructDecl {
+  int name;
+  int body;
+};
+
+struct AstAnnotation {
+  int name;
+  int type;
+  int value;
+};
+
+struct AstModule {
+  int value;
+};
+
+struct AstObjectEntry {
+  int key;
+  int value;
+};
+
+struct AstObject {
+  struct AstObjectEntry *entries;
+  int length;
+};
+
 /**
  * @brief Abstract Syntax Tree node.
  *
@@ -161,15 +223,25 @@ struct AstNode {
     struct AstBinaryExpression binaryExpression; ///< Binary expression
     struct AstBoolean boolean;                   ///< Boolean literal
     struct AstDouble asDouble;                   ///< Double precision number
-    struct AstFloat asFloat;                     ///< Floating-point number
-    struct AstIdentifier identifier;             ///< Identifier reference
-    struct AstNumber number;                     ///< Integer number
-    struct AstProgram program;                   ///< Program root node
-    struct AstReturn asReturn;                   ///< Return statement
-    struct AstString string;                     ///< String literal
-    struct AstSubscript subscript;               ///< Array subscript
-    struct AstVariable variable;                 ///< Variable declaration
-    struct DataToken *token;                     ///< Raw token data
+    struct AstDecimal decimal; ///< Decimal literal; runtime type resolved later
+    struct AstIdentifier identifier; ///< Identifier reference
+    struct AstNumber number;         ///< Integer number
+    struct AstProgram program;       ///< Program root node
+    struct AstReturn asReturn;       ///< Return statement
+    struct AstString string;         ///< String literal
+    struct AstSubscript subscript;   ///< Array subscript
+    struct AstVariable variable;     ///< Variable declaration
+    struct AstCall call;
+    struct AstPrint print;
+    struct AstBlock block;
+    struct AstIf asIf;
+    struct AstLoop loop;
+    struct AstFunctionDecl function;
+    struct AstStructDecl asStruct;
+    struct AstAnnotation annotation;
+    struct AstModule module;
+    struct AstObject object;
+    struct DataToken *token; ///< Raw token data
   };
 };
 

@@ -66,7 +66,7 @@ int processNumber(State *state, int start, int end, int *next, bool *waiting) {
   char *value = substring(s, start, p);
   if (!value)
     return -1;
-  TokenType type = dot ? FLOAT : NUMBER;
+  TokenType type = dot ? DECIMAL : NUMBER;
   addToken(state->tokens,
            createDataToken(value, NULL, type, line_of(state), start));
   gcfree(value);

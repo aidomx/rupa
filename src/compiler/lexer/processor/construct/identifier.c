@@ -31,7 +31,19 @@ int processIdentifier(State *state, int start, int end, bool literal,
   while (q < end && (s[q] == ' ' || s[q] == '\t' || s[q] == '\r'))
     q++;
 
-  if (q < end && s[q] == ':' && !object_property(state)) {
+  /* A colon following the header value of a control construct starts its
+   * body; it is not a type annotation.  Without this distinction,
+   * `for i: print(i)` is incorrectly consumed as `i: print`. */
+  bool control_header = false;
+  if (state->tokens->length > 0) {
+    DataToken *prev = &state->tokens->data[state->tokens->length - 1];
+    control_header = prev->type == KEYWORD && prev->value &&
+      (!strcmp(prev->value, "for") || !strcmp(prev->value, "rev") ||
+       !strcmp(prev->value, "while") || !strcmp(prev->value, "if") ||
+       !strcmp(prev->value, "elseif") || !strcmp(prev->value, "else"));
+  }
+
+  if (q < end && s[q] == ':' && !object_property(state) && !control_header) {
     int t = q + 1;
     while (t < end && (s[t] == ' ' || s[t] == '\t' || s[t] == '\r'))
       t++;

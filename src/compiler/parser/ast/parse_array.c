@@ -31,7 +31,7 @@ int parseArray(Request *req, Response res, int start, int end) {
     return -1;
 
   int capacity = 10;
-  int *elements = malloc(capacity * sizeof(int));
+  int *elements = gcmall(capacity * sizeof(int));
   if (!elements)
     return -1;
 
@@ -44,9 +44,9 @@ int parseArray(Request *req, Response res, int start, int end) {
       // expand kalau perlu
       if (length >= capacity) {
         int newCapacity = capacity * 2;
-        int *newElements = realloc(elements, newCapacity * sizeof(int));
+        int *newElements = gcresize(elements, capacity * sizeof(int),
+                                     newCapacity * sizeof(int));
         if (!newElements) {
-          free(elements);
           return -1;
         }
         elements = newElements;

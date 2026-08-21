@@ -1,0 +1,21 @@
+i = 10
+for i: print(i)
+rev i: print(i)
+
+for i < 10: print(i)
+rev i > 0: print(i)
+
+for i < 10 {
+    print(i)
+}
+
+rev i >= 0 {
+    print(i)
+}
+
+while x < 10: print(x)
+
+while x < 10 {
+    print(x)
+    x++
+}

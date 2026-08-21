@@ -81,6 +81,15 @@ void test(const char *paths[], int length) {
     }
 
     processInput(state);
+
+    Flags *flags = state->input->flags;
+    if (!state->tokens || state->tokens->length == 0 ||
+        !hasAstDeclarations(state->tokens) || (flags && flags->isWaiting)) {
+      printf("FAIL | %s\n", paths[i]);
+      failed++;
+      continue;
+    }
+
     printf("PASS | %s\n", paths[i]);
     passed++;
   }

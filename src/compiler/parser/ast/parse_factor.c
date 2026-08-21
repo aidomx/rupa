@@ -13,7 +13,7 @@ int parseFactor(Request *req, Response res) {
   int baseId = res.leftId;
 
   if (match(data, IDENTIFIER)) {
-    baseId = createId(req->node, data->value, data->safetyType);
+    baseId = createId(req->node, data->value);
 
     // Periksa jika ada subscript (array access)
     if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {

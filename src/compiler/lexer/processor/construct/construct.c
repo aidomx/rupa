@@ -27,13 +27,26 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       continue;
     }
 
+    /* Line comments are ignored by the lexer.  They must not invalidate
+       tokens that were already accepted before '#'. */
+    if (c == '#') {
+      while (p < end && s[p] != '\n')
+        p++;
+      continue;
+    }
+
     if (c == '\n') {
       if (brace || bracket || paren) {
         p++;
         continue;
       }
       if (singleStatement) {
-        p++;
+        /* Keep physical statement boundaries in the token stream.  The smart
+         * lexer may consider `:` bodies complete, but the parser still needs
+         * NEWLINE to prevent the following statement being absorbed. */
+        addDelim(state->tokens, '\n', NULL, state->input->line, p++);
+        singleStatement = false;
+        if (ctx) ctx->colon = 0;
         continue;
       }
       if (expectValue) {

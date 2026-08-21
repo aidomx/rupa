@@ -1,131 +1,68 @@
 #include <rupa.h>
 
 typedef struct {
-  bool separator;
-  bool has_comma;
   bool has_dot;
   bool has_number;
   bool has_string;
   bool has_underscore;
-  bool next_is_number;
-  int count_comma;
+  bool digit_after_dot;
   int count_dot;
 } Candidate;
 
-Candidate *createCandidate(void) {
-  Candidate *c = gcmall(sizeof(Candidate));
-  memset(c, 0, sizeof(Candidate));
-  return c;
-}
+static Candidate getCandidate(const char *ptr) {
+  Candidate candidate = {0};
+  bool after_dot = false;
 
-Candidate *getCandidate(const char *ptr) {
   if (!ptr)
-    return NULL;
+    return candidate;
 
-  Candidate *candidate = createCandidate();
+  while (*ptr && (isalnum((unsigned char)*ptr) || isunderscore(*ptr) ||
+                  isdot(*ptr))) {
+    char c = *ptr++;
 
-  while (*ptr &&
-         (candidate_number(*ptr) || isalpha(*ptr) || isunderscore(*ptr))) {
-    char c = *ptr;
-
-    if (isalpha(c))
-      candidate->has_string = true;
-
-    if (iscomma(c)) {
-      candidate->count_comma++;
-      candidate->has_comma = true;
+    if (isalpha((unsigned char)c))
+      candidate.has_string = true;
+    else if (isdigit((unsigned char)c)) {
+      candidate.has_number = true;
+      if (after_dot)
+        candidate.digit_after_dot = true;
+    } else if (isdot(c)) {
+      candidate.has_dot = true;
+      candidate.count_dot++;
+      after_dot = true;
+      continue;
+    } else if (isunderscore(c)) {
+      candidate.has_underscore = true;
     }
-
-    if (isdigit(c))
-      candidate->has_number = true;
-
-    else if (isdot(c)) {
-      candidate->count_dot++;
-      candidate->has_dot = true;
-    }
-
-    else if (isunderscore(c)) {
-      candidate->has_underscore = true;
-    }
-
-    if (iscomma(c) || isdot(c))
-      candidate->separator = true;
-
-    else if (isdigit(c) && candidate->separator)
-      candidate->next_is_number = true;
-
-    ptr++;
   }
 
   return candidate;
 }
 
-bool isCandidateId(Candidate *c) {
-  if (!c)
-    return false;
-
-  if (c->has_comma || c->has_dot)
-    return false;
-
-  return c->has_string || c->has_underscore;
+static bool isCandidateId(const Candidate *c) {
+  return c && !c->has_dot && (c->has_string || c->has_underscore);
 }
 
-bool isCandidateDouble(Candidate *c) {
-  if (!c)
-    return false;
-
-  bool has_comma = c->has_comma, has_number = c->has_number,
-       next_is_number = c->next_is_number;
-  int depth_comma = c->count_comma;
-
-  if (depth_comma > 1)
-    return false;
-
-  return (has_number && has_comma && next_is_number);
+static bool isCandidateDecimal(const Candidate *c) {
+  return c && c->has_number && c->has_dot && c->count_dot == 1 &&
+         c->digit_after_dot && !c->has_string && !c->has_underscore;
 }
 
-bool isCandidateFloat(Candidate *c) {
-  if (!c)
-    return false;
-
-  bool has_dot = c->has_dot, has_number = c->has_number,
-       next_is_number = c->next_is_number;
-  int depth_dot = c->count_dot;
-
-  if (depth_dot > 1)
-    return false;
-
-  return (has_number && has_dot && next_is_number);
-}
-
-bool isCandidateNumber(Candidate *c) {
-  if (!c)
-    return false;
-
-  bool has_comma = c->has_comma, has_dot = c->has_dot,
-       has_number = c->has_number, has_string = c->has_string,
-       has_underscore = c->has_underscore;
-
-  return (has_number && !has_comma && !has_dot && !has_string &&
-          !has_underscore);
+static bool isCandidateNumber(const Candidate *c) {
+  return c && c->has_number && !c->has_dot && !c->has_string &&
+         !c->has_underscore;
 }
 
 TokenType isNumberOrIdent(const char *ptr) {
   if (!ptr)
     return UNKNOWN;
 
-  Candidate *c = getCandidate(ptr);
+  Candidate c = getCandidate(ptr);
 
-  bool is_double = isCandidateDouble(c);
-  bool is_identifier = isCandidateId(c);
-  bool is_float = isCandidateFloat(c);
-  bool is_number = isCandidateNumber(c);
-
-  return is_double       ? DOUBLE
-         : is_float      ? FLOAT
-         : is_identifier ? IDENTIFIER
-         : is_number     ? NUMBER
-                         : UNKNOWN;
+  return isCandidateDecimal(&c) ? DECIMAL
+         : isCandidateId(&c)    ? IDENTIFIER
+         : isCandidateNumber(&c) ? NUMBER
+                                 : UNKNOWN;
 }
 
 TokenType setTokenType(const char *ptr) {
@@ -180,7 +117,7 @@ TokenType gettype(const char *ptr) {
         return UNKNOWN;
     }
 
-    return (has_digit && !has_dot) ? NUMBER : FLOAT;
+    return (has_digit && !has_dot) ? NUMBER : DECIMAL;
   }
 
   if (isstr(*ptr) || isunderscore(*ptr)) {

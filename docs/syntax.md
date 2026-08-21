@@ -65,21 +65,65 @@ if x > 0 {
 
 ## 4. Loop
 
+Rupa membedakan dua model loop:
+
+- `for` dan `rev` memiliki arah iterasi bawaan.
+- `while` menggunakan kondisi yang sepenuhnya ditentukan pengguna.
+
+### `for` — maju
+
+Bentuk paling sederhana menggunakan nilai sebagai batas. Sistem membuat iterator lokal yang bergerak maju dari `0`, tanpa mengubah nilai sumber di luar loop.
+
+```rupa
+i = 10
+for i: print(i)
+```
+
+Secara konsep menghasilkan `0` sampai `9`, sementara setelah loop nilai `i` sumber tetap `10`.
+
+`for` juga dapat menerima kondisi eksplisit:
+
 ```rupa
 for i < 10: print(i)
 
 for i < 10 {
     print(i)
 }
+```
 
-rev i < 10: print(i)
+### `rev` — mundur
 
-while x < 10 {
-    print(x)
+`rev` adalah pasangan reverse dari `for`. Tanpa kondisi eksplisit, nilai sumber menjadi dasar iterasi dan iterator lokal bergerak menuju `0`. Nilai sumber tetap tidak berubah setelah loop.
+
+```rupa
+i = 10
+rev i: print(i)
+```
+
+Kondisi eksplisit juga dapat digunakan ketika pengguna membutuhkan batas sendiri:
+
+```rupa
+rev i > 0: print(i)
+
+rev i >= 0 {
+    print(i)
 }
 ```
 
-Semantik lengkap iterasi dan `rev` masih dapat berkembang di parser/runtime.
+### `while` — kondisi pengguna
+
+`while` tidak memiliki arah atau iterator bawaan. Kondisi dan perubahan nilainya ditentukan pengguna.
+
+```rupa
+while x < 10: print(x)
+
+while x < 10 {
+    print(x)
+    x++
+}
+```
+
+Untuk `for` dan `rev`, implementasi runtime boleh memakai mekanisme evaluasi kondisi yang sama dengan `while`, tetapi secara grammar dan semantik keyword tetap menyatakan arah iterasi: `for` maju dan `rev` mundur.
 
 ## 5. Function/construct declaration
 
@@ -332,3 +376,15 @@ Dokumen ini membedakan dua hal:
 - **Rencana**: bentuk yang pernah dibahas tetapi belum dianggap grammar final.
 
 Saat menambah fitur baru, perbarui dokumen ini agar contributor berikutnya tidak harus menebak grammar dari source code.
+
+## Decimal literal
+
+Rupa does not decide `float` or `double` during lexing. A decimal literal such as `1.0` becomes `DECIMAL`; its runtime precision is resolved later from type annotation or inference:
+
+```rupa
+x: float = 1.0
+y: double = 1.0
+z = 1.0
+```
+
+`float` and `double` remain type annotations/runtime types, not literal token types.

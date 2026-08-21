@@ -11,6 +11,7 @@
  * @param tokens Pointer ke Token list.
  */
 void generateAst(struct Token *tokens);
+bool hasAstDeclarations(struct Token *tokens);
 
 extern struct Response generateHandler(struct Request *req, struct Token *t,
                                        int init);

@@ -23,7 +23,7 @@ int createArray(struct Node *root, int *elements, int length);
  */
 int createAst(struct Node *node, struct AstNode n);
 int createBoolean(struct Node *root, bool value);
-int createFloat(struct Node *root, char *value);
+int createDecimal(struct Node *root, char *value);
 
 /**
  * @brief Membuat identifier node (variabel) dalam AST.
@@ -32,7 +32,7 @@ int createFloat(struct Node *root, char *value);
  * @param name Nama identifier.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createId(struct Node *root, char *name, char *safetyType);
+int createId(struct Node *root, char *name);
 
 /**
  * @brief Membuat number literal node dalam AST.
@@ -69,7 +69,16 @@ int createBinary(struct Node *root, struct DataToken *opToken, int leftId,
  * @param right ID node ekspresi nilai.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createAssignment(struct Node *root, int left, int right);
+int createAssignment(struct Node *root, int left, int type, int right);
+int createCall(struct Node *root, int callee, int *args, int length);
+int createPrint(struct Node *root, int *args, int length);
+int createBlock(struct Node *root, int *items, int length);
+int createIf(struct Node *root, int condition, int thenBlock, int elseBlock);
+int createLoop(struct Node *root, const char *kind, int condition, int body);
+int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body);
+int createStructDecl(struct Node *root, int name, int body);
+int createAnnotation(struct Node *root, int name, int type, int value);
+int createModule(struct Node *root, enum NodeType type, int value);
 
 /**
  * @brief Membuat request baru untuk parser.
