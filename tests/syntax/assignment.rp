@@ -1,0 +1,5 @@
+x = 1
+x = y
+name = "rupa"
+x: number = 1
+x ?= value

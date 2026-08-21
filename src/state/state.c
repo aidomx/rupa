@@ -41,10 +41,15 @@ void clearReplState(ReplState *repl) {
   if (!repl)
     return;
 
-  for (int i = 0; i < repl->size; i++) {
-    if (repl->history->entries[i]) {
-      repl->history->entries[i][0] = '\0';
+  if (repl->history) {
+    for (int i = 0; i < repl->history->size; i++) {
+      if (repl->history->entries[i]) {
+        gcfree(repl->history->entries[i]);
+        repl->history->entries[i] = NULL;
+      }
     }
+    repl->history->size = 0;
+    repl->history->currentIndex = -1;
   }
 
   if (repl->buffer->value) {

@@ -1,0 +1,6 @@
+name: string
+age: number
+price: float
+
+x: number = 1
+name: string = "Rupa"

@@ -1,2 +1,10 @@
 name = "rupa"
+x = 1
+y = 2
+
+print("hello world")
+print(name)
 print(name + " language")
+print("x =", x)
+print("result:", x + y, true)
+print(add(1, 2), [3, 4])

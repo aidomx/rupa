@@ -1,0 +1,4 @@
+People {
+    name: string
+    age: number
+}

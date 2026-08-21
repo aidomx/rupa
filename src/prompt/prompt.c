@@ -64,10 +64,15 @@ void test(const char *paths[], int length) {
   printf("> Testing Rupa syntax\n");
 
   for (int i = 0; i < length; i++) {
+    /* Each file is an independent syntax test. Keep the same State object,
+     * but reset every stateful subsystem before loading the next source. */
+    clearReplState(state->repl);
+    clearInput(state->input);
+    clearStateToken(state->tokens);
+    clearStateContext(state->context);
+    state->size = 0;
+
     Buffer *buffer = state->repl->buffer;
-    resetEditorState(state->repl);
-    buffer->length = 0;
-    buffer->value[0] = '\0';
 
     if (!readfile(paths[i], buffer)) {
       printf("FAIL | %s\n", paths[i]);
