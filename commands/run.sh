@@ -76,6 +76,23 @@ get_file_tests() {
   fi
 }
 
+test_help() {
+  cat <<EOF
+Usage:
+  DEV_MODE=1 ./build.sh test [options]
+
+Options:
+  --list              Show all available test files
+  --select "1,3,7"    Run selected test files
+  --help | -h         Show this help message
+
+Examples:
+  DEV_MODE=1 ./build.sh test
+  DEV_MODE=1 ./build.sh test --list
+  DEV_MODE=1 ./build.sh test --select "7,13"
+EOF
+}
+
 test_lists() {
   local files=()
   local file
@@ -160,12 +177,6 @@ select_file_test() {
 run_test() {
   ensure_test_binary || return $?
 
-  echo "default"
-}
-
-run_test() {
-  ensure_test_binary || return $?
-
   local tests=()
   local arguments=("$@")
   local i
@@ -173,6 +184,11 @@ run_test() {
   for ((i = 0; i < ${#arguments[@]}; i++)); do
     case "${arguments[$i]}" in
     test) ;;
+
+    --help | -h)
+      test_help
+      return 0
+      ;;
 
     --list)
       test_lists
