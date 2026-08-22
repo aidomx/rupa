@@ -15,6 +15,17 @@ struct Node *createNode(int capacity);
 int createArray(struct Node *root, int *elements, int length);
 
 /**
+ * @brief Membuat object literal node dalam AST (mis. `{ key: value, ... }`).
+ *
+ * @param root Root node AST.
+ * @param entries Array pasangan key-value node id.
+ * @param length Jumlah entries.
+ * @return ID node yang dibuat, atau -1 jika gagal.
+ */
+int createObject(struct Node *root, struct AstObjectEntry *entries, int length);
+
+
+/**
  * @brief Menambahkan node AST ke dalam struktur pohon.
  *
  * @param node Node induk.

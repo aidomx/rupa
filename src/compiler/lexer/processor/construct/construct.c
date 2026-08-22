@@ -128,6 +128,17 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
 
     int next = p;
     if (strchr("()[]{}:,;", c)) {
+      /* processDelimiter() mutates expectValue as a side effect (e.g. for
+       * '{' it always resets it to false), so the pre-delimiter value must
+       * be captured first. It tells us whether this '{' opens in a "value
+       * position" (after '=', '(', '[', ',', ':') — which is exactly when a
+       * brace is an object literal rather than a struct/function/block
+       * body. Relying only on "previous token == ASSIGN" (as before) missed
+       * every other value position: array elements, call arguments, and
+       * nested object values, causing the lexer to misread their ':' as a
+       * type-annotation/single-statement colon instead of a property
+       * separator, and fail outright on non-word values like strings. */
+      bool wasExpectingValue = expectValue;
       if (processDelimiter(state, p, end, &next, &brace, &bracket, &paren,
                            &expectValue) < 0)
         return -1;
@@ -144,7 +155,9 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
                            !state->input->flags->isAssignment)
                               ? 1
                               : ctx->inStruct;
-          ctx->objectDepth = (previous == ASSIGN) ? brace : ctx->objectDepth;
+          ctx->objectDepth = (previous == ASSIGN || wasExpectingValue)
+                                  ? brace
+                                  : ctx->objectDepth;
           if (ctx->inStruct)
             state->input->flags->isStructDecl = true;
         } else if (c == ':') {

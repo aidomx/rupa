@@ -1,4 +1,4 @@
 people: People = {
-    name: "rupa",
-    age: 20
+  name: "rupa",
+  age: 20
 }

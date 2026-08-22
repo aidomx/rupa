@@ -1,0 +1,7 @@
+save(config: Settings) {
+    return config
+}
+data: Data = {
+    id: 1,
+    value: "x"
+}

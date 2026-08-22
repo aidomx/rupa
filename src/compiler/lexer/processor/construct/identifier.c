@@ -37,10 +37,11 @@ int processIdentifier(State *state, int start, int end, bool literal,
   bool control_header = false;
   if (state->tokens->length > 0) {
     DataToken *prev = &state->tokens->data[state->tokens->length - 1];
-    control_header = prev->type == KEYWORD && prev->value &&
-      (!strcmp(prev->value, "for") || !strcmp(prev->value, "rev") ||
-       !strcmp(prev->value, "while") || !strcmp(prev->value, "if") ||
-       !strcmp(prev->value, "elseif") || !strcmp(prev->value, "else"));
+    control_header =
+        prev->type == KEYWORD && prev->value &&
+        (!strcmp(prev->value, "for") || !strcmp(prev->value, "rev") ||
+         !strcmp(prev->value, "while") || !strcmp(prev->value, "if") ||
+         !strcmp(prev->value, "elseif") || !strcmp(prev->value, "else"));
   }
 
   if (q < end && s[q] == ':' && !object_property(state) && !control_header) {
@@ -59,9 +60,11 @@ int processIdentifier(State *state, int start, int end, bool literal,
       return -1;
     }
 
-    addToken(state->tokens,
-             createDataToken(id, type, literal ? LITERAL_ID : IDENTIFIER,
-                             state->input->line, start));
+    DataToken data = createDataToken(
+        id, type, literal ? LITERAL_ID : IDENTIFIER,
+        state->input->line, start);
+
+    addToken(state->tokens, data);
     state->input->flags->isAnnotionType = true;
     gcfree(id);
     gcfree(type);
@@ -73,10 +76,11 @@ int processIdentifier(State *state, int start, int end, bool literal,
   if (!value)
     return -1;
   TokenType type = gettype(value);
-  if (literal && type == IDENTIFIER)
+  if (literal && !object_property(state) && type == IDENTIFIER)
     type = LITERAL_ID;
-  addToken(state->tokens,
-           createDataToken(value, NULL, type, state->input->line, start));
+  DataToken data =
+      createDataToken(value, NULL, type, state->input->line, start);
+  addToken(state->tokens, data);
   gcfree(value);
   *next = p;
   return 0;

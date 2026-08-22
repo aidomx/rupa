@@ -34,11 +34,11 @@ ensure_test_binary() {
 
   [[ -f "$TARGET" ]] && return 0
 
-  echo "> Check binary rupa"
-  print_warning "$TARGET tidak ditemukan, build sekarang? (y/n)"
-
-  local answer
-  read -r answer
+  echo -e "${CYAN}> Check binary rupa${NC}"
+  echo -e "${CYAN}>${NC} ${YELLOW}$TARGET${NC} tidak ditemukan!"
+  local question="$(echo -e "${CYAN}>${NC} Build sekarang? [y/n] ")"
+  read -p "$question" -i -N -r
+  local answer="$REPLY"
 
   case "$answer" in
   y | Y | yes | YES)

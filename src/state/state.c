@@ -71,9 +71,30 @@ void clearStateContext(StateContext *ctx) {
   if (!ctx)
     return;
 
+  /* Every field must be reset, not just line/multiline/row. This function
+   * is what test()/prompt.c calls between independent syntax test files
+   * (see clearGlobalState's reuse pattern); leaving brace/bracket/paren/
+   * colon/objectDepth/inStruct etc. stale here means a file that fails
+   * midway through an unbalanced construct (e.g. a lexer error) leaves
+   * context that corrupts parsing of the *next* file in the batch, even
+   * though that next file is syntactically valid on its own. */
+  ctx->flagStatus = FLAG_NONE;
+  ctx->brace = 0;
+  ctx->bracket = 0;
+  ctx->colon = 0;
+  ctx->paren = 0;
+  ctx->inStrictType = 0;
+  ctx->inFunc = 0;
+  ctx->inStruct = 0;
+  ctx->objectDepth = 0;
   ctx->line = 0;
-  ctx->multiline = false;
+  ctx->lineStart = 0;
+  ctx->space = 0;
+  ctx->expectAssignment = 0;
   ctx->row = 0;
+  ctx->multiline = false;
+  ctx->currentId = NULL;
+  ctx->strictType = NULL;
   // free(ctx);
 }
 

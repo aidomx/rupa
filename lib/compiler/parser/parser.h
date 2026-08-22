@@ -5,6 +5,7 @@
 #include "ast/expression.h"
 #include "ast/operator.h"
 #include "ast/processor.h"
+#include "grammar/grammar.h"
 #include "node.h"
 
 #if defined(RUPA_PACKAGE_H)
