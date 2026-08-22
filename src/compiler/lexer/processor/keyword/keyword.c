@@ -24,6 +24,10 @@ static const char *keyword_name(KeywordType type) {
     return "extends";
   case KEYWORD_RETURN:
     return "return";
+  case KEYWORD_BREAK:
+    return "break";
+  case KEYWORD_CONTINUE:
+    return "continue";
   default:
     return NULL;
   }
@@ -75,6 +79,9 @@ int processKeyword(State *state, KeywordType type, int start, int next,
     break;
   case KEYWORD_RETURN:
     state->input->flags->isReturn = true;
+    break;
+  case KEYWORD_BREAK:
+  case KEYWORD_CONTINUE:
     break;
   default:
     break;

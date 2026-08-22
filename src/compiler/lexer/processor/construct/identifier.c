@@ -31,17 +31,28 @@ int processIdentifier(State *state, int start, int end, bool literal,
   while (q < end && (s[q] == ' ' || s[q] == '\t' || s[q] == '\r'))
     q++;
 
-  /* A colon following the header value of a control construct starts its
-   * body; it is not a type annotation.  Without this distinction,
-   * `for i: print(i)` is incorrectly consumed as `i: print`. */
+  /* A colon may start a control body after a complete condition, so checking
+   * only the immediately previous token is insufficient for:
+   *
+   *   for j < i: print(j)
+   *   if a == b: print(a)
+   *
+   * Here the previous token before `i` is `<`/`==`, not the keyword. Search
+   * the current statement back to its boundary instead. */
   bool control_header = false;
-  if (state->tokens->length > 0) {
-    DataToken *prev = &state->tokens->data[state->tokens->length - 1];
-    control_header =
-        prev->type == KEYWORD && prev->value &&
-        (!strcmp(prev->value, "for") || !strcmp(prev->value, "rev") ||
-         !strcmp(prev->value, "while") || !strcmp(prev->value, "if") ||
-         !strcmp(prev->value, "elseif") || !strcmp(prev->value, "else"));
+  for (int i = state->tokens->length - 1; i >= 0; i--) {
+    DataToken *token = &state->tokens->data[i];
+    if (token->type == NEWLINE || token->type == LBRACE ||
+        token->type == RBRACE)
+      break;
+    if (token->type != KEYWORD || !token->value)
+      continue;
+    if (!strcmp(token->value, "for") || !strcmp(token->value, "rev") ||
+        !strcmp(token->value, "while") || !strcmp(token->value, "if") ||
+        !strcmp(token->value, "elseif") || !strcmp(token->value, "else")) {
+      control_header = true;
+      break;
+    }
   }
 
   if (q < end && s[q] == ':' && !object_property(state) && !control_header) {

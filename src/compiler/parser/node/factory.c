@@ -94,6 +94,27 @@ int createReturn(Node *root, int expression_id) {
   return createAst(root, node);
 }
 
+int createBreak(Node *root) {
+  AstNode node = {.type = NODE_BREAK};
+  return createAst(root, node);
+}
+
+int createContinue(Node *root) {
+  AstNode node = {.type = NODE_CONTINUE};
+  return createAst(root, node);
+}
+
+int createUpdate(Node *root, int target, const char *op, bool prefix) {
+  if (!root || target < 0 || !op)
+    return -1;
+
+  AstNode node = {.type = NODE_UPDATE};
+  node.update.target = target;
+  node.update.op = gcstrdup(op);
+  node.update.prefix = prefix;
+  return createAst(root, node);
+}
+
 int createString(Node *root, char *value, NodeType nodeType) {
   AstNode node = {.type = nodeType,
                   .string.type = gettype(value),

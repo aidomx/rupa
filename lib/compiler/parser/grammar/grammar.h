@@ -18,6 +18,7 @@
  *   grammar_loop.c          - grammar for/rev/while
  *   grammar_print.c         - grammar print
  *   grammar_return.c        - grammar return
+ *   grammar_control.c       - grammar break/continue
  *   grammar_module.c        - grammar import/export/extends
  *   grammar_function.c      - grammar deklarasi & pemanggilan function
  *   grammar_struct.c        - grammar deklarasi struct/blueprint
@@ -160,6 +161,9 @@ int grammarParsePrint(struct Request *r, int a, int b, int *pos);
  */
 int grammarParseReturnKeyword(struct Request *r, int a, int b, int *pos);
 
+/** Grammar `break` dan `continue` tanpa expression. */
+int grammarParseControl(struct Request *r, int a, int b, int *pos);
+
 /**
  * @brief Grammar `import`/`export`/`extends`.
  * @return GRAMMAR_NO_MATCH jika token[a] bukan salah satu keyword tsb.
@@ -208,6 +212,7 @@ int grammarParseAnnotation(struct Request *r, int a, int b, int *pos);
  *        `.safetyType` target.
  * @return GRAMMAR_NO_MATCH jika tidak ada token ASSIGN di [a+1, b).
  */
+int grammarParseUpdate(struct Request *r, int a, int b, int *pos);
 int grammarParseAssignment(struct Request *r, int a, int b, int *pos);
 
 /**

@@ -12,6 +12,8 @@ const char *keywordList[] = {
     "export",  // export modul
     "extends", // extends
     "return",  // return
+    "break",   // keluar dari loop
+    "continue",// lanjut iterasi loop
     NULL       // Penanda akhir daftar
 };
 
@@ -27,6 +29,8 @@ KeywordType keywordType[] = {
     KEYWORD_EXPORT,  // export
     KEYWORD_EXTENDS, // extends
     KEYWORD_RETURN,  // return
+    KEYWORD_BREAK,   // break
+    KEYWORD_CONTINUE,// continue
     KEYWORD_NULL     // sentinel
 };
 

@@ -36,10 +36,9 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
     }
 
     if (c == '\n') {
-      if (brace || bracket || paren) {
-        p++;
-        continue;
-      }
+      /* `:` selalu membatasi body satu statement fisik, termasuk ketika
+         statement berada di dalam `{ ... }`. Tangani lebih dulu sebelum
+         newline biasa diabaikan karena brace depth. */
       if (singleStatement) {
         /* Keep physical statement boundaries in the token stream.  The smart
          * lexer may consider `:` bodies complete, but the parser still needs
@@ -47,6 +46,28 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
         addDelim(state->tokens, '\n', NULL, state->input->line, p++);
         singleStatement = false;
         if (ctx) ctx->colon = 0;
+        continue;
+      }
+      /* NEWLINE tetap penting sebagai batas statement di dalam `{ ... }`.
+       * Array dan argument masih boleh multiline, sehingga hanya `[]` dan
+       * `()` yang menyerap newline sebagai whitespace internal. Untuk object,
+       * NEWLINE aman dipertahankan karena parser grammar sudah
+       * memperlakukannya sebagai whitespace pada expression. */
+      /* Newline inside arrays, argument lists, and object literals is
+       * structural whitespace. A normal `{ ... }` block still keeps NEWLINE
+       * as a statement boundary, while an object literal is identified by
+       * objectDepth. This is especially important after a property comma:
+       *
+       *   people: People = {
+       *     name: "rupa",
+       *     age: 20
+       *   }
+       *
+       * The comma expects the next value, but the physical newline must not
+       * make the smart lexer think the expression is incomplete. */
+      if (bracket || paren ||
+          (ctx && ctx->objectDepth > 0 && brace >= ctx->objectDepth)) {
+        p++;
         continue;
       }
       if (expectValue) {
@@ -193,7 +214,11 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
         return -1;
       }
       p = next;
-      expectValue = opWaiting || true;
+      /* Most operators start or continue an expression and therefore expect
+       * a value. Postfix update operators are complete statements by
+       * themselves: `i++` / `i--` must be allowed to end at NEWLINE. */
+      TokenType op = last_token_type(state);
+      expectValue = op != INCREMENT && op != DECREMENT;
       if (singleStatement)
         statementStarted = true;
       continue;

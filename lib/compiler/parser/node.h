@@ -56,6 +56,9 @@ int createNumber(struct Node *root, int value);
 
 int createProgram(struct Node *root);
 int createReturn(struct Node *root, int expression_id);
+int createBreak(struct Node *root);
+int createContinue(struct Node *root);
+int createUpdate(struct Node *root, int target, const char *op, bool prefix);
 int createString(struct Node *root, char *value, enum NodeType nodeType);
 
 int createSubscript(struct Node *root, int posId, int index);

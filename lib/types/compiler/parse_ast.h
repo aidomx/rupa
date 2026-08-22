@@ -199,6 +199,12 @@ struct AstModule {
   int value;
 };
 
+struct AstUpdate {
+  int target;
+  char *op;
+  bool prefix;
+};
+
 struct AstObjectEntry {
   int key;
   int value;
@@ -241,6 +247,7 @@ struct AstNode {
     struct AstAnnotation annotation;
     struct AstModule module;
     struct AstObject object;
+    struct AstUpdate update;
     struct DataToken *token; ///< Raw token data
   };
 };

@@ -23,6 +23,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
     int id;
     if ((id = grammarParseReturnKeyword(r, a, b, pos)) != GRAMMAR_NO_MATCH)
       return id;
+    if ((id = grammarParseControl(r, a, b, pos)) != GRAMMAR_NO_MATCH)
+      return id;
     if ((id = grammarParsePrint(r, a, b, pos)) != GRAMMAR_NO_MATCH)
       return id;
     if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
@@ -39,6 +41,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   if ((id = grammarParseStruct(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
     return id;
   if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH)
+    return id;
+  if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;
   if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;

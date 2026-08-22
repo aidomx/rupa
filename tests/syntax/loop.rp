@@ -19,3 +19,20 @@ while x < 10 {
     print(x)
     x++
 }
+
+for i < 10 {
+  if i == 1: continue
+  if i == 8: break
+  print(i)
+}
+
+for i < 10 {
+  if i == 1: continue
+  if i == 8: break
+  print(i)
+}
+
+for i < 3 {
+  i++
+  i--
+}

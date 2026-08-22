@@ -63,6 +63,16 @@ static void printAst(Node *node, int index, int level) {
     printAst(node, n->asReturn.expression, level + 1);
     break;
 
+  case NODE_BREAK:
+    printIndent(level);
+    printf("Break\n");
+    break;
+
+  case NODE_CONTINUE:
+    printIndent(level);
+    printf("Continue\n");
+    break;
+
   case NODE_ARRAY:
     printIndent(level);
     if (n->array.length == 0) {
@@ -206,6 +216,14 @@ static void printAst(Node *node, int index, int level) {
       printf("Else:\n");
       printAst(node, n->asIf.elseBlock, level + 2);
     }
+    break;
+
+  case NODE_UPDATE:
+    printIndent(level);
+    printf("Update: %s%s\n", n->update.prefix ? "prefix " : "postfix ",
+           n->update.op ? n->update.op : "?");
+    if (n->update.target >= 0)
+      printAst(node, n->update.target, level + 1);
     break;
 
   case NODE_LOOP:
