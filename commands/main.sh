@@ -6,5 +6,5 @@ import "build debug release run"
 case "$1" in
 debug) build_debug "$@" ;;
 release) build_release "$@" ;;
-test) run_test ;;
+test) run_test "$@" ;;
 esac

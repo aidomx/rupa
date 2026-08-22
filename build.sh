@@ -25,7 +25,7 @@ main_build() {
   [[ -f $COMPDB_FILE ]] && export compdb=true
 
   if $compdb || [[ "$args" == "test" ]]; then
-    . $bootstrap "$args" "$extra"
+    . $bootstrap "$args" "$@"
     return
   fi
 
