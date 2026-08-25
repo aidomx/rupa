@@ -246,6 +246,19 @@ struct AstObject {
   int length;
 };
 
+struct AstCaseEntry {
+  int pattern; /* -1 means wildcard */
+  int body;
+  bool wildcard;
+};
+
+struct AstCase {
+  int subject;
+  struct AstCaseEntry *entries;
+  int length;
+};
+
+
 /**
  * @brief Abstract Syntax Tree node.
  *
@@ -284,6 +297,7 @@ struct AstNode {
     struct AstAnnotation annotation;
     struct AstModule module;
     struct AstObject object;
+    struct AstCase asCase;
     struct AstUpdate update;
     struct DataToken *token; ///< Raw token data
   };

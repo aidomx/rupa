@@ -16,6 +16,7 @@ const char *keywordList[] = {
     "continue",// lanjut iterasi loop
     "async",   // mulai pekerjaan asynchronous
     "await",   // tunggu hasil asynchronous
+    "case",    // pilih pattern berdasarkan subject
     NULL       // Penanda akhir daftar
 };
 
@@ -35,6 +36,7 @@ KeywordType keywordType[] = {
     KEYWORD_CONTINUE,// continue
     KEYWORD_ASYNC,   // async
     KEYWORD_AWAIT,   // await
+    KEYWORD_CASE,    // case
     KEYWORD_NULL     // sentinel
 };
 

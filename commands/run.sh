@@ -21,8 +21,9 @@ compile() {
 rebuild_binary() {
   local question
   local answer
+  local message="$1"
 
-  question="$(echo -e "${CYAN}>${NC} Source may be has updated, rebuild now? [y/n] ")"
+  question="$(echo -e "${CYAN}>${NC} $message, rebuild now? [y/n] ")"
 
   if ! read -r -t 7 -p "$question" answer; then
     echo
@@ -58,10 +59,11 @@ needs_rebuild() {
 
 check_binary_runs() {
   local target="$1"
-  # Jalankan dengan --version, arahkan stderr ke stdout, cek pesan error
+
   if ! "$target" --version &>/dev/null; then
     local err_msg=$("$target" --version 2>&1)
-    if [[ "$err_msg" == *"cannot execute"* ]] || [[ "$err_msg" == *"not found"* ]]; then
+    if [[ "$err_msg" == *"cannot execute"* ]] || [[ "$err_msg" == *"not found"* ]] &>/dev/null; then
+      rebuild_binary "Source may be is corrupted"
       return 1
     fi
   fi
@@ -96,13 +98,15 @@ ensure_test_binary() {
   if [[ -f "$TARGET" ]]; then
     # Binary ada, cek apakah perlu rebuild
     if needs_rebuild; then
-      rebuild_binary
+      rebuild_binary "Source may be has updated"
       return 0
     fi
 
     if verify_binary; then
+      check_binary_runs "$TARGET"
       return 0
     fi
+    return 0
   fi
 
   # Binary tidak ada

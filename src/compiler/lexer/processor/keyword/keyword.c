@@ -32,6 +32,8 @@ static const char *keyword_name(KeywordType type) {
     return "async";
   case KEYWORD_AWAIT:
     return "await";
+  case KEYWORD_CASE:
+    return "case";
   default:
     return NULL;
   }
@@ -90,6 +92,8 @@ int processKeyword(State *state, KeywordType type, int start, int next,
   case KEYWORD_AWAIT:
     state->input->flags->isAwait = true;
     break;
+  case KEYWORD_CASE:
+    break;
   case KEYWORD_BREAK:
   case KEYWORD_CONTINUE:
     break;
@@ -116,6 +120,7 @@ int processKeyword(State *state, KeywordType type, int start, int next,
     case KEYWORD_EXTENDS:
     case KEYWORD_ASYNC:
     case KEYWORD_AWAIT:
+    case KEYWORD_CASE:
       *waiting = true;
       return next;
     case KEYWORD_ELSE:

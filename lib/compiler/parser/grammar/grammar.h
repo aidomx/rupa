@@ -145,6 +145,7 @@ int grammarParseKeywordBody(struct Request *r, int bodyStart, int limit,
  * @return GRAMMAR_NO_MATCH jika token[a] bukan keyword if/elseif/else.
  */
 int grammarParseIf(struct Request *r, int a, int b, int limit, int *pos);
+int grammarParseCase(struct Request *r, int a, int b, int limit, int *pos);
 
 /**
  * @brief Grammar `for`/`rev`/`while`.

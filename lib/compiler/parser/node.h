@@ -90,6 +90,7 @@ int createFallback(struct Node *root, int primary, int fallback);
 int createAsync(struct Node *root, int request, int handler, int timeout);
 int createAwait(struct Node *root, int expression);
 int createMember(struct Node *root, int object, int member);
+int createCase(struct Node *root, int subject, struct AstCaseEntry *entries, int length);
 int createCall(struct Node *root, int callee, int *args, int length);
 int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);

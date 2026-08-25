@@ -19,6 +19,13 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   if (b > limit)
     b = limit;
 
+  /* case may be emitted as a keyword by the processor; keep the grammar
+   * check value-based as a defensive path while keyword tables evolve. */
+  if (!strcmp(t->data[a].value, "case")) {
+    int id = grammarParseCase(r, a, b, limit, pos);
+    if (id != GRAMMAR_NO_MATCH) return id;
+  }
+
   if (t->data[a].type == KEYWORD) {
     int id;
     /* async is an expression grammar, but at statement level it must stay
@@ -33,6 +40,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
     if ((id = grammarParseControl(r, a, b, pos)) != GRAMMAR_NO_MATCH)
       return id;
     if ((id = grammarParsePrint(r, a, b, pos)) != GRAMMAR_NO_MATCH)
+      return id;
+    if ((id = grammarParseCase(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
       return id;
     if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
       return id;

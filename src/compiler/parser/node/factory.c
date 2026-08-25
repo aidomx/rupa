@@ -298,3 +298,15 @@ int createMember(Node *root, int object, int member) {
   AstNode node = {.type = NODE_MEMBER, .member = {.object = object, .member = member}};
   return createAst(root, node);
 }
+
+int createCase(Node *root, int subject, struct AstCaseEntry *entries, int length) {
+  AstNode n = {.type = NODE_CASE};
+  n.asCase.subject = subject;
+  n.asCase.entries = NULL;
+  n.asCase.length = length;
+  if (length > 0) {
+    n.asCase.entries = gcmall(sizeof(struct AstCaseEntry) * length);
+    memcpy(n.asCase.entries, entries, sizeof(struct AstCaseEntry) * length);
+  }
+  return createAst(root, n);
+}

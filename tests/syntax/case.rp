@@ -1,0 +1,14 @@
+case username => {
+    "budi": print(true)
+    "arman": print(true)
+    *: print(false)
+}
+
+case status => {
+    200: print("success")
+    404: {
+        print("not found")
+        save()
+    }
+    *: print("unknown")
+}

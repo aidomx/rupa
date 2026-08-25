@@ -363,6 +363,16 @@ static void printAst(Node *node, int index, int level) {
     printAst(node, n->await.expression, level + 1);
     break;
 
+  case NODE_CASE:
+    printIndent(level); printf("Case:\n");
+    printIndent(level + 1); printf("Subject:\n"); printAst(node, n->asCase.subject, level + 2);
+    for (int i = 0; i < n->asCase.length; i++) {
+      struct AstCaseEntry *e = &n->asCase.entries[i];
+      printIndent(level + 1); printf(e->wildcard ? "Wildcard:\n" : "Entry:\n");
+      if (!e->wildcard) { printIndent(level + 2); printf("Pattern:\n"); printAst(node, e->pattern, level + 3); }
+      printIndent(level + 2); printf("Body:\n"); printAst(node, e->body, level + 3);
+    }
+    break;
   default:
     printIndent(level);
     printf("(unknown node type %d)\n", n->type);
