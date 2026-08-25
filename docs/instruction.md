@@ -1,10 +1,12 @@
 # Development and Contribution Guide
 
-Dokumen ini menjelaskan cara membangun, menjalankan, memahami struktur, dan berkontribusi pada Rupa.
+Dokumen ini menjelaskan cara membangun, menjalankan, memahami proyek, dan berkontribusi pada Rupa.
 
-## 1. Build cepat
+## 1. Memulai
 
-Dari root repository:
+Clone repository Rupa dan masuk ke root project. Dari sana, jalur utama untuk development adalah `build.sh`.
+
+Build dalam mode development:
 
 ```bash
 DEV_MODE=1 ./build.sh debug
@@ -16,262 +18,322 @@ Binary hasil build berada di:
 bin/rupa
 ```
 
-Jalankan REPL dengan:
+Jalankan Rupa dengan:
 
 ```bash
 ./bin/rupa
 ```
 
-Mode release, test, atau opsi lain mengikuti command yang tersedia di build script saat ini. Untuk perubahan pada source, `build.sh` adalah jalur build utama karena menangani konfigurasi development dan tooling build proyek. `Makefile` tetap tersedia sebagai build path sederhana.
+Untuk melihat command yang tersedia:
 
-## 2. Tool yang diperlukan
+```bash
+DEV_MODE=1 ./build.sh --help
+```
 
-### Wajib untuk build
+`Makefile` tetap tersedia sebagai jalur build tambahan, tetapi `build.sh` digunakan sebagai jalur utama development.
 
-- compiler C yang kompatibel dengan proyek, umumnya `gcc`
-- shell Bash
-- utilitas standar POSIX/Linux seperti `find`
+## 2. Syarat yang diperlukan
+
+### Wajib
+
+- Compiler C yang kompatibel, umumnya `gcc`
+- Bash
+- Utilitas dasar sistem Linux/POSIX
 
 ### Disarankan untuk development
 
-- `ccache` untuk mempercepat rebuild
-- `bear` atau `intercept-build` untuk menghasilkan `compile_commands.json`
+- `ccache` untuk mempercepat build ulang
+- `bear` atau `intercept-build` untuk `compile_commands.json`
 - `clangd` untuk tooling editor
-- debugger seperti `gdb` bila diperlukan
+- `gdb` untuk debugging
 
-Contoh Debian/Ubuntu:
+Contoh pada Debian:
 
 ```bash
 sudo apt update
-sudo apt install build-essential ccache bear clangd
+sudo apt install build-essential ccache bear clangd gdb
 ```
 
-Contoh Termux disesuaikan dengan paket yang tersedia di repository Termux.
+Sesuaikan nama paket dengan distribusi atau environment yang digunakan.
 
-## 3. Compile commands dan editor
+## 3. Cara build dan test
 
-Rupa dapat menggunakan `compile_commands.json` untuk membantu editor dan `clangd` memahami include path serta command compilation.
+Build development:
 
-File tersebut dapat dihasilkan melalui tooling yang didukung `build.sh`, misalnya `bear` atau `intercept-build`. Jangan menganggap versi tooling tertentu sebagai bagian dari grammar atau runtime Rupa; tooling editor adalah pendukung development.
-
-## 4. Struktur proyek saat ini
-
-```text
-.
-├── bin/                    # Binary hasil build
-├── build/                  # Object/build artifacts
-├── commands/               # Shell command dan build helpers
-│   └── lib/                # Library untuk build scripts
-├── docs/                   # Dokumentasi proyek
-├── include/                # Header agregat/proyek
-├── lib/                    # Header/API internal per modul
-├── shared/                 # Shared resources
-├── src/                    # Implementasi C
-├── stdlib/                 # Standard library Rupa
-├── build.sh                # Jalur build utama
-├── Makefile                # Jalur build sederhana
-└── compile_commands.json   # Database compile untuk tooling, bila tersedia
+```bash
+DEV_MODE=1 ./build.sh debug
 ```
 
-Bagian utama `src/` saat ini:
+Jalankan test:
 
-```text
-src/
-├── bootstrap/              # Bootstrap/loader
-├── compiler/
-│   ├── lexer/              # Lexeme, lexer, processor
-│   ├── parser/             # Parser dan AST
-│   └── token/              # Token type, lookup, storage, error
-├── editor/                 # Editor/REPL input handling
-├── interpreter/            # Debug/error interpreter
-├── prompt/                 # Prompt REPL
-├── repl/                   # REPL utama
-├── runtime/                # Runtime state, input, validation, GC, keyword
-├── state/                  # State program/REPL
-├── support/                # Support implementation
-└── utils/                  # Utility umum
+```bash
+DEV_MODE=1 ./build.sh test
 ```
 
-Header internal mengikuti modul di `lib/`. Jangan membuat struktur baru hanya demi mengikuti pola umum proyek lain; ikuti struktur yang sudah digunakan modul terkait kecuali perubahan struktur memang diperlukan.
+Jika ingin melakukan perubahan pada compiler atau syntax, jalankan test setelah perubahan dibuat.
 
-## 5. Cara memahami alur compiler
-
-Untuk pekerjaan lexer/compiler, urutan umum yang perlu diperhatikan adalah:
+Untuk perubahan yang lebih besar, gunakan urutan sederhana:
 
 ```text
-Input / REPL state
-      ↓
-Lexeme scanning
+ubah source
+   ↓
+build
+   ↓
+test
+   ↓
+jalankan contoh secara langsung bila diperlukan
+```
+
+Jangan hanya menganggap perubahan benar karena project berhasil dikompilasi. Build yang sukses tidak selalu berarti perilaku bahasa sudah benar.
+
+## 4. Memahami struktur project
+
+Struktur direktori dan tanggung jawab setiap bagian project dijelaskan di:
+
+[structure.md](structure.md)
+
+Baca dokumen tersebut sebelum memindahkan file, membuat modul baru, atau mengubah batas tanggung jawab antar bagian sistem.
+
+Secara umum, Rupa terdiri dari beberapa alur utama:
+
+```text
+Source / REPL
       ↓
 Lexer
       ↓
 Processor
-  ├── keyword handling
-  └── construct handling
       ↓
-Token stream
+Token
       ↓
-Parser / AST
+Parser
+      ↓
+AST
+      ↓
+Runtime
 ```
 
-Tahap lexer saat ini bersifat context-aware. Sebuah karakter seperti `:` tidak selalu memiliki satu arti. Maknanya bergantung pada construct dan context yang sedang aktif.
+Setiap bagian memiliki tanggung jawab sendiri. Perubahan pada satu tahap tidak selalu harus menyebabkan perubahan pada seluruh tahap.
+
+## 5. Memahami dan menulis syntax Rupa
+
+Dokumentasi syntax ditujukan dari sudut pandang pengguna bahasa.
+
+Mulai dari:
+
+[docs/syntax/](syntax/)
+
+Setiap dokumen syntax berfokus pada tiga hal:
+
+1. Apa yang bisa ditulis?
+2. Kapan digunakan?
+3. Apa hasilnya?
+
+Contohnya:
+
+```text
+docs/syntax/
+├── assignment.md
+├── function.md
+├── if.md
+├── loop.md
+├── object.md
+└── ...
+```
+
+Jika ingin memahami bagaimana syntax tersebut dibentuk oleh sistem, bagaimana parser membaca construct, atau bagaimana bentuk AST-nya, lihat:
+
+[docs/grammar/](grammar/)
+
+Pembagiannya adalah:
+
+```text
+docs/syntax/
+└── Perspektif pengguna bahasa
+
+docs/grammar/
+└── Perspektif desain bahasa dan sistem
+```
+
+Jangan menggunakan implementasi C sebagai satu-satunya acuan untuk menentukan syntax resmi. Syntax yang didukung dan cara penggunaannya harus memiliki acuan di dokumentasi syntax.
+
+## 6. Sistem memori dan GC
+
+Rupa memiliki sistem pengelolaan memori terpusat melalui `GarbageCollector`.
+
+GC Rupa saat ini bekerja sebagai registry kepemilikan alokasi. Pointer yang dialokasikan atau didaftarkan ke GC disimpan dalam daftar internal sehingga dapat dibersihkan secara terpusat.
+
+Alur sederhananya:
+
+```text
+gcinit()
+   ↓
+alokasi melalui API GC
+   ↓
+pointer didaftarkan ke GC
+   ↓
+runtime menggunakan pointer
+   ↓
+gcclean()
+   ↓
+seluruh pointer terdaftar dibersihkan
+```
+
+API utama:
+
+```c
+gcinit(capacity);              // Membuat konteks GC
+
+gcmall(size);                  // malloc + register ke GC
+gccalloc(count, size);         // calloc-like + register
+gcrealloc(ptr, size);          // realloc sambil memperbarui registry
+gcresize(ptr, old, new);       // resize + zero-initialize bagian baru
+
+gcstrdup(str);                 // duplicate string yang dikelola GC
+gcstrndup(str, n);             // duplicate string dengan panjang tertentu
+gcarray(count, size);          // alokasi array
+
+gcreg(ptr);                    // register pointer
+gcremove(ptr);                 // hapus dari registry tanpa free
+gcfree(ptr);                   // free pointer dan hapus dari registry
+gcfind(ptr);                   // mencari pointer di registry
+
+gcclean();                     // membersihkan seluruh pointer terdaftar
+```
+
+### Ownership
+
+Aturan pentingnya adalah memahami siapa yang memiliki pointer.
+
+Jika memori dibuat dengan:
+
+```c
+void *data = gcmall(size);
+```
+
+pointer tersebut telah terdaftar pada GC. Jangan memperlakukannya sebagai alokasi biasa tanpa memperhatikan registry.
+
+Khusus saat ukuran pointer berubah, gunakan:
+
+```c
+data = gcrealloc(data, new_size);
+```
+
+bukan langsung:
+
+```c
+data = realloc(data, new_size);
+```
+
+Alasannya, `realloc()` dapat menghasilkan alamat baru. Jika registry GC masih menyimpan alamat lama, registry dan pointer aktual akan tidak sinkron.
+
+`gcrealloc()` memperbarui pointer di registry ketika alamat berubah.
+
+### Pembersihan manual
+
+Jika sebuah alokasi ingin dibersihkan sebelum seluruh runtime selesai:
+
+```c
+gcfree(data);
+```
+
+Jika pointer tidak lagi ingin dikelola GC tetapi tidak ingin langsung dibebaskan:
+
+```c
+gcremove(data);
+```
+
+Setelah pointer dihapus dari registry, ownership-nya harus ditangani oleh bagian lain. Jangan membiarkan pointer kehilangan pemilik yang jelas.
+
+### Prinsip kontribusi untuk memori
+
+Sebelum menambahkan `malloc()`, `calloc()`, `realloc()`, atau `free()`, tanyakan:
+
+- Siapa pemilik memori ini?
+- Berapa lama memori harus hidup?
+- Apakah memori ini harus terdaftar pada GC?
+- Siapa yang membebaskannya?
+- Apakah pointer dapat berubah alamat?
+
+Jangan mencampur alokasi biasa dan alokasi yang dikelola GC tanpa memahami ownership-nya.
+
+## 7. Cara berkontribusi
+
+Sebelum mengubah kode, tentukan terlebih dahulu masalah dan tahap sistem yang benar-benar terkait.
 
 Contoh:
 
-```rupa
-x: number = 1          // type annotation
-name: "rupa"           // object property
-if x > 0: print(x)     // body satu statement
+```text
+Syntax
+  ↓
+docs/syntax/
+  ↓
+Lexer / Processor
+  ↓
+Token
+  ↓
+Parser / AST
+  ↓
+Runtime
 ```
 
-Karena itu, jangan memperbaiki kasus `:` dengan hanya menambah pengecualian berdasarkan nama identifier. Perbaikan harus mengikuti context construct.
+Tidak semua perubahan harus melewati seluruh jalur tersebut.
 
-## 6. Acuan syntax
+### Perubahan syntax
 
-Sebelum mengubah:
+Jika ingin menambah atau mengubah syntax:
 
-- keyword
-- construct
-- token
-- delimiter
-- operator
-- processor
-- lexer
-- parser
-- AST
+1. Baca `docs/syntax/*.md`.
+2. Tentukan perilaku yang ingin didukung pengguna.
+3. Periksa `docs/grammar/*.md` untuk dampaknya terhadap grammar dan sistem.
+4. Ubah implementasi yang memang diperlukan.
+5. Tambahkan atau perbarui test.
+6. Jalankan build dan test.
+7. Perbarui dokumentasi jika syntax resmi berubah.
 
-baca terlebih dahulu [syntax.md](syntax.md).
+### Perubahan internal
 
-Contoh bentuk yang saat ini menjadi acuan:
+Untuk perubahan lexer, parser, AST, runtime, atau modul internal:
 
-```rupa
-if x > 0: print(true)
+1. Pahami alur data dan context yang sudah ada.
+2. Temukan titik ownership dan tanggung jawab modul.
+3. Ubah bagian yang relevan terlebih dahulu.
+4. Hindari merombak bagian lain tanpa kebutuhan yang jelas.
+5. Build dan test setelah perubahan.
 
-if x > 0 {
-    print(true)
-}
+Struktur project yang ada lebih penting daripada memaksakan pola umum dari project lain. Perubahan struktur harus dilakukan karena memang menyelesaikan masalah arsitektur, bukan hanya karena terlihat lebih familiar.
 
-People {
-    name: string
-    age: number
-}
-
-people: People = {
-    name: "rupa",
-    age: 20
-}
-
-add(x: number) {
-    return x
-}
-```
-
-`:` dan `{}` memiliki peran berbeda:
-
-- `:` setelah condition/construct control: menunggu satu statement body.
-- `{ ... }`: membuka block dengan banyak statement.
-- `:` pada declaration: type annotation.
-- `:` pada object literal: pemisah property dan value.
-
-Detail lengkap tetap berada di `syntax.md`.
-
-## 7. Aturan kontribusi
-
-### Jangan mengubah lebih dari masalah yang sedang dikerjakan
-
-Jika bug berada pada processor, jangan sekaligus merombak parser, AST, runtime, dan struktur direktori tanpa alasan yang jelas.
-
-### Pertahankan ownership memory
-
-Rupa memiliki runtime GC/internal allocation API. Jangan mencampur allocator biasa dan allocator yang terdaftar pada GC tanpa memahami ownership pointer.
-
-Khususnya, jika pointer dikelola oleh allocator GC, perubahan ukuran buffer harus menggunakan API yang menjaga metadata GC, bukan `realloc()` biasa yang dapat meninggalkan pointer lama di registry.
-
-### Processor boleh dipecah
-
-Processor tidak harus menjadi satu file besar. Pecah berdasarkan tanggung jawab ketika itu membuat context dan komunikasi antar handler lebih jelas. Namun pemecahan file bukan tujuan; state dan alur harus tetap mudah diikuti.
-
-### Keyword dan construct tetap satu pipeline
-
-Keyword dan construct dapat ditangani oleh handler berbeda, tetapi jangan membuat dua lexer yang tidak saling mengetahui state. Context harus dapat diteruskan ketika keyword menghasilkan construct atau construct kembali bertemu keyword.
-
-### Jangan jadikan kasus test sebagai grammar resmi tanpa keputusan
-
-Contoh syntax yang kebetulan lolos lexer belum tentu merupakan syntax Rupa. Tambahkan atau pertahankan grammar berdasarkan `docs/syntax.md` dan keputusan desain, bukan karena sebuah bentuk mirip bahasa lain berhasil diproses.
-
-## 8. Cara menguji perubahan
-
-Gunakan test kecil terlebih dahulu. Untuk perubahan processor `:` misalnya:
-
-```rupa
-if x > 0:
-print(true)
-
-add(x: number) {
-    return x
-}
-```
-
-Lalu test nested:
-
-```rupa
-if x > 0 {
-    if y > 1:
-    print(y)
-
-    add(x: number) {
-        return x
-    }
-}
-```
-
-Untuk struct/object:
-
-```rupa
-People {
-    name: string
-    age: number
-}
-
-people: People = {
-    name: "rupa",
-    age: 20
-}
-```
-
-Periksa bukan hanya apakah binary tidak crash, tetapi juga apakah token/state bertambah sesuai input dan context sebelumnya tidak bocor ke construct berikutnya.
-
-## 9. Sebelum mengirim perubahan
+## 8. Sebelum mengirim perubahan
 
 Minimal lakukan:
 
 ```bash
 DEV_MODE=1 ./build.sh debug
-./bin/rupa
+DEV_MODE=1 ./build.sh test
 ```
 
-Kemudian:
+Kemudian pastikan:
 
-1. Pastikan build sukses.
-2. Pastikan perubahan yang dimaksud benar-benar bekerja.
-3. Uji input sebelum dan sesudah construct yang diubah.
-4. Uji nested context bila fitur mendukung nesting.
-5. Pastikan `.exit` tidak memunculkan error memory.
-6. Perbarui `docs/syntax.md` jika grammar resmi berubah.
-7. Perbarui dokumentasi lain jika struktur atau workflow berubah.
+1. Build berhasil.
+2. Test terkait berhasil.
+3. Perubahan menghasilkan perilaku yang memang diinginkan.
+4. Context tidak bocor ke input atau construct berikutnya.
+5. Ownership memori tetap jelas.
+6. Dokumentasi diperbarui jika perilaku resmi berubah.
+7. Perubahan tidak mencampurkan masalah yang tidak berkaitan.
 
-## 10. Titik awal berdasarkan jenis kontribusi
+## 9. Titik awal
 
-| Pekerjaan | Mulai dari |
+| Jenis pekerjaan | Mulai dari |
 |---|---|
-| Syntax baru | `docs/syntax.md`, lalu lexer/processor |
-| Keyword baru | `src/compiler/lexer/processor/` dan runtime keyword terkait |
-| Construct baru | `src/compiler/lexer/processor/` |
-| Token baru | `src/compiler/token/` |
-| Parser/AST | `src/compiler/parser/` |
-| REPL/editor | `src/editor/`, `src/repl/`, `src/prompt/` |
-| Runtime/input | `src/runtime/` |
-| Build | `build.sh`, `commands/`, `commands/lib/` |
-| Dokumentasi | `docs/` |
+| Memahami project | `docs/structure.md` |
+| Memahami syntax | `docs/syntax/*.md` |
+| Memahami grammar dan sistem | `docs/grammar/*.md` |
+| Mengubah lexer | `src/compiler/lexer/` |
+| Mengubah parser atau AST | `src/compiler/parser/` |
+| Mengubah token | `src/compiler/token/` |
+| Mengubah runtime | `src/runtime/` |
+| Mengubah GC | `src/runtime/gc/` dan `lib/runtime/gc/` |
+| Mengubah build | `build.sh` dan `commands/` |
+| Menambah atau memperbarui test | `tests/` |
 
-Jika ragu, mulai dari `docs/syntax.md` untuk perilaku bahasa dan `instruction.md` ini untuk lokasi implementasi.
+Jika tidak yakin harus mulai dari mana, mulai dari dokumentasi terlebih dahulu. Pahami apa yang seharusnya dilakukan sistem sebelum mengubah bagaimana sistem melakukannya.

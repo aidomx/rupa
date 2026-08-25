@@ -21,6 +21,21 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
   return GRAMMAR_NO_MATCH;
 }
 
+int grammarParseConditionalAssignment(Request *r, int a, int b, int *pos) {
+  Token *t = r->tokens;
+  for (int i = a + 1; i < b; i++) {
+    if (t->data[i].type != CONDITIONAL_ASSIGN)
+      continue;
+    int target = grammarParseExpr(r, a, i);
+    int value = grammarParseExpr(r, i + 1, b);
+    *pos = b;
+    if (target >= 0 && value >= 0)
+      return createConditionalAssignment(r->node, target, value);
+    return -1;
+  }
+  return GRAMMAR_NO_MATCH;
+}
+
 int grammarParseExpressionStatement(Request *r, int a, int b, int *pos) {
   int e = grammarParseExpr(r, a, b);
   *pos = b;

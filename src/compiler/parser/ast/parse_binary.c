@@ -29,6 +29,18 @@ int parseBinary(Request *req, int start, int end) {
   if (start >= end)
     return -1; // Empty after trimming
 
+  /* Prefix expression grammar must also be visible to recursive binary parsing.
+   * Without this, the right side of `i < await users.data.length` reaches
+   * parseAtom() and `await` is treated as a plain identifier. */
+  if (tokens->data[start].type == KEYWORD) {
+    int id = grammarParseAsyncExpr(req, start, end);
+    if (id != GRAMMAR_NO_MATCH)
+      return id;
+    id = grammarParseAwaitExpr(req, start, end);
+    if (id != GRAMMAR_NO_MATCH)
+      return id;
+  }
+
   // cari operator top-level (depth == 0)
   for (int i = start; i < end; i++) {
     if (isToken(tokens, i, LPAREN)) {
@@ -80,6 +92,9 @@ int parseBinary(Request *req, int start, int end) {
       }
     }
 
+    int postfix = grammarParsePostfixExpr(req, start, end);
+    if (postfix != GRAMMAR_NO_MATCH)
+      return postfix;
     return parseAtom(req, &tokens->data[start]);
   }
 
@@ -87,5 +102,9 @@ int parseBinary(Request *req, int start, int end) {
   int left = parseBinary(req, start, minIndex);
   int right = parseBinary(req, minIndex + 1, end);
 
+  if (tokens->data[minIndex].type == ARROW)
+    return createThen(req->node, left, right);
+  if (tokens->data[minIndex].type == PIPE)
+    return createFallback(req->node, left, right);
   return createBinary(req->node, &tokens->data[minIndex], left, right);
 }

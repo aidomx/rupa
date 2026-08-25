@@ -86,6 +86,9 @@ void grammarPushId(int **v, int *n, int x);
  *        expression, atau binary expression sebagai fallback).
  */
 int grammarParseExpr(struct Request *r, int a, int b);
+int grammarParseAsyncExpr(struct Request *r, int a, int b);
+int grammarParseAwaitExpr(struct Request *r, int a, int b);
+int grammarParsePostfixExpr(struct Request *r, int a, int b);
 
 /**
  * @brief Mem-parse daftar argumen/elemen yang dipisah koma pada depth 0,
@@ -214,6 +217,7 @@ int grammarParseAnnotation(struct Request *r, int a, int b, int *pos);
  */
 int grammarParseUpdate(struct Request *r, int a, int b, int *pos);
 int grammarParseAssignment(struct Request *r, int a, int b, int *pos);
+int grammarParseConditionalAssignment(struct Request *r, int a, int b, int *pos);
 
 /**
  * @brief Fallback akhir: ekspresi berdiri sendiri dibungkus sebagai Return

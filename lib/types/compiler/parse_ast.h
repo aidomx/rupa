@@ -24,6 +24,37 @@ struct AstAssignment {
  *
  * Menyimpan operator dan operand kiri/kanan dari binary expression.
  */
+
+struct AstConditionalAssignment {
+  int target;
+  int value;
+};
+
+struct AstThen {
+  int condition;
+  int result;
+};
+
+struct AstFallback {
+  int primary;
+  int fallback;
+};
+
+struct AstAsync {
+  int request;
+  int handler;   // -1 jika tidak ada handler
+  int timeout;   // -1 jika tidak ada timeout
+};
+
+struct AstAwait {
+  int expression;
+};
+
+struct AstMember {
+  int object;
+  int member;
+};
+
 struct AstBinary {
   enum BinaryType type;
   char *op;
@@ -225,6 +256,12 @@ struct AstNode {
   union {
     struct AstArray array;
     struct AstAssignment assign;                 ///< Assignment operation
+    struct AstConditionalAssignment conditionalAssign;
+    struct AstThen then;
+    struct AstFallback fallback;
+    struct AstAsync async;
+    struct AstAwait await;
+    struct AstMember member;
     struct AstBinary binary;                     ///< Binary operation
     struct AstBinaryExpression binaryExpression; ///< Binary expression
     struct AstBoolean boolean;                   ///< Boolean literal

@@ -25,6 +25,8 @@ struct ValidationInput {
   bool isWhile;
   bool isPrint;
   bool isReturn;
+  bool isAsync;
+  bool isAwait;
   bool isComplete;
   bool isWaiting;
   // character

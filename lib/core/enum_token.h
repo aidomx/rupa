@@ -64,6 +64,7 @@ enum TokenType {
   PIPE = 51,          // |
   PLUS = 52,          // +
   QUESTION_MARK = 53, // ?
+  CONDITIONAL_ASSIGN = 67, // ?=
   QUOTE = 54,         // "
   SEMICOLON = 55,     // ;
   SHIFT_LEFT = 56,    // <<

@@ -14,6 +14,8 @@ const char *keywordList[] = {
     "return",  // return
     "break",   // keluar dari loop
     "continue",// lanjut iterasi loop
+    "async",   // mulai pekerjaan asynchronous
+    "await",   // tunggu hasil asynchronous
     NULL       // Penanda akhir daftar
 };
 
@@ -31,6 +33,8 @@ KeywordType keywordType[] = {
     KEYWORD_RETURN,  // return
     KEYWORD_BREAK,   // break
     KEYWORD_CONTINUE,// continue
+    KEYWORD_ASYNC,   // async
+    KEYWORD_AWAIT,   // await
     KEYWORD_NULL     // sentinel
 };
 

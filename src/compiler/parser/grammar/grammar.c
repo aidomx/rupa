@@ -21,6 +21,13 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
 
   if (t->data[a].type == KEYWORD) {
     int id;
+    /* async is an expression grammar, but at statement level it must stay
+     * a standalone Async node rather than falling through expression-statement
+     * wrapping (which currently creates a Return node). */
+    if ((id = grammarParseAsyncExpr(r, a, b)) != GRAMMAR_NO_MATCH) {
+      *pos = b;
+      return id;
+    }
     if ((id = grammarParseReturnKeyword(r, a, b, pos)) != GRAMMAR_NO_MATCH)
       return id;
     if ((id = grammarParseControl(r, a, b, pos)) != GRAMMAR_NO_MATCH)
@@ -43,6 +50,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;
   if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH)
+    return id;
+  if ((id = grammarParseConditionalAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;
   if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;

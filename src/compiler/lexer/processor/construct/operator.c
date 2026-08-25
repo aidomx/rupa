@@ -32,7 +32,7 @@ static TokenType op_type(const char *op) {
   if (!strcmp(op, "."))
     return DOT;
   if (!strcmp(op, "?="))
-    return QUESTION_MARK;
+    return CONDITIONAL_ASSIGN;
   if (!strcmp(op, "=="))
     return EQUAL;
   if (!strcmp(op, "!="))
@@ -85,7 +85,7 @@ int processOperator(State *state, int start, int end, int *next,
 
   addToken(state->tokens,
            createDataToken(op, NULL, type, state->input->line, start));
-  if (type == ASSIGN || type == QUESTION_MARK)
+  if (type == ASSIGN || type == CONDITIONAL_ASSIGN || type == QUESTION_MARK)
     state->input->flags->isAssignment = true;
   *next = start + n;
 
@@ -94,7 +94,7 @@ int processOperator(State *state, int start, int end, int *next,
     p++;
   if (p >= end || s[p] == '\n') {
     /* These operators require another expression. */
-    if (type == ASSIGN || type == QUESTION_MARK || type == PLUS ||
+    if (type == ASSIGN || type == CONDITIONAL_ASSIGN || type == QUESTION_MARK || type == PLUS ||
         type == MINUS || type == STAR || type == SLASH || type == PERCENT ||
         type == PIPE || type == LOGICAL_AND || type == LOGICAL_OR ||
         type == EQUAL || type == NOT_EQUAL || type == LESS_THAN ||

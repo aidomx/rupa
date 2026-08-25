@@ -132,6 +132,17 @@ static void printAst(Node *node, int index, int level) {
     printString(n->string.value, "String", level);
     break;
 
+  case NODE_MEMBER:
+    printIndent(level);
+    printf("Member:\n");
+    printIndent(level + 1);
+    printf("Object:\n");
+    printAst(node, n->member.object, level + 2);
+    printIndent(level + 1);
+    printf("Member:\n");
+    printAst(node, n->member.member, level + 2);
+    break;
+
   case NODE_SUBSCRIPT:
     printIndent(level);
     printf("Subscript:\n");
@@ -218,6 +229,31 @@ static void printAst(Node *node, int index, int level) {
     }
     break;
 
+  case NODE_CONDITIONAL_ASSIGN:
+    printIndent(level);
+    printf("Conditional Assignment:\n");
+    printIndent(level + 1); printf("Target:\n");
+    printAst(node, n->conditionalAssign.target, level + 2);
+    printIndent(level + 1); printf("Value:\n");
+    printAst(node, n->conditionalAssign.value, level + 2);
+    break;
+
+  case NODE_THEN:
+    printIndent(level); printf("Then:\n");
+    printIndent(level + 1); printf("Condition:\n");
+    printAst(node, n->then.condition, level + 2);
+    printIndent(level + 1); printf("Result:\n");
+    printAst(node, n->then.result, level + 2);
+    break;
+
+  case NODE_FALLBACK:
+    printIndent(level); printf("Fallback:\n");
+    printIndent(level + 1); printf("Primary:\n");
+    printAst(node, n->fallback.primary, level + 2);
+    printIndent(level + 1); printf("Fallback:\n");
+    printAst(node, n->fallback.fallback, level + 2);
+    break;
+
   case NODE_UPDATE:
     printIndent(level);
     printf("Update: %s%s\n", n->update.prefix ? "prefix " : "postfix ",
@@ -301,6 +337,30 @@ static void printAst(Node *node, int index, int level) {
     printf("Module statement:\n");
     if (n->module.value >= 0)
       printAst(node, n->module.value, level + 1);
+    break;
+
+  case NODE_ASYNC:
+    printIndent(level);
+    printf("Async:\n");
+    printIndent(level + 1);
+    printf("Request:\n");
+    printAst(node, n->async.request, level + 2);
+    if (n->async.handler >= 0) {
+      printIndent(level + 1);
+      printf("Handler:\n");
+      printAst(node, n->async.handler, level + 2);
+    }
+    if (n->async.timeout >= 0) {
+      printIndent(level + 1);
+      printf("Timeout:\n");
+      printAst(node, n->async.timeout, level + 2);
+    }
+    break;
+
+  case NODE_AWAIT:
+    printIndent(level);
+    printf("Await:\n");
+    printAst(node, n->await.expression, level + 1);
     break;
 
   default:

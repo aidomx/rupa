@@ -21,6 +21,8 @@ int grammarParseBlock(Request *r, int open, int close) {
  * statement from being accidentally absorbed as part of a single-line body. */
 int grammarParseKeywordBody(Request *r, int bodyStart, int limit, int *next) {
   Token *t = r->tokens;
+  while (bodyStart < limit && grammarIsWhitespace(t, bodyStart))
+    bodyStart++;
   if (next)
     *next = bodyStart;
   if (bodyStart >= limit)
@@ -38,6 +40,30 @@ int grammarParseKeywordBody(Request *r, int bodyStart, int limit, int *next) {
   int end = grammarLineEnd(t, bodyStart);
   if (end > limit)
     end = limit;
+
+  /* Some smart-lexer constructs keep a brace handler on one token line even
+   * though the original source contains physical newlines. For a ':' body,
+   * an elseif/else at the same nesting level is therefore also a reliable
+   * hard boundary. */
+  if (end == limit) {
+    int paren = 0, bracket = 0, brace = 0;
+    for (int i = bodyStart; i < limit; i++) {
+      TokenType q = t->data[i].type;
+      if (q == LPAREN) paren++;
+      else if (q == RPAREN && paren > 0) paren--;
+      else if (q == LBLOCK) bracket++;
+      else if (q == RBLOCK && bracket > 0) bracket--;
+      else if (q == LBRACE) brace++;
+      else if (q == RBRACE && brace > 0) brace--;
+      else if (q == KEYWORD && paren == 0 && bracket == 0 && brace == 0 &&
+               (!strcmp(t->data[i].value, "elseif") ||
+                !strcmp(t->data[i].value, "else"))) {
+        end = i;
+        break;
+      }
+    }
+  }
+
   int p = bodyStart, id = grammarParseStatement(r, &p, end);
   if (id < 0)
     return -1;

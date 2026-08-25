@@ -12,7 +12,11 @@ for i < 10 {
     print(i)
 }
 
-rev i < 10: print(i)
+rev 10 > i: print(i)
+rev 10 > i {
+  print(i)
+}
+
 while x < 10 {
     print(x)
 }

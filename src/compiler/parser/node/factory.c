@@ -178,6 +178,25 @@ static int *copyIds(const int *ids, int length) {
   return out;
 }
 
+int createConditionalAssignment(Node *root, int target, int value) {
+  if (!root || target < 0 || value < 0) return -1;
+  AstNode node = {.type = NODE_CONDITIONAL_ASSIGN,
+                  .conditionalAssign = {.target = target, .value = value}};
+  return createAst(root, node);
+}
+
+int createThen(Node *root, int condition, int result) {
+  if (!root || condition < 0 || result < 0) return -1;
+  AstNode node = {.type = NODE_THEN, .then = {.condition = condition, .result = result}};
+  return createAst(root, node);
+}
+
+int createFallback(Node *root, int primary, int fallback) {
+  if (!root || primary < 0 || fallback < 0) return -1;
+  AstNode node = {.type = NODE_FALLBACK, .fallback = {.primary = primary, .fallback = fallback}};
+  return createAst(root, node);
+}
+
 int createCall(Node *root, int callee, int *args, int length) {
   AstNode n = {.type = NODE_CALL};
   n.call.callee = callee;
@@ -257,4 +276,25 @@ int createObject(Node *root, struct AstObjectEntry *entries, int length) {
   }
   n.object.length = length;
   return createAst(root, n);
+}
+
+int createAsync(Node *root, int request, int handler, int timeout) {
+  if (!root || request < 0)
+    return -1;
+  AstNode node = {.type = NODE_ASYNC,
+                  .async = {.request = request, .handler = handler, .timeout = timeout}};
+  return createAst(root, node);
+}
+
+int createAwait(Node *root, int expression) {
+  if (!root || expression < 0)
+    return -1;
+  AstNode node = {.type = NODE_AWAIT, .await = {.expression = expression}};
+  return createAst(root, node);
+}
+
+int createMember(Node *root, int object, int member) {
+  if (!root || object < 0 || member < 0) return -1;
+  AstNode node = {.type = NODE_MEMBER, .member = {.object = object, .member = member}};
+  return createAst(root, node);
 }

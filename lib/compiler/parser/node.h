@@ -84,6 +84,12 @@ int createBinary(struct Node *root, struct DataToken *opToken, int leftId,
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
 int createAssignment(struct Node *root, int left, int type, int right);
+int createConditionalAssignment(struct Node *root, int target, int value);
+int createThen(struct Node *root, int condition, int result);
+int createFallback(struct Node *root, int primary, int fallback);
+int createAsync(struct Node *root, int request, int handler, int timeout);
+int createAwait(struct Node *root, int expression);
+int createMember(struct Node *root, int object, int member);
 int createCall(struct Node *root, int callee, int *args, int length);
 int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);

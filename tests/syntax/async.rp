@@ -1,0 +1,19 @@
+users = async db.getUser()
+data = await users.data
+
+if await users.data != null:
+    print(true)
+
+for i < await users.data.length:
+    print(users.data[i].id)
+
+async db.getUser() => print(this.data.length) -> 200
+
+async db.getUser() => {
+    if this.status == AWAIT:
+        print("loading...")
+    elseif this.status == SUCCESS:
+        print(this.data)
+    else:
+        print(this.error.message)
+} -> 200

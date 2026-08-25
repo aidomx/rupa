@@ -1,5 +1,4 @@
-x = 1
-x = y
-name = "rupa"
-x: number = 1
-x ?= value
+# Assignment grammar
+value = primary | fallback | default
+result ?= valid -> "Sukses"
+result ?= valid -> primary | fallback | "Unavailable"

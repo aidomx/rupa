@@ -1,48 +1,129 @@
 #!/usr/bin/env bash
 
-build_test_binary() {
-  local log_file
-  log_file=$(mktemp "${TMPDIR:-/tmp}/rupa-build.XXXXXX")
+export build="${CMD_DIR}/build_test.sh"
 
-  export DEBUGGING=false
-  export CFLAGS="$CFLAGS $DEBUG_FLAGS $LEAK_FLAGS"
+compile() {
+  export compdb=false
 
-  # Build in the background so normal build output stays hidden. The user only
-  # sees one progress line; compiler output is preserved for failures.
-  (
-    build_clean >/dev/null 2>&1
-    build_common
-  ) >"$log_file" 2>&1 &
-  local pid=$!
+  [[ -f $COMPDB_FILE ]] && export compdb=true
 
-  progress "percent" "$pid" "> Building rupa"
-
-  if wait "$pid"; then
-    rm -f "$log_file"
-    return 0
+  if command -v intercept-build >/dev/null 2>&1; then
+    intercept-build $build "$@"
+  elif command -v bear >/dev/null 2>&1; then
+    bear -- $build "$@"
+  else
+    . $build
   fi
-
-  printf '\n'
-  print_error "Build failed"
-  cat "$log_file"
-  rm -f "$log_file"
   return 1
+
 }
 
-ensure_test_binary() {
-  TARGET="./$(basename "${BINARY_DIR}")/${TARGET_NAME}"
+rebuild_binary() {
+  local question
+  local answer
 
-  [[ -f "$TARGET" ]] && return 0
+  question="$(echo -e "${CYAN}>${NC} Source may be has updated, rebuild now? [y/n] ")"
 
-  echo -e "${CYAN}> Check binary rupa${NC}"
-  echo -e "${CYAN}>${NC} ${YELLOW}$TARGET${NC} tidak ditemukan!"
-  local question="$(echo -e "${CYAN}>${NC} Build sekarang? [y/n] ")"
-  read -p "$question" -i -N -r
-  local answer="$REPLY"
+  if ! read -r -t 7 -p "$question" answer; then
+    echo
+    return 1
+  fi
 
   case "$answer" in
   y | Y | yes | YES)
-    build_test_binary || return 1
+    compile || return 1
+
+    [[ -f "$TARGET" ]] || {
+      print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+      return 1
+    }
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+# Fungsi pembantu untuk mengecek apakah perlu rebuild
+needs_rebuild() {
+  # Cari file sumber terbaru di src (sesuaikan ekstensi sesuai kebutuhan, misal .c .cpp .h)
+  local latest_src=$(find src -type f \( -name '*.c' \) -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+  if [[ -z "$latest_src" ]]; then
+    # Tidak ada file sumber -> anggap perlu rebuild (atau bisa return 1)
+    return 0
+  fi
+  # Bandingkan timestamp modifikasi file sumber terbaru dengan timestamp binary
+  [[ "$latest_src" -nt "$TARGET" ]]
+}
+
+check_binary_runs() {
+  local target="$1"
+  # Jalankan dengan --version, arahkan stderr ke stdout, cek pesan error
+  if ! "$target" --version &>/dev/null; then
+    local err_msg=$("$target" --version 2>&1)
+    if [[ "$err_msg" == *"cannot execute"* ]] || [[ "$err_msg" == *"not found"* ]]; then
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# --- Helper untuk verifikasi binary ---
+verify_binary() {
+  if [[ ! -x "$TARGET" ]]; then
+    print_error "Binary $TARGET tidak memiliki izin eksekusi."
+    return 1
+  fi
+  # Cek dependensi (gunakan ldd jika ada)
+  if command -v ldd &>/dev/null; then
+    local missing=$(ldd "$TARGET" 2>/dev/null | grep -i "not found")
+    if [[ -n "$missing" ]]; then
+      print_error "Binary $TARGET membutuhkan library yang tidak ditemukan:"
+      echo "$missing" | while read -r line; do
+        echo -e "${RED}  $line${NC}"
+      done
+      return 1
+    fi
+  fi
+  return 0
+}
+
+ensure_test_binary() {
+  local question
+  local answer
+  TARGET="./$(basename "${BINARY_DIR}")/${TARGET_NAME}"
+
+  if [[ -f "$TARGET" ]]; then
+    # Binary ada, cek apakah perlu rebuild
+    if needs_rebuild; then
+      rebuild_binary
+      return 0
+    fi
+
+    if verify_binary; then
+      return 0
+    fi
+  fi
+
+  # Binary tidak ada
+  echo -e "${CYAN}> Check binary rupa${NC}"
+  echo -e "${CYAN}>${NC} ${YELLOW}$TARGET${NC} tidak ditemukan!"
+
+  question="$(echo -e "${CYAN}>${NC} Build sekarang? [y/n] ")"
+
+  if ! read -r -t 7 -p "$question" answer; then
+    echo
+    compile || return 1
+    [[ -f "$TARGET" ]] || {
+      print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+      return 1
+    }
+    return 0
+  fi
+
+  case "$answer" in
+  y | Y | yes | YES)
+    compile || return 1
     [[ -f "$TARGET" ]] || {
       print_error "Error: $TARGET tetap tidak ditemukan setelah build."
       return 1
@@ -164,7 +245,7 @@ select_file_test() {
     selected+=("${files[$file_index]}")
   done
 
-  echo "Selected tests:"
+  echo -e "${CYAN}>${NC} Selected tests:"
 
   for file in "${selected[@]}"; do
     echo "  ${file#"$APP_ROOT/tests/"}"

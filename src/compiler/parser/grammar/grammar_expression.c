@@ -9,6 +9,13 @@ int grammarParseExpr(Request *r, int a, int b) {
     return -1;
   Token *t = r->tokens;
 
+  int asyncId = grammarParseAsyncExpr(r, a, b);
+  if (asyncId != GRAMMAR_NO_MATCH)
+    return asyncId;
+  int awaitId = grammarParseAwaitExpr(r, a, b);
+  if (awaitId != GRAMMAR_NO_MATCH)
+    return awaitId;
+
   if (t->data[a].type == LBLOCK) {
     int id = grammarParseArrayLiteral(r, a, b);
     if (id != GRAMMAR_NO_MATCH)
@@ -20,7 +27,10 @@ int grammarParseExpr(Request *r, int a, int b) {
       return id;
   }
   if (t->data[a].type == IDENTIFIER || t->data[a].type == LITERAL_ID) {
-    int id = grammarParseCallExpr(r, a, b);
+    int id = grammarParsePostfixExpr(r, a, b);
+    if (id != GRAMMAR_NO_MATCH)
+      return id;
+    id = grammarParseCallExpr(r, a, b);
     if (id != GRAMMAR_NO_MATCH)
       return id;
   }

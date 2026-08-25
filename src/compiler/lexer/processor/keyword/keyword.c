@@ -28,6 +28,10 @@ static const char *keyword_name(KeywordType type) {
     return "break";
   case KEYWORD_CONTINUE:
     return "continue";
+  case KEYWORD_ASYNC:
+    return "async";
+  case KEYWORD_AWAIT:
+    return "await";
   default:
     return NULL;
   }
@@ -80,6 +84,12 @@ int processKeyword(State *state, KeywordType type, int start, int next,
   case KEYWORD_RETURN:
     state->input->flags->isReturn = true;
     break;
+  case KEYWORD_ASYNC:
+    state->input->flags->isAsync = true;
+    break;
+  case KEYWORD_AWAIT:
+    state->input->flags->isAwait = true;
+    break;
   case KEYWORD_BREAK:
   case KEYWORD_CONTINUE:
     break;
@@ -104,6 +114,8 @@ int processKeyword(State *state, KeywordType type, int start, int next,
     case KEYWORD_IMPORT:
     case KEYWORD_EXPORT:
     case KEYWORD_EXTENDS:
+    case KEYWORD_ASYNC:
+    case KEYWORD_AWAIT:
       *waiting = true;
       return next;
     case KEYWORD_ELSE:
