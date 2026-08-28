@@ -31,7 +31,6 @@ State *createGlobalState(int capacity, bool actived) {
   state->repl = createReplState(capacity);
   state->context = createStateContext(capacity);
   state->input = createInput(capacity);
-  state->debug = &debug;
   state->isRepl = actived;
   state->size = 0;
   return state;

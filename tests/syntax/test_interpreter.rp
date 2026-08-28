@@ -1,0 +1,40 @@
+# Object literal + member access
+person = { name: "Budi", age: 25 }
+print(person.name)
+print(person.age)
+
+# Nested object
+data = { id: 1, info: { city: "Jakarta", zip: 12345 } }
+print(data.info.city)
+
+# Object in assignment
+config: object = { host: "localhost", port: 8080 }
+print(config.host)
+print(config.port)
+
+# Array length
+items = [1, 2, 3, 4, 5]
+print(items.length)
+
+# String length
+msg = "hello"
+print(msg.length)
+
+# Async/await
+handle = async 42
+result = await handle
+print(result)
+
+# Struct declaration
+People {
+    name: string
+    age: number
+}
+print("struct registered")
+
+# Function with object arg
+greet(p) {
+    return "Hello, " + p.name
+}
+user = { name: "Rupa" }
+print(greet(user))

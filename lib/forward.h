@@ -4,6 +4,7 @@
 typedef enum BinaryType BinaryType;
 typedef enum CommandType CommandType;
 typedef enum ContextType ContextType;
+typedef enum DebugType DebugType;
 typedef enum EditorMode EditorMode;
 typedef enum EditorAttr EditorAttr;
 typedef enum ExceptType ExceptType;
@@ -14,6 +15,8 @@ typedef enum NodeType NodeType;
 typedef enum ProgramType ProgramType;
 typedef enum TokenType TokenType;
 typedef enum VariableType VariableType;
+typedef enum ValueType ValueType;
+typedef enum InterpreterFlow InterpreterFlow;
 
 // forward declarations struct
 typedef struct Array Array;
@@ -40,7 +43,15 @@ typedef struct State State;
 typedef struct StateContext StateContext;
 typedef struct StateInput StateInput;
 typedef struct Token Token;
+typedef struct Environment Environment;
+typedef struct Variable Variable;
+typedef struct Value Value;
 typedef struct ValidationInput ValidationInput;
+typedef struct RuntimeValue RuntimeValue;
+typedef struct RuntimeFunction RuntimeFunction;
+typedef struct RuntimeBinding RuntimeBinding;
+typedef struct RuntimeEnv RuntimeEnv;
+typedef struct InterpreterResult InterpreterResult;
 
 // forward struct Ast*
 typedef struct AstArray AstArray;

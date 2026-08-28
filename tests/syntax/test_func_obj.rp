@@ -1,0 +1,12 @@
+# Simple function returning object
+createPerson(n) {
+    return { name: n, age: 0 }
+}
+p = createPerson("Test")
+print(p.name)
+print(p.age)
+
+# Direct object creation and access
+q = { name: "Direct", age: 42 }
+print(q.name)
+print(q.age)

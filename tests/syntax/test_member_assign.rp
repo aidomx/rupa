@@ -1,0 +1,33 @@
+# Member assignment: obj.field = value
+person = { name: "Budi", age: 25 }
+person.name = "Andi"
+person.age = 30
+print(person.name)
+print(person.age)
+
+# Array element assignment: arr[i] = value
+items = [10, 20, 30]
+items[1] = 99
+print(items[0])
+print(items[1])
+print(items[2])
+
+# Nested member assignment
+data = { user: { name: "Rupa" } }
+data.user.name = "Updated"
+print(data.user.name)
+
+# Add new property via assignment
+config = { host: "localhost" }
+config.port = 8080
+print(config.host)
+print(config.port)
+
+# Mixed: function returning object, then modify
+createPerson(n) {
+    return { name: n, age: 0 }
+}
+p = createPerson("Test")
+p.age = 25
+print(p.name)
+print(p.age)

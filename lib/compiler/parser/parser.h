@@ -1,5 +1,7 @@
 #pragma once
 
+#include "token/token.h"
+
 #include "ast/assignment.h"
 #include "ast/ast.h"
 #include "ast/expression.h"

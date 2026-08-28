@@ -2,6 +2,7 @@
 import "build debug release run"
 
 main() {
+  local message="$1"
   local log_file
   log_file=$(mktemp "${TMPDIR:-/tmp}/rupa-build.XXXXXX")
 
@@ -16,7 +17,7 @@ main() {
   ) >"$log_file" 2>&1 &
   local pid=$!
 
-  progress "percent" "$pid" "> Rebuild rupa"
+  progress "percent" "$pid" "$message"
 
   if wait "$pid"; then
     rm -f "$log_file"

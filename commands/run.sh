@@ -3,16 +3,17 @@
 export build="${CMD_DIR}/build_test.sh"
 
 compile() {
+  local message="$1"
   export compdb=false
 
   [[ -f $COMPDB_FILE ]] && export compdb=true
 
   if command -v intercept-build >/dev/null 2>&1; then
-    intercept-build $build "$@"
+    intercept-build $build "$message"
   elif command -v bear >/dev/null 2>&1; then
-    bear -- $build "$@"
+    bear -- $build "$message"
   else
-    . $build
+    . $build $message
   fi
   return 1
 
@@ -32,7 +33,7 @@ rebuild_binary() {
 
   case "$answer" in
   y | Y | yes | YES)
-    compile || return 1
+    compile "> Rebuild rupa" || return 0
 
     [[ -f "$TARGET" ]] || {
       print_error "Error: $TARGET tetap tidak ditemukan setelah build."
@@ -117,7 +118,7 @@ ensure_test_binary() {
 
   if ! read -r -t 7 -p "$question" answer; then
     echo
-    compile || return 1
+    compile "> Building rupa" || return 0
     [[ -f "$TARGET" ]] || {
       print_error "Error: $TARGET tetap tidak ditemukan setelah build."
       return 1
@@ -127,7 +128,7 @@ ensure_test_binary() {
 
   case "$answer" in
   y | Y | yes | YES)
-    compile || return 1
+    compile "> Building rupa" || return 0
     [[ -f "$TARGET" ]] || {
       print_error "Error: $TARGET tetap tidak ditemukan setelah build."
       return 1

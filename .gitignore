@@ -7,3 +7,5 @@
 build
 compile_commands.json
 bin/rupa
+cscope.out
+tags

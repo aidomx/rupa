@@ -14,12 +14,9 @@
 #include "core/platform.h"
 
 // types
-#include "types/compiler/lexer.h"
-#include "types/compiler/parse_ast.h"
-#include "types/compiler/parse_node.h"
+#include "types/compiler/compiler.h"
+#include "types/debug/debug.h"
 #include "types/editor/editor.h"
-#include "types/interpreter/debug.h"
-#include "types/interpreter/error.h"
 #include "types/repl/repl.h"
 #include "types/runtime/context.h"
 #include "types/runtime/flags.h"
@@ -37,16 +34,19 @@
 
 // api
 #include "compiler/compiler.h"
+#include "debug/debug.h"
 #include "editor/editor.h"
-#include "interpreter/interpreter.h"
 #include "prompt/prompt.h"
 #include "repl/repl.h"
 #include "runtime/runtime.h"
 #include "state/state.h"
+// stdlib
+#include "stdlib/os.h"
+#include "stdlib/rupa_stdlib.h"
 // support
-#include "utils/atom.h"
-#include "utils/identifier.h"
-#include "utils/numbers.h"
+/*#include "utils/atom.h"*/
+/*#include "utils/identifier.h"*/
+/*#include "utils/numbers.h"*/
 #include "utils/strings.h"
 
 /**
@@ -85,14 +85,6 @@ char *getConfig(const char *line, const char *key, char *value);
  * @param row Nomor kolom.
  */
 void handleVariable(Token *token, const char *input, int line, int row);
-
-/**
- * @brief Menjalankan interpreter dari AST node.
- *
- * @param node Root node AST.
- * @param e Struktur error (jika ada).
- */
-void interpreter(Node *node, Error *error);
 
 /** @brief for bootstrap loader
  *

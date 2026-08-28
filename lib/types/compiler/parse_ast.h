@@ -258,6 +258,11 @@ struct AstCase {
   int length;
 };
 
+struct AstMemberAssign {
+  int target; /* NODE_MEMBER or NODE_SUBSCRIPT node id */
+  int value;  /* expression node id */
+};
+
 
 /**
  * @brief Abstract Syntax Tree node.
@@ -299,6 +304,7 @@ struct AstNode {
     struct AstObject object;
     struct AstCase asCase;
     struct AstUpdate update;
+    struct AstMemberAssign memberAssign;
     struct DataToken *token; ///< Raw token data
   };
 };

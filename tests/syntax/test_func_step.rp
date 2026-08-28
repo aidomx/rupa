@@ -1,0 +1,21 @@
+# Simple function returning string
+getStr() {
+    return "hello"
+}
+s = getStr()
+print(s)
+
+# Function returning number
+getNum() {
+    return 42
+}
+n = getNum()
+print(n)
+
+# Function returning object
+getObj() {
+    return { name: "test", age: 10 }
+}
+o = getObj()
+print(o.name)
+print(o.age)

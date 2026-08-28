@@ -1,25 +1,26 @@
 i = 10
-for i: print(i)
-rev i: print(i)
-
-for i < 10: print(i)
-rev i > 0: print(i)
-
+for i: print("syntax for i: print(i) hasilnya = " + i)
+print("Nilai i setelah for = " + i + "\n")
+rev i: print("syntax rev i: print(i) hasilnya = " + i)
+print("Nilai i setelah rev = " + i + "\n")
+for i < 10: print("syntax for i < 10: print(i) hasilnya = " + i)
+print("\n")
+rev i > 0: print("syntax rev i > 0: print(i) hasilnya = " + i)
+print("\n")
 for i < 10 {
     print(i)
 }
-
-rev i >= 0 {
+print("\n")
+rev i > 0 {
     print(i)
 }
-
-while x < 10: print(x)
-
+print("\n")
+x = 0
 while x < 10 {
-    print(x)
+    print("syntax while x < 10 hasilnya = " + x)
     x++
 }
-
+print("\n")
 for i < 10 {
   if i == 1: continue
   if i == 8: break

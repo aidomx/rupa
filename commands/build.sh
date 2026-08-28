@@ -9,11 +9,11 @@ build_clean() {
 build_common() {
   local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
   local compact=false
-  (( width < 64 )) && compact=true
+  ((width < 64)) && compact=true
 
-  # The progress line is temporary and always remains directly below the
-  # completed source rows. Before printing a new row, erase it and move the
-  # cursor one line up so the new row is inserted above the progress line.
+  # The progress bar is always the last visible line, fixed at the bottom.
+  # Before printing a new source row, erase the progress bar and move the
+  # cursor up so the new row is inserted above it.
   local progress_active=false
 
   printf "# | source"
@@ -26,9 +26,9 @@ build_common() {
 
   for file in "${SRC[@]}"; do
     if $progress_active; then
-      # Progress occupies the last line. Insert a new source row immediately
-      # above it so the progress line stays fixed at the bottom.
-      printf '\033[2K\r\033[1L'
+      # Erase the fixed bottom progress bar, then move cursor up
+      # so the new source row goes above it.
+      printf '\033[2K\r\033[1A'
     fi
 
     COMPILED_FILES=$((COMPILED_FILES + 1))
@@ -45,12 +45,12 @@ build_common() {
     TIME=$(awk "BEGIN {printf \"%.2fs\", $end - $start}")
 
     if [ "$COMPILE_STATUS" -ne 0 ]; then
-      STATUS="FAIL"
+      STATUS="${RED}FAIL${NC}"
       SIZE="-"
       ERROR_TOTAL=$((ERROR_TOTAL + 1))
       printf "%s\n" "$output"
     else
-      STATUS="OK"
+      STATUS="${GREEN}OK${NC}"
       if [[ -f "$output" ]]; then
         bytes=$(stat -c%s "$output")
         SIZE="$((bytes / 1024))KB"
@@ -64,28 +64,29 @@ build_common() {
     if $compact; then
       local fixed=$((4 + 8)) # index + separators/status
       local max_source=$((width - fixed))
-      (( max_source < 10 )) && max_source=10
-      if (( ${#SOURCE} > max_source )); then
+      ((max_source < 10)) && max_source=10
+      if ((${#SOURCE} > max_source)); then
         SOURCE="...${SOURCE: -$((max_source - 3))}"
       fi
-      printf "%d | %-*s | %s\n" "$COMPILED_FILES" "$max_source" "$SOURCE" "$STATUS"
+      printf "%d | %-*s | %b\n" "$COMPILED_FILES" "$max_source" "$SOURCE" "$STATUS"
     else
       local max_source=$((width - 31))
-      (( max_source < 12 )) && max_source=12
-      if (( ${#SOURCE} > max_source )); then
+      ((max_source < 12)) && max_source=12
+      if ((${#SOURCE} > max_source)); then
         SOURCE="...${SOURCE: -$((max_source - 3))}"
       fi
-      printf "%d | %-*s | %-6s | %-4s | %s\n" \
+      printf "%d | %-*s | %-6s | %-4s | %b\n" \
         "$COMPILED_FILES" "$max_source" "$SOURCE" "$TIME" "$SIZE" "$STATUS"
     fi
 
+    # Render progress bar at the bottom
     PERCENT=$((COMPILED_FILES * 100 / TOTAL_FILES))
-    printf "(%d/%d) processing... %d%%" "$COMPILED_FILES" "$TOTAL_FILES" "$PERCENT"
+    _render_build_progress "$COMPILED_FILES" "$TOTAL_FILES" "$PERCENT" "$SOURCE"
     progress_active=true
   done
 
   if $progress_active; then
-    # Remove the final progress line before linking/summary output.
+    # Remove the final progress bar before linking/summary output.
     printf '\033[2K\r'
     printf '\n'
   fi
@@ -110,6 +111,34 @@ build_common() {
 
   show_detail
   rm -rf "$LOG_DIR"
+}
+
+_render_build_progress() {
+  local current=$1 total=$2 percent=$3 file=$4
+  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+  local bar_width=30
+  local filled=$((percent * bar_width / 100))
+  local empty=$((bar_width - filled))
+
+  local bar="${CYAN}"
+  for ((i = 0; i < filled; i++)); do bar+="█"; done
+  bar+="${GRAY}"
+  for ((i = 0; i < empty; i++)); do bar+="░"; done
+  bar+="${NC}"
+
+  # Shorten file path for the progress line
+  local short_file="${file#"$SRC_DIR"/}"
+  local max_file=$((width - bar_width - 30))
+  ((max_file < 10)) && max_file=10
+  if ((${#short_file} > max_file)); then
+    short_file="...${short_file: -$((max_file - 3))}"
+  fi
+
+  printf "\r%b %b %s %b" \
+    "${CYAN}▸${NC}" \
+    "$bar" \
+    "${WHITE}${percent}%${NC}" \
+    "${GRAY}(${current}/${total})${NC} ${WHITE}${short_file}${NC}"
 }
 
 compile_file() {
@@ -167,8 +196,9 @@ scan_results() {
 }
 
 link_executable() {
+  [[ ! -d "$BINARY_DIR" ]] && mkdir -p "$BINARY_DIR"
   echo -e "[$TOTAL_FILES/$TOTAL_FILES] ${YELLOW}Linking $TARGET...${NC}"
-  $CC $(find $BUILD_DIR -name "*.o") -o $TARGET 2>&1
+  $CC $(find $BUILD_DIR -name "*.o") $LDFLAGS -o $TARGET 2>&1
 }
 
 show_detail() {

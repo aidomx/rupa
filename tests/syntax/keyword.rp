@@ -1,3 +1,5 @@
+x = 0
+
 if x > 0: print(true)
 if x > 0 {
     print(true)
@@ -7,16 +9,17 @@ if x > 0 {
     print("negative")
 }
 
-for i < 10: print(i)
+for i < 10: print("for " + i)
 for i < 10 {
-    print(i)
+    print("for " + i)
 }
 
-rev 10 > i: print(i)
+rev 10 > i: print("rev " + i)
 rev 10 > i {
-  print(i)
+  print("rev" + i)
 }
 
 while x < 10 {
     print(x)
+    x++
 }

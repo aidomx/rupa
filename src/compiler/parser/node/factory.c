@@ -310,3 +310,10 @@ int createCase(Node *root, int subject, struct AstCaseEntry *entries, int length
   }
   return createAst(root, n);
 }
+
+int createMemberAssign(Node *root, int target, int value) {
+  if (!root || target < 0 || value < 0) return -1;
+  AstNode node = {.type = NODE_MEMBER_ASSIGN,
+                  .memberAssign = {.target = target, .value = value}};
+  return createAst(root, node);
+}

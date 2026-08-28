@@ -163,14 +163,14 @@ void setContextInput(State *state) {
   if (!gc || !state)
     return;
 
-  state->debug->context = true;
+  /*state->debug->context = true;*/
 
   Input *input = state->input;
   if (input->length == 0)
     return;
 
-  if (state->debug->context) {
-  }
+  /*if (state->debug->context) {*/
+  /*}*/
 
   /*Buffer *buf = state->repl->buffer;*/
   /*Error *error = state->error;*/

@@ -1,0 +1,5 @@
+getStr() {
+    return "hello"
+}
+s = getStr()
+print(s)

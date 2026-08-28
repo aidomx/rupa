@@ -93,11 +93,14 @@ void generateAst(Token *tokens) {
 
   Request request = createRequest(tokens, 10);
   Node *node = processGenerate(&request);
+  Error *error = createError(10);
 
-  if (node->length > 0) {
+  if (node && node->length > 0) {
     printf("Total node: %d\n", node->length);
     // src/interpreter/debug/printAst.c
     startDebug(node); // debug print AST
+    // src/interpreter/interpreter.c
+    (void)interpreter(node, error);
   }
 
   (void)node; // GC owns AST lifetime.

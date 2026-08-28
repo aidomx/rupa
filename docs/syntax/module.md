@@ -1,24 +1,23 @@
 # Module
 
-## Apa yang bisa ditulis?
+Modul adalah unit kode yang dapat diimpor ke dalam program Rupa.
 
 ```rupa
-import sys from rupa
-import sys, render, resources from rupa
-import rupa.system as sys
+import namaModule from rupa
 ```
 
-Keyword module lain:
+## Daftar Module
 
-```rupa
-export
-extends
-```
+Dokumentasi syntax untuk setiap module tersedia di subdirektori ini:
 
-## Kapan digunakan?
+| Module | Deskripsi | File |
+|--------|-----------|------|
+| os | Sistem operasi, file, environment | [module/os.md](module/os.md) |
 
-Gunakan syntax module untuk menyatakan hubungan antar module, seperti import atau bentuk module lain yang disediakan bahasa.
+## Menambah Module Baru
 
-## Apa hasilnya?
+Untuk menambah module baru ke dalam rupa:
 
-`import`, `export`, dan `extends` dikenali sebagai module statement. Detail semantik lengkap untuk `export` dan `extends` belum dikunci sebagai syntax final.
+1. Buat file di `module/nama_module.md`
+2. Dokumentasikan: cara pakai, contoh, referensi fungsi
+3. Tambah entry ke tabel di atas

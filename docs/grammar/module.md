@@ -24,10 +24,18 @@ NODE_EXPORT
 NODE_EXTENDS
 ```
 
-AST output test saat ini menampilkan `Module statement` dengan identifier value
-yang dibentuk parser. Bentuk source modul sudah diuji, tetapi representasi
-semantik lengkap seperti daftar nama, source module, dan alias masih perlu
-diperluas bila AST module dikembangkan lebih jauh.
+## Daftar Module
 
-Dokumentasi ini hanya mengunci apa yang tampak dari parser dan AST saat ini,
-bukan mendefinisikan semantik module yang belum direpresentasikan secara penuh.
+Dokumentasi grammar untuk setiap module tersedia di subdirektori ini:
+
+| Module | Deskripsi | File |
+|--------|-----------|------|
+| os | Akses sistem operasi | [module/os.md](module/os.md) |
+
+## Menambah Module Baru
+
+Untuk menambah module baru ke dalam rupa:
+
+1. Buat file di `module/nama_module.md`
+2. Dokumentasikan: AST node, value types, dependency
+3. Tambah entry ke tabel di atas

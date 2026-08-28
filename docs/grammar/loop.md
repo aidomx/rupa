@@ -1,62 +1,108 @@
 # Loop Grammar
 
-Grammar loop membentuk satu `NODE_LOOP` dengan kind, condition, dan body.
+Loop direpresentasikan oleh satu `NODE_LOOP` yang menyimpan `kind`, `condition`,
+dan `body`.
 
-## Kinds
+## Bentuk umum
 
-Test saat ini mencakup:
-
-```rupa
-for i: print(i)
-rev i: print(i)
-for i < 10: print(i)
-rev i > 0: print(i)
-while x < 10: print(x)
+```text
+Loop := "for" Expr Body
+      | "rev" Expr Body
+      | "while" Expr Body
 ```
 
-AST menyimpan kind seperti:
+`Body` dapat berupa statement setelah `:` atau block `{ ... }`.
+
+## Arah `for` dan `rev`
+
+Arah range merupakan bagian dari keyword:
+
+```text
+for -> maju
+rev -> mundur
+```
+
+Operator yang diterima juga ketat:
+
+```text
+for -> <  <=
+rev -> >  >=
+```
+
+Operator tidak digunakan untuk membalik arah loop.
+
+## Shorthand identifier
+
+Condition identifier tunggal memiliki arti khusus.
+
+```rupa
+i = 10
+for i
+```
+
+Secara internal:
+
+```text
+bound = i
+counter(i) = 0
+while i < bound
+```
+
+Untuk `rev`:
+
+```rupa
+i = 10
+rev i
+```
+
+Secara internal:
+
+```text
+bound = i
+counter(i) = bound - 1
+while i >= 0
+```
+
+Identifier yang sama sengaja dipakai sebagai sumber batas sebelum loop dan
+sebagai penampung nilai iterasi selama loop.
+
+## Binary condition
+
+Binary condition menggunakan identifier kiri sebagai counter yang sudah ada.
+Nilainya tidak diinisiasi ulang.
+
+```rupa
+i = 0
+for i < 10
+```
+
+`for` memakai nilai `i` saat ini dan menaikkannya setiap iterasi.
+
+```rupa
+i = 10
+rev i > 0
+```
+
+`rev` memakai nilai `i` saat ini, mengambil langkah mundur pertama, lalu
+menurunkan counter sampai batas bawah range.
+
+Contoh AST:
 
 ```text
 Loop: for
-Loop: rev
-Loop: while
+  Binary: <
+    Left:
+      Literal ID: i
+    Right:
+      Number: 10
+  Block:
+    ...
 ```
 
-Condition dapat berupa identifier sederhana atau binary expression.
+## `while`
 
-## Body
-
-Body dapat berupa satu statement setelah `:` atau block:
-
-```rupa
-for i < 10 {
-    print(i)
-}
-```
-
-AST:
-
-```text
-Loop: for
-├── Condition
-│   └── Binary: <
-└── Block
-    └── ...
-```
-
-## Nested control
-
-Test juga menunjukkan `break` dan `continue` berada sebagai child block:
-
-```rupa
-for i < 10 {
-    if i == 1: continue
-    if i == 8: break
-    print(i)
-}
-```
-
-## Update di dalam loop
+`while` tidak menggunakan semantik range `for` atau `rev`. Condition dievaluasi
+setiap iterasi dan perubahan state harus dilakukan oleh body.
 
 ```rupa
 while x < 10 {
@@ -65,4 +111,7 @@ while x < 10 {
 }
 ```
 
-Update menjadi statement AST di dalam block loop.
+## Control flow
+
+`break` menghentikan loop dan `continue` melewati sisa body iterasi saat ini.
+`return` dan error diteruskan keluar dari loop.

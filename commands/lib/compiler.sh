@@ -21,6 +21,51 @@ set_default_compiler() {
   export LDFLAGS=""
 }
 
+# Setup cross-compilation for target platform
+# Usage: set_target_compiler win32|win64|unix
+set_target_compiler() {
+  local target=${1:-"unix"}
+
+  case "$target" in
+  win32)
+    export CC="i686-w64-mingw32-gcc"
+    export TARGET_EXT=".exe"
+    export TARGET_PLATFORM="win32"
+    export CFLAGS="${INCLUDE_FLAGS} ${WALL_FLAGS} -xc -std=gnu11 -D_WIN32 -D__MINGW32__"
+    export LDFLAGS="-static -lws2_32"
+    # Verify compiler exists
+    if ! command -v "$CC" >/dev/null 2>&1; then
+      print_error "Cross-compiler $CC not found!"
+      echo "Install mingw-w64-gcc:"
+      echo "  sudo pacman -S mingw-w64-gcc"
+      echo "  (32-bit support may require AUR: mingw-w64-i686-gcc)"
+      return 1
+    fi
+    ;;
+  win64)
+    export CC="x86_64-w64-mingw32-gcc"
+    export TARGET_EXT=".exe"
+    export TARGET_PLATFORM="win64"
+    export CFLAGS="${INCLUDE_FLAGS} ${WALL_FLAGS} -xc -std=gnu11 -D_WIN64 -D__MINGW64__"
+    export LDFLAGS="-static -lws2_32"
+    # Verify compiler exists
+    if ! command -v "$CC" >/dev/null 2>&1; then
+      print_error "Cross-compiler $CC not found!"
+      echo "Install mingw-w64-gcc:"
+      echo "  sudo pacman -S mingw-w64-gcc"
+      return 1
+    fi
+    ;;
+  unix|*)
+    export CC="gcc"
+    export TARGET_EXT=""
+    export TARGET_PLATFORM="unix"
+    export CFLAGS="${INCLUDE_FLAGS} ${WALL_FLAGS} ${CLANGD_FLAGS}"
+    export LDFLAGS=""
+    ;;
+  esac
+}
+
 set_default_header() {
   # Header
   export BUILD_HEADER="> Build artifacts"
@@ -45,7 +90,7 @@ set_default_source() {
 set_default_target() {
   export TARGET_NAME="${APP_NAME:-rupa}"
   export TARGET_RELEASE_VERSION="1.0"
-  export TARGET="${BINARY_DIR}/${TARGET_NAME}"
+  export TARGET="${BINARY_DIR}/${TARGET_NAME}${TARGET_EXT}"
 }
 
 set_default_tracking() {

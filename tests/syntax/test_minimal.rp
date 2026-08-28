@@ -1,0 +1,24 @@
+# Test 1: Function returning object
+makeObj() {
+    return { name: "hello", age: 10 }
+}
+a = makeObj()
+print(a.name)
+print(a.age)
+
+# Test 2: Direct object passed to function
+greet(o) {
+    return o.name
+}
+b = { name: "world" }
+print(greet(b))
+
+# Test 3: Function param object access
+setAge(o, v) {
+    o.age = v
+    return o
+}
+c = { name: "test", age: 0 }
+setAge(c, 99)
+print(c.name)
+print(c.age)

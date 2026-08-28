@@ -7,9 +7,6 @@ int parseAtom(Request *req, DataToken *data) {
   if (!data)
     return -1;
 
-  Token *t = req->tokens;
-  int pos = (int)(data - t->data);
-
   switch (data->type) {
   case BOOLEAN:
     return createBoolean(req->node,
@@ -18,17 +15,20 @@ int parseAtom(Request *req, DataToken *data) {
   case DECIMAL:
     return createDecimal(req->node, data->value);
 
-  case IDENTIFIER: {
-    int baseId = createId(req->node, data->value);
-
-    // Periksa jika identifier diikuti oleh LBLOCK (array access)
-    if (pos + 1 < t->length && match(&t->data[pos + 1], LBLOCK)) {
-      baseId = parseSubscripts(req, baseId, pos + 1);
-    }
-
-    return baseId;
-  };
-
+  /*
+   * IDENTIFIER dan LITERAL_ID mempunyai peran lexer yang berbeda, tetapi
+   * ketika sudah masuk jalur expression keduanya berarti "membaca nilai".
+   * Jangan mempertahankan perbedaan token tersebut di AST expression.
+   *
+   * Declaration/target tetap dibuat oleh grammar masing-masing dengan
+   * NODE_IDENTIFIER. Contoh:
+   *
+   *   x = 1              -> target: Identifier(x)
+   *   return x + y       -> Literal ID(x) + Literal ID(y)
+   *   fullname = first + last
+   *                       -> Literal ID(first) + Literal ID(last)
+   */
+  case IDENTIFIER:
   case LITERAL_ID:
     return createString(req->node, data->value, NODE_LITERAL_ID);
 

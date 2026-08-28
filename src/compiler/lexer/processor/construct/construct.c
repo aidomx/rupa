@@ -90,7 +90,11 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       if (next < 0)
         return -1;
       p = next;
-      expectValue = false;
+      /* Keywords that are followed by a value expression (return, async)
+       * must leave expectValue true so that a subsequent '{' is recognised
+       * as an object literal (objectDepth) rather than a block. */
+      expectValue = (keywordType == KEYWORD_RETURN ||
+                     keywordType == KEYWORD_ASYNC);
       if (singleStatement)
         statementStarted = true;
       continue;

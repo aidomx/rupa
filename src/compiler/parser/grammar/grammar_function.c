@@ -12,7 +12,7 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
   if (c <= 0)
     return GRAMMAR_NO_MATCH;
 
-  int name = parseAtom(r, &t->data[a]);
+  int name = createId(r->node, t->data[a].value);
   int *ps = NULL, n = 0, start = a + 2;
   for (int j = a + 2; j <= c; j++) {
     if (j == c || (j < c && t->data[j].type == COMMA)) {

@@ -9,7 +9,7 @@ int grammarParseCallExpr(Request *r, int a, int b) {
   if (c != b - 1)
     return GRAMMAR_NO_MATCH;
 
-  int callee = parseAtom(r, &t->data[a]);
+  int callee = createId(r->node, t->data[a].value);
   int *as = NULL, n = grammarParseArgs(r, a + 2, c, &as);
   return createCall(r->node, callee, as, n);
 }
