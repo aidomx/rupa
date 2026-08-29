@@ -143,59 +143,75 @@
         font-size: 0.95rem;
       }
       .code-block {
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 20px;
+
         background: var(--code-bg);
         border: 1px solid var(--border);
         border-radius: 12px;
+
         font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
         font-size: 0.88rem;
-        line-height: 1.8;
-        overflow: hidden;
-        margin-bottom: 20px;
-        position: relative;
+        line-height: 1.65;
       }
+
       .code-block .code-inner {
+        width: 320px;
         display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: start;
+        grid-template-columns: 42px minmax(0, 1fr);
+        overflow-x: auto;
       }
+
       .code-block .line-numbers,
       .code-block .code-content {
-        display: block;
         margin: 0;
-        padding: 24px 0;
+        padding-top: 24px;
+        padding-bottom: 24px;
       }
+
       .code-block .line-numbers {
+        padding-left: 8px;
+        padding-right: 10px;
+
         border-right: 1px solid var(--border);
+
         color: var(--text-muted);
         text-align: right;
         user-select: none;
       }
+
+      .code-block .code-content {
+        width: max-content;
+        overflow-x: auto;
+
+        padding-left: 18px;
+        padding-right: 24px;
+      }
+
       .code-block .line-numbers code > span,
       .code-block .code-content code > span {
         display: block;
-        padding: 0 16px;
-      }
-      .code-block .line-numbers code > span {
-        opacity: 0.8;
-      }
-      .code-block .code-content {
-        overflow-x: auto;
-        padding-left: 0;
-        padding-right: 0;
-      }
-      .code-block .code-content code > span {
+        height: 1.65em;
         white-space: pre;
       }
+
+      .code-block .line-numbers code > span {
+        opacity: 0.7;
+      }
+
       .code-block .lang-tag {
         position: absolute;
-        top: 12px;
+        top: 10px;
         right: 16px;
-        font-size: 11px;
-        color: var(--text-muted);
-        letter-spacing: 1px;
-        text-transform: uppercase;
+        z-index: 2;
+
         font-family:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--text-muted);
       }
       .code-block .comment {
         color: #555;
@@ -304,7 +320,7 @@
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 20px;
+        padding: 18px 16px;
         transition: border-color 0.2s;
       }
       .doc-link:hover {
@@ -372,14 +388,22 @@
       }
 
       @media (max-width: 600px) {
-        .hero {
-          padding: 80px 0 60px;
+        .code-block {
+          font-size: 0.78rem;
         }
-        .hero h1 {
-          font-size: 2rem;
+
+        .code-block .code-inner {
+          grid-template-columns: 36px minmax(0, 1fr);
         }
-        .pipeline-flow {
-          font-size: 0.75rem;
+
+        .code-block .line-numbers {
+          padding-left: 6px;
+          padding-right: 8px;
+        }
+
+        .code-block .code-content {
+          padding-left: 14px;
+          padding-right: 16px;
         }
       }
     </style>
@@ -419,29 +443,15 @@
         <p>
           Rupa syntax is designed to be readable and expressive from the start.
         </p>
-
         <div class="code-block">
           <span class="lang-tag">rupa</span>
           <div class="code-inner">
-            <pre class="line-numbers"><code><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span></code></pre>
-            <pre class="code-content"><code><span><span class="comment">// function with type annotations</span></span>
-<span><span class="fn">add</span><span class="punct">(</span>x<span class="punct">:</span> <span class="type">number</span><span class="punct">,</span> y<span class="punct">:</span> <span class="type">number</span><span class="punct">)</span> <span class="punct">{</span></span>
-<span>    <span class="keyword">return</span> x <span class="op">+</span> y</span>
-<span><span class="punct">}</span></span>
-<span></span>
-<span><span class="comment">// variables and control flow</span></span>
-<span>name <span class="op">=</span> <span class="string">"rupa"</span></span>
-<span>count<span class="punct">:</span> <span class="type">number</span> <span class="op">=</span> <span class="number">0</span></span>
-<span></span>
-<span><span class="keyword">if</span> name <span class="op">==</span> <span class="string">"rupa"</span> <span class="punct">{</span></span>
-<span>    <span class="fn">print</span><span class="punct">(</span><span class="string">"Hello from Rupa"</span><span class="punct">)</span></span>
-<span><span class="punct">}</span></span>
-<span><span class="keyword">else</span> <span class="punct">{</span></span>
-<span>    <span class="fn">print</span><span class="punct">(</span><span class="string">"Unknown language"</span><span class="punct">)</span></span>
-<span><span class="punct">}</span></span>
-<span></span>
-<span><span class="comment">// loops</span></span>
-<span><span class="keyword">for</span> i <span class="op">&lt;</span> <span class="number">10</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span>i<span class="punct">)</span></span>
+            <pre class="code-content"><code>
+            <span class="comment">// function with type annotations</span><span><span class="fn">add</span><span class="punct">(</span>x<span class="punct">:</span> <span class="type">number</span><span class="punct">,</span> y<span class="punct">:</span> <span class="type">number</span><span class="punct">)</span> <span class="punct">{</span></span><span>    <span class="keyword">return</span> x <span class="op">+</span> y</span><span><span class="punct">}</span>
+</span>
+<span><span class="comment">// variables and control flow</span></span><span>name <span class="op">=</span> <span class="string">"rupa"</span></span><span>count<span class="punct">:</span> <span class="type">number</span> <span class="op">=</span> <span class="number">0</span></span>
+<span><span class="keyword">if</span> name <span class="op">==</span> <span class="string">"rupa"</span> <span class="punct">{</span></span><span>    <span class="fn">print</span><span class="punct">(</span><span class="string">"Hello from Rupa"</span><span class="punct">)</span></span><span><span class="punct">}</span></span><span><span class="keyword">else</span> <span class="punct">{</span></span><span>    <span class="fn">print</span><span class="punct">(</span><span class="string">"Unknown language"</span><span class="punct">)</span></span><span><span class="punct">}</span></span>
+<span><span class="comment">// loops</span></span><span><span class="keyword">for</span> i <span class="op">&lt;</span> <span class="number">10</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span>i<span class="punct">)</span></span>
 </code></pre>
           </div>
         </div>
@@ -449,21 +459,11 @@
         <div class="code-block">
           <span class="lang-tag">rupa</span>
           <div class="code-inner">
-            <pre class="line-numbers"><code><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span></code></pre>
-            <pre class="code-content"><code><span><span class="comment">// pattern matching with case</span></span>
-<span><span class="keyword">case</span> status <span class="op">=&gt;</span> <span class="punct">{</span></span>
-<span>    <span class="number">200</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"success"</span><span class="punct">)</span></span>
-<span>    <span class="number">404</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"not found"</span><span class="punct">)</span></span>
-<span>    <span class="number">500</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"server error"</span><span class="punct">)</span></span>
-<span>    <span class="op">*</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"unknown"</span><span class="punct">)</span></span>
-<span><span class="punct">}</span></span>
-<span></span>
-<span><span class="comment">// struct definition</span></span>
-<span>People <span class="punct">{</span> name<span class="punct">:</span> <span class="type">string</span> age<span class="punct">:</span> <span class="type">number</span> <span class="punct">}</span></span>
-<span></span>
-<span><span class="comment">// conditional assignment</span></span>
-<span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> <span class="string">"Success"</span></span>
-<span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> primary <span class="op">|</span> fallback <span class="op">|</span> <span class="string">"Unavailable"</span></span>
+            <pre
+              class="code-content"
+            ><code><span><span class="comment">// pattern matching with case</span></span><span><span class="keyword">case</span> status <span class="op">=&gt;</span> <span class="punct">{</span></span><span>    <span class="number">200</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"success"</span><span class="punct">)</span></span><span>    <span class="number">404</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"not found"</span><span class="punct">)</span></span><span>    <span class="number">500</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"server error"</span><span class="punct">)</span></span><span>    <span class="op">*</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"unknown"</span><span class="punct">)</span></span><span><span class="punct">}</span></span>
+<span><span class="comment">// struct definition</span></span><span>People <span class="punct">{</span> name<span class="punct">:</span> <span class="type">string</span> age<span class="punct">:</span> <span class="type">number</span> <span class="punct">}</span></span>
+<span><span class="comment">// conditional assignment</span></span><span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> <span class="string">"Success"</span></span><span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> primary <span class="op">|</span> fallback <span class="op">|</span> <span class="string">"Unavailable"</span></span>
 </code></pre>
           </div>
         </div>
@@ -560,6 +560,10 @@
           <a href="syntax/index.html" class="doc-link">
             <h4>Syntax Reference</h4>
             <p>Complete guide to writing Rupa code.</p>
+          </a>
+          <a href="grammar/index.html" class="doc-link">
+            <h4>Grammar Reference</h4>
+            <p>How syntax is structured and parsed by the system.</p>
           </a>
           <a href="vision.html" class="doc-link">
             <h4>Vision</h4>
