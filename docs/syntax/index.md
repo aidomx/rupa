@@ -8,7 +8,12 @@ Setiap halaman menjelaskan secara ringkas:
 2. **Kapan digunakan?**
 3. **Apa hasilnya?**
 
-Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](../grammar/).
+## Navigasi dokumentasi
+
+- [Grammar Reference](../grammar/index.html) — dokumentasi grammar dan implementasi parser.
+- [Halaman Syntax HTML](index.html) — navigasi visual untuk dokumentasi syntax.
+
+> Jika dokumentasi dibuka sebagai halaman HTML, gunakan link **Grammar Reference** di atas agar menuju `docs/grammar/index.html` secara langsung.
 
 ## Dasar
 
