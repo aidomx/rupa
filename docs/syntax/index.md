@@ -8,7 +8,7 @@ Setiap halaman menjelaskan secara ringkas:
 2. **Kapan digunakan?**
 3. **Apa hasilnya?**
 
-Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](grammar/).
+Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](../grammar/).
 
 ## Dasar
 
