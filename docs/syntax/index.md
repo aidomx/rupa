@@ -10,10 +10,7 @@ Setiap halaman menjelaskan secara ringkas:
 
 ## Navigasi dokumentasi
 
-- [Grammar Reference](../grammar/index.html) — dokumentasi grammar dan implementasi parser.
-- [Halaman Syntax HTML](index.html) — navigasi visual untuk dokumentasi syntax.
-
-> Jika dokumentasi dibuka sebagai halaman HTML, gunakan link **Grammar Reference** di atas agar menuju `docs/grammar/index.html` secara langsung.
+Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](../grammar/index.md).
 
 ## Dasar
 
