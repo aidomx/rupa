@@ -42,4 +42,11 @@ docs/grammar/
 - [Fallback](fallback.md)
 - [Annotation](annotation.md)
 - [Module](module.md)
+
+## Module Reference
+
+- [IO](modules/io.md)
+- [JSON](modules/json.md)
+- [Math](modules/math.md)
+- [String](modules/string.md)
 - [Struct](struct.md)

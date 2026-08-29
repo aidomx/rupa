@@ -30,12 +30,16 @@ Dokumentasi grammar untuk setiap module tersedia di subdirektori ini:
 
 | Module | Deskripsi | File |
 |--------|-----------|------|
-| os | Akses sistem operasi | [module/os.md](module/os.md) |
+| os | Akses sistem operasi | [modules/os.md](modules/os.md) |
+| io | Grammar module input terminal | [modules/io.md](modules/io.md) |
+| json | Grammar module JSON | [modules/json.md](modules/json.md) |
+| math | Grammar module matematika | [modules/math.md](modules/math.md) |
+| string | Grammar module string | [modules/string.md](modules/string.md) |
 
 ## Menambah Module Baru
 
 Untuk menambah module baru ke dalam rupa:
 
-1. Buat file di `module/nama_module.md`
+1. Buat file di `modules/nama_module.md`
 2. Dokumentasikan: AST node, value types, dependency
 3. Tambah entry ke tabel di atas
