@@ -1,489 +1,632 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rupa — One Language, Many Ways to Speak</title>
-  <meta name="description" content="Rupa is a general-purpose programming language built from scratch with a simple foundation that doesn't limit where it can go.">
-  <style>
-    :root {
-      --bg: #0a0a0a;
-      --surface: #111111;
-      --border: #1a1a1a;
-      --text: #e0e0e0;
-      --text-muted: #888888;
-      --accent: #c8a2ff;
-      --accent-dim: #9066cc;
-      --code-bg: #0d0d0d;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rupa — One Language, Many Ways to Speak</title>
+    <meta
+      name="description"
+      content="Rupa is a general-purpose programming language built from scratch with a simple foundation that doesn't limit where it can go."
+    />
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --surface: #111111;
+        --border: #1a1a1a;
+        --text: #e0e0e0;
+        --text-muted: #888888;
+        --accent: #c8a2ff;
+        --accent-dim: #9066cc;
+        --code-bg: #0d0d0d;
+      }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.7;
-      -webkit-font-smoothing: antialiased;
-    }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
 
-    a {
-      color: var(--accent);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    a:hover { color: #dbbfff; }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      a:hover {
+        color: #dbbfff;
+      }
 
-    .container {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
+      .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
 
-    /* ── Hero ── */
-    .hero {
-      padding: 120px 0 80px;
-      text-align: center;
-    }
-    .hero-label {
-      display: inline-block;
-      font-size: 12px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
-      border: 1px solid var(--accent-dim);
-      padding: 4px 14px;
-      border-radius: 20px;
-      margin-bottom: 32px;
-    }
-    .hero h1 {
-      font-size: clamp(2.4rem, 6vw, 3.6rem);
-      font-weight: 700;
-      letter-spacing: -1px;
-      margin-bottom: 20px;
-      color: #fff;
-    }
-    .hero p {
-      font-size: 1.15rem;
-      color: var(--text-muted);
-      max-width: 540px;
-      margin: 0 auto 40px;
-    }
-    .hero-buttons {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .btn {
-      display: inline-block;
-      padding: 12px 28px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: #0a0a0a;
-    }
-    .btn-primary:hover {
-      background: #dbbfff;
-      color: #0a0a0a;
-    }
-    .btn-secondary {
-      border: 1px solid var(--border);
-      color: var(--text);
-      background: transparent;
-    }
-    .btn-secondary:hover {
-      border-color: var(--accent-dim);
-      color: var(--accent);
-    }
+      /* ── Hero ── */
+      .hero {
+        padding: 120px 0 80px;
+        text-align: center;
+      }
+      .hero-label {
+        display: inline-block;
+        font-size: 12px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--accent);
+        border: 1px solid var(--accent-dim);
+        padding: 4px 14px;
+        border-radius: 20px;
+        margin-bottom: 32px;
+      }
+      .hero h1 {
+        font-size: clamp(2.4rem, 6vw, 3.6rem);
+        font-weight: 700;
+        letter-spacing: -1px;
+        margin-bottom: 20px;
+        color: #fff;
+      }
+      .hero p {
+        font-size: 1.15rem;
+        color: var(--text-muted);
+        max-width: 540px;
+        margin: 0 auto 40px;
+      }
+      .hero-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #0a0a0a;
+      }
+      .btn-primary:hover {
+        background: #dbbfff;
+        color: #0a0a0a;
+      }
+      .btn-secondary {
+        border: 1px solid var(--border);
+        color: var(--text);
+        background: transparent;
+      }
+      .btn-secondary:hover {
+        border-color: var(--accent-dim);
+        color: var(--accent);
+      }
 
-    /* ── Tagline ── */
-    .tagline {
-      text-align: center;
-      padding: 40px 0 80px;
-      border-bottom: 1px solid var(--border);
-    }
-    .tagline blockquote {
-      font-size: 1.3rem;
-      font-style: italic;
-      color: var(--accent);
-      max-width: 480px;
-      margin: 0 auto;
-    }
+      /* ── Tagline ── */
+      .tagline {
+        text-align: center;
+        padding: 40px 0 80px;
+        border-bottom: 1px solid var(--border);
+      }
+      .tagline blockquote {
+        font-size: 1.3rem;
+        font-style: italic;
+        color: var(--accent);
+        max-width: 480px;
+        margin: 0 auto;
+      }
 
-    /* ── Code Example ── */
-    .code-section {
-      padding: 80px 0;
-    }
-    .code-section h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #fff;
-    }
-    .code-section > p {
-      text-align: center;
-      color: var(--text-muted);
-      margin-bottom: 40px;
-      font-size: 0.95rem;
-    }
-    .code-block {
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px 28px;
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-      font-size: 0.88rem;
-      line-height: 1.8;
-      overflow-x: auto;
-      margin-bottom: 20px;
-      position: relative;
-    }
-    .code-block .lang-tag {
-      position: absolute;
-      top: 12px;
-      right: 16px;
-      font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .code-block .comment { color: #555; }
-    .code-block .keyword { color: var(--accent); }
-    .code-block .string { color: #7ec699; }
-    .code-block .number { color: #f9a825; }
-    .code-block .type { color: #67b7a4; }
-    .code-block .fn { color: #82aaff; }
-    .code-block .op { color: #c792ea; }
-    .code-block .punct { color: #666; }
-    .code-block .prop { color: #f07178; }
+      /* ── Code Example ── */
+      .code-section {
+        padding: 80px 0;
+      }
+      .code-section h2 {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #fff;
+      }
+      .code-section > p {
+        text-align: center;
+        color: var(--text-muted);
+        margin-bottom: 40px;
+        font-size: 0.95rem;
+      }
+      .code-block {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0 28px 0 0;
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        font-size: 0.88rem;
+        line-height: 1.8;
+        overflow-x: auto;
+        margin-bottom: 20px;
+        position: relative;
+      }
+      .code-block .code-inner {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: start;
+      }
+      .code-block pre {
+        margin: 0;
+        padding: 24px 28px 24px 0;
+        overflow: visible;
+      }
+      .code-block pre:last-child {
+        padding-left: 0;
+      }
+      .code-block code {
+        display: block;
+        white-space: pre;
+        min-height: 1px;
+        font-size: inherit;
+        line-height: inherit;
+        counter-reset: line;
+      }
+      .code-block code > span {
+        display: block;
+        padding: 0 24px 0 24px;
+      }
+      .code-block code > span:empty::before {
+        content: counter(line);
+        counter-increment: line;
+        color: var(--text-muted);
+        display: inline-block;
+        min-width: 18px;
+      }
+      .code-block pre[aria-hidden='true'] {
+        color: var(--text-muted);
+        user-select: none;
+        padding-right: 16px;
+        border-right: 1px solid var(--border);
+        text-align: right;
+      }
+      .code-block pre[aria-hidden='true'] code > span {
+        padding: 0 12px 0 0;
+        opacity: 0.7;
+      }
+      .code-block .lang-tag {
+        position: absolute;
+        top: 12px;
+        right: 16px;
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .code-block .comment {
+        color: #555;
+      }
+      .code-block .keyword {
+        color: var(--accent);
+      }
+      .code-block .string {
+        color: #7ec699;
+      }
+      .code-block .number {
+        color: #f9a825;
+      }
+      .code-block .type {
+        color: #67b7a4;
+      }
+      .code-block .fn {
+        color: #82aaff;
+      }
+      .code-block .op {
+        color: #c792ea;
+      }
+      .code-block .punct {
+        color: #666;
+      }
+      .code-block .prop {
+        color: #f07178;
+      }
 
-    /* ── Features ── */
-    .features {
-      padding: 80px 0;
-      border-top: 1px solid var(--border);
-    }
-    .features h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 48px;
-      color: #fff;
-    }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 24px;
-    }
-    .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 28px 24px;
-    }
-    .feature-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-    .feature-card p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
+      /* ── Features ── */
+      .features {
+        padding: 80px 0;
+        border-top: 1px solid var(--border);
+      }
+      .features h2 {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 48px;
+        color: #fff;
+      }
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 24px;
+      }
+      .feature-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 28px 24px;
+        transform: translateY(0) scale(1);
+        filter: blur(0px);
+        opacity: 1;
+        transition:
+          transform 0.25s ease,
+          filter 0.45s ease,
+          opacity 0.45s ease,
+          border-color 0.25s ease;
+      }
+      .feature-card:hover {
+        transform: translateY(-2px) scale(1.02);
+      }
+      .feature-card.blurred {
+        filter: blur(5px);
+        opacity: 0.35;
+        transform: scale(0.98);
+      }
+      .feature-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #fff;
+      }
+      .feature-card p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
 
-    /* ── Docs ── */
-    .docs-section {
-      padding: 80px 0;
-      border-top: 1px solid var(--border);
-    }
-    .docs-section h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #fff;
-    }
-    .docs-section > p {
-      text-align: center;
-      color: var(--text-muted);
-      margin-bottom: 40px;
-      font-size: 0.95rem;
-    }
-    .docs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-    }
-    .doc-link {
-      display: block;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      transition: border-color 0.2s;
-    }
-    .doc-link:hover {
-      border-color: var(--accent-dim);
-    }
-    .doc-link h4 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: #fff;
-    }
-    .doc-link p {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-    }
+      /* ── Docs ── */
+      .docs-section {
+        padding: 80px 0;
+        border-top: 1px solid var(--border);
+      }
+      .docs-section h2 {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #fff;
+      }
+      .docs-section > p {
+        text-align: center;
+        color: var(--text-muted);
+        margin-bottom: 40px;
+        font-size: 0.95rem;
+      }
+      .docs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .doc-link {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        transition: border-color 0.2s;
+      }
+      .doc-link:hover {
+        border-color: var(--accent-dim);
+      }
+      .doc-link h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #fff;
+      }
+      .doc-link p {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+      }
 
-    /* ── Pipeline ── */
-    .pipeline {
-      padding: 80px 0;
-      border-top: 1px solid var(--border);
-    }
-    .pipeline h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #fff;
-    }
-    .pipeline > p {
-      text-align: center;
-      color: var(--text-muted);
-      margin-bottom: 40px;
-      font-size: 0.95rem;
-    }
-    .pipeline-flow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 0.85rem;
-    }
-    .pipeline-step {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 8px 16px;
-      border-radius: 6px;
-      color: var(--accent);
-    }
-    .pipeline-arrow {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
+      /* ── Pipeline ── */
+      .pipeline {
+        padding: 80px 0;
+        border-top: 1px solid var(--border);
+      }
+      .pipeline h2 {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #fff;
+      }
+      .pipeline > p {
+        text-align: center;
+        color: var(--text-muted);
+        margin-bottom: 40px;
+        font-size: 0.95rem;
+      }
+      .pipeline-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.85rem;
+      }
+      .pipeline-step {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 8px 16px;
+        border-radius: 6px;
+        color: var(--accent);
+      }
+      .pipeline-arrow {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
 
-    /* ── Footer ── */
-    .footer {
-      padding: 48px 0;
-      border-top: 1px solid var(--border);
-      text-align: center;
-    }
-    .footer p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
+      /* ── Footer ── */
+      .footer {
+        padding: 48px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+      .footer p {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
 
-    @media (max-width: 600px) {
-      .hero { padding: 80px 0 60px; }
-      .hero h1 { font-size: 2rem; }
-      .pipeline-flow { font-size: 0.75rem; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="container">
-      <span class="hero-label">General-Purpose Language</span>
-      <h1>Rupa</h1>
-      <p>A programming language built from scratch with a simple foundation that doesn't limit where it can go.</p>
-      <div class="hero-buttons">
-        <a href="syntax/index.html" class="btn btn-primary">Syntax Reference</a>
-        <a href="https://github.com/aidomx/rupa" class="btn btn-secondary">GitHub</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Tagline -->
-  <section class="tagline">
-    <div class="container">
-      <blockquote>"One language, many ways to speak."</blockquote>
-    </div>
-  </section>
-
-  <!-- Code Example -->
-  <section class="code-section">
-    <div class="container">
-      <h2>Clean and Familiar</h2>
-      <p>Rupa syntax is designed to be readable and expressive from the start.</p>
-
-      <div class="code-block">
-        <span class="lang-tag">rupa</span>
-<span class="comment">// function with type annotations</span>
-<span class="keyword">fn</span> <span class="fn">add</span><span class="punct">(</span>x<span class="punct">:</span> <span class="type">number</span><span class="punct">,</span> y<span class="punct">:</span> <span class="type">number</span><span class="punct">)</span> <span class="punct">{</span>
-    <span class="keyword">return</span> x <span class="op">+</span> y
-<span class="punct">}</span>
-
-<span class="comment">// variables and control flow</span>
-name <span class="op">=</span> <span class="string">"rupa"</span>
-count<span class="punct">:</span> <span class="type">number</span> <span class="op">=</span> <span class="number">0</span>
-
-<span class="keyword">if</span> name <span class="op">==</span> <span class="string">"rupa"</span> <span class="punct">{</span>
-    <span class="fn">print</span><span class="punct">(</span><span class="string">"Hello from Rupa"</span><span class="punct">)</span>
-<span class="punct">}</span> <span class="keyword">else</span> <span class="punct">{</span>
-    <span class="fn">print</span><span class="punct">(</span><span class="string">"Unknown language"</span><span class="punct">)</span>
-<span class="punct">}</span>
-
-<span class="comment">// loops</span>
-<span class="keyword">for</span> i <span class="op">&lt;</span> <span class="number">10</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span>i<span class="punct">)</span>
-
-<span class="comment">// objects and arrays</span>
-users <span class="op">=</span> <span class="punct">[</span>
-    <span class="punct">{</span> <span class="prop">name</span><span class="punct">:</span> <span class="string">"Budi"</span><span class="punct">,</span> <span class="prop">age</span><span class="punct">:</span> <span class="number">20</span> <span class="punct">},</span>
-    <span class="punct">{</span> <span class="prop">name</span><span class="punct">:</span> <span class="string">"Arman"</span><span class="punct">,</span> <span class="prop">age</span><span class="punct">:</span> <span class="number">25</span> <span class="punct">}</span>
-<span class="punct">]</span>
-
-<span class="comment">// async with handler</span>
-<span class="keyword">async</span> <span class="fn">db.getUser</span><span class="punct">()</span> <span class="op">=&gt;</span> <span class="punct">{</span>
-    <span class="keyword">if</span> this.<span class="prop">status</span> <span class="op">==</span> SUCCESS<span class="punct">:</span>
-        <span class="fn">print</span><span class="punct">(</span>this.<span class="prop">data</span><span class="punct">)</span>
-<span class="punct">}</span> <span class="op">-&gt;</span> <span class="number">200</span>
-      </div>
-
-      <div class="code-block">
-        <span class="lang-tag">rupa</span>
-<span class="comment">// pattern matching with case</span>
-<span class="keyword">case</span> status <span class="op">=&gt;</span> <span class="punct">{</span>
-    <span class="number">200</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"success"</span><span class="punct">)</span>
-    <span class="number">404</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"not found"</span><span class="punct">)</span>
-    <span class="number">500</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"server error"</span><span class="punct">)</span>
-    <span class="op">*</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"unknown"</span><span class="punct">)</span>
-<span class="punct">}</span>
-
-<span class="comment">// struct definition</span>
-People <span class="punct">{</span>
-    name<span class="punct">:</span> <span class="type">string</span>
-    age<span class="punct">:</span> <span class="type">number</span>
-<span class="punct">}</span>
-
-<span class="comment">// conditional assignment</span>
-result <span class="op">?=</span> valid <span class="op">-&gt;</span> <span class="string">"Success"</span>
-result <span class="op">?=</span> valid <span class="op">-&gt;</span> primary <span class="op">|</span> fallback <span class="op">|</span> <span class="string">"Unavailable"</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section class="features">
-    <div class="container">
-      <h2>Why Rupa</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <h3>Versatile</h3>
-          <p>Designed to grow across different contexts — from small experiments to larger systems.</p>
+      @media (max-width: 600px) {
+        .hero {
+          padding: 80px 0 60px;
+        }
+        .hero h1 {
+          font-size: 2rem;
+        }
+        .pipeline-flow {
+          font-size: 0.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container">
+        <span class="hero-label">General-Purpose Language</span>
+        <h1>Rupa</h1>
+        <p>
+          A programming language built from scratch with a simple foundation
+          that doesn't limit where it can go.
+        </p>
+        <div class="hero-buttons">
+          <a href="syntax/index.html" class="btn btn-primary"
+            >Syntax Reference</a
+          >
+          <a href="https://github.com/aidomx/rupa" class="btn btn-secondary"
+            >GitHub</a
+          >
         </div>
-        <div class="feature-card">
-          <h3>Lightweight</h3>
-          <p>No unnecessary complexity. Built with a minimal core that stays out of your way.</p>
+      </div>
+    </section>
+
+    <!-- Tagline -->
+    <section class="tagline">
+      <div class="container">
+        <blockquote>"One language, many ways to speak."</blockquote>
+      </div>
+    </section>
+
+    <!-- Code Example -->
+    <section class="code-section">
+      <div class="container">
+        <h2>Clean and Familiar</h2>
+        <p>
+          Rupa syntax is designed to be readable and expressive from the start.
+        </p>
+
+        <div class="code-block">
+          <span class="lang-tag">rupa</span>
+          <div class="code-inner">
+            <pre><code><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></code></pre>
+            <pre><code>
+<span><span class="comment">// function with type annotations</span></span>
+<span><span class="fn">add</span><span class="punct">(</span>x<span class="punct">:</span> <span class="type">number</span><span class="punct">,</span> y<span class="punct">:</span> <span class="type">number</span><span class="punct">)</span> <span class="punct">{</span> <span class="keyword">return</span> x <span class="op">+</span> y <span class="punct">}</span></span>
+<span></span>
+<span><span class="comment">// variables and control flow</span></span>
+<span>name <span class="op">=</span> <span class="string">"rupa"</span> count<span class="punct">:</span> <span class="type">number</span> <span class="op">=</span> <span class="number">0</span></span>
+<span></span>
+<span><span class="keyword">if</span> name <span class="op">==</span> <span class="string">"rupa"</span> <span class="punct">{</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"Hello from Rupa"</span><span class="punct">)</span> <span class="punct">}</span> <span class="keyword">else</span> <span class="punct">{</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"Unknown language"</span><span class="punct">)</span> <span class="punct">}</span></span>
+<span></span>
+<span><span class="comment">// loops</span></span>
+<span><span class="keyword">for</span> i <span class="op">&lt;</span> <span class="number">10</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span>i<span class="punct">)</span></span>
+<span></span>
+<span><span class="comment">// objects and arrays</span></span>
+<span>users <span class="op">=</span> <span class="punct">[</span> <span class="punct">{</span> <span class="prop">name</span><span class="punct">:</span> <span class="string">"Budi"</span><span class="punct">,</span> <span class="prop">age</span><span class="punct">:</span> <span class="number">20</span> <span class="punct">},</span> <span class="punct">{</span> <span class="prop">name</span><span class="punct">:</span> <span class="string">"Arman"</span><span class="punct">,</span> <span class="prop">age</span><span class="punct">:</span> <span class="number">25</span> <span class="punct">}</span> <span class="punct">]</span></span>
+<span></span>
+<span><span class="comment">// async with handler</span></span>
+<span><span class="keyword">async</span> <span class="fn">db.getUser</span><span class="punct">()</span> <span class="op">=&gt;</span> <span class="punct">{</span></span>
+<span><span class="keyword">if</span> this.<span class="prop">status</span> <span class="op">==</span> SUCCESS<span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span>this.<span class="prop">data</span><span class="punct">)</span> <span class="punct">}</span></span>
+<span><span class="op">-&gt;</span> <span class="number">200</span></span>
+</code></pre>
+          </div>
         </div>
-        <div class="feature-card">
-          <h3>Flexible</h3>
-          <p>Syntax adapts to your needs with async/await, pattern matching, and type annotations.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Solid Foundation</h3>
-          <p>Feature changes never compromise the core structure without clear reasoning.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Built-in GC</h3>
-          <p>Automatic memory management through a centralised garbage collector with clear ownership.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Native Async</h3>
-          <p>First-class async/await with handlers, timeouts, and status tracking built into the language.</p>
+
+        <div class="code-block">
+          <span class="lang-tag">rupa</span>
+          <div class="code-inner">
+            <pre><code><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></code></pre>
+            <pre><code>
+<span><span class="comment">// pattern matching with case</span></span>
+<span><span class="keyword">case</span> status <span class="op">=&gt;</span> <span class="punct">{</span></span>
+<span><span class="number">200</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"success"</span><span class="punct">)</span></span>
+<span><span class="number">404</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"not found"</span><span class="punct">)</span></span>
+<span><span class="number">500</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"server error"</span><span class="punct">)</span></span>
+<span><span class="op">*</span><span class="punct">:</span> <span class="fn">print</span><span class="punct">(</span><span class="string">"unknown"</span><span class="punct">)</span> <span class="punct">}</span></span>
+<span></span>
+<span><span class="comment">// struct definition</span></span>
+<span>People <span class="punct">{</span> name<span class="punct">:</span> <span class="type">string</span> age<span class="punct">:</span> <span class="type">number</span> <span class="punct">}</span></span>
+<span></span>
+<span><span class="comment">// conditional assignment</span></span>
+<span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> <span class="string">"Success"</span></span>
+<span>result <span class="op">?=</span> valid <span class="op">-&gt;</span> primary <span class="op">|</span> fallback <span class="op">|</span> <span class="string">"Unavailable"</span></span>
+</code></pre>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Pipeline -->
-  <section class="pipeline">
-    <div class="container">
-      <h2>How It Works</h2>
-      <p>Source flows through a clean compilation pipeline from input to execution.</p>
-      <div class="pipeline-flow">
-        <span class="pipeline-step">Source</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">Lexer</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">Processor</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">Token</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">Parser</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">AST</span>
-        <span class="pipeline-arrow">&rarr;</span>
-        <span class="pipeline-step">Runtime</span>
+    <!-- Features -->
+    <section class="features">
+      <div class="container">
+        <h2>Why Rupa</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Versatile</h3>
+            <p>
+              Designed to grow across different contexts — from small
+              experiments to larger systems.
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>Lightweight</h3>
+            <p>
+              No unnecessary complexity. Built with a minimal core that stays
+              out of your way.
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>Flexible</h3>
+            <p>
+              Syntax adapts to your needs with async/await, pattern matching,
+              and type annotations.
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>Solid Foundation</h3>
+            <p>
+              Feature changes never compromise the core structure without clear
+              reasoning.
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>Built-in GC</h3>
+            <p>
+              Automatic memory management through a centralised garbage
+              collector with clear ownership.
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>Native Async</h3>
+            <p>
+              First-class async/await with handlers, timeouts, and status
+              tracking built into the language.
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Documentation -->
-  <section class="docs-section">
-    <div class="container">
-      <h2>Documentation</h2>
-      <p>Everything you need to understand and use Rupa.</p>
-      <div class="docs-grid">
-        <a href="about.html" class="doc-link">
-          <h4>About</h4>
-          <p>Origin story and how Rupa came to be.</p>
-        </a>
-        <a href="syntax/index.html" class="doc-link">
-          <h4>Syntax Reference</h4>
-          <p>Complete guide to writing Rupa code.</p>
-        </a>
-        <a href="vision.html" class="doc-link">
-          <h4>Vision</h4>
-          <p>Long-term direction and future plans.</p>
-        </a>
-        <a href="mission.html" class="doc-link">
-          <h4>Mission</h4>
-          <p>Core goals and design principles.</p>
-        </a>
-        <a href="instruction.html" class="doc-link">
-          <h4>Contributing</h4>
-          <p>How to build, test, and contribute.</p>
-        </a>
-        <a href="structure.html" class="doc-link">
-          <h4>Project Structure</h4>
-          <p>Directory layout and module responsibilities.</p>
-        </a>
+    <!-- Pipeline -->
+    <section class="pipeline">
+      <div class="container">
+        <h2>How It Works</h2>
+        <p>
+          Source flows through a clean compilation pipeline from input to
+          execution.
+        </p>
+        <div class="pipeline-flow">
+          <span class="pipeline-step">Source</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">Lexer</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">Processor</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">Token</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">Parser</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">AST</span>
+          <span class="pipeline-arrow">&rarr;</span>
+          <span class="pipeline-step">Runtime</span>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <p>Rupa &mdash; General-purpose programming language</p>
-      <p style="margin-top: 8px;">
-        <a href="https://github.com/aidomx/rupa">GitHub</a>
-      </p>
-    </div>
-  </footer>
+    <!-- Documentation -->
+    <section class="docs-section">
+      <div class="container">
+        <h2>Documentation</h2>
+        <p>Everything you need to understand and use Rupa.</p>
+        <div class="docs-grid">
+          <a href="about.html" class="doc-link">
+            <h4>About</h4>
+            <p>Origin story and how Rupa came to be.</p>
+          </a>
+          <a href="syntax/index.html" class="doc-link">
+            <h4>Syntax Reference</h4>
+            <p>Complete guide to writing Rupa code.</p>
+          </a>
+          <a href="vision.html" class="doc-link">
+            <h4>Vision</h4>
+            <p>Long-term direction and future plans.</p>
+          </a>
+          <a href="mission.html" class="doc-link">
+            <h4>Mission</h4>
+            <p>Core goals and design principles.</p>
+          </a>
+          <a href="instruction.html" class="doc-link">
+            <h4>Contributing</h4>
+            <p>How to build, test, and contribute.</p>
+          </a>
+          <a href="structure.html" class="doc-link">
+            <h4>Project Structure</h4>
+            <p>Directory layout and module responsibilities.</p>
+          </a>
+        </div>
+      </div>
+    </section>
 
-</body>
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>Rupa &mdash; General-purpose programming language</p>
+        <p style="margin-top: 8px">
+          <a href="https://github.com/aidomx/rupa">GitHub</a>
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var cards = Array.prototype.slice.call(
+          document.querySelectorAll('.feature-card')
+        );
+        if (!cards.length) return;
+
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.remove('blurred');
+              } else {
+                entry.target.classList.add('blurred');
+              }
+            });
+          },
+          { threshold: 0.25 }
+        );
+
+        cards.forEach(function (card) {
+          io.observe(card);
+        });
+      })();
+    </script>
+  </body>
 </html>
