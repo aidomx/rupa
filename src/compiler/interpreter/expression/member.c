@@ -29,11 +29,46 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
   if (obj.value.type == VALUE_ARRAY && key && !strcmp(key, "length"))
     return resultNormal(valueNumber(obj.value.as.array.length));
 
-  /* String .length property */
-  if (obj.value.type == VALUE_STRING && key && !strcmp(key, "length"))
-    return resultNormal(valueNumber(obj.value.as.string
-                                        ? (int)strlen(obj.value.as.string)
-                                        : 0));
+  /* String .length property and bound methods */
+  if (obj.value.type == VALUE_STRING && key) {
+    if (!strcmp(key, "length"))
+      return resultNormal(valueNumber(obj.value.as.string
+                                          ? (int)strlen(obj.value.as.string)
+                                          : 0));
+
+    NativeFn fn = NULL;
+    int paramCount = 0;
+    if (!strcmp(key, "upper")) {
+      fn = stdStringUpper;
+      paramCount = 0;
+    } else if (!strcmp(key, "lower")) {
+      fn = stdStringLower;
+      paramCount = 0;
+    } else if (!strcmp(key, "trim")) {
+      fn = stdStringTrim;
+      paramCount = 0;
+    } else if (!strcmp(key, "contains")) {
+      fn = stdStringContains;
+      paramCount = 1;
+    } else if (!strcmp(key, "startsWith")) {
+      fn = stdStringStartsWith;
+      paramCount = 1;
+    } else if (!strcmp(key, "endsWith")) {
+      fn = stdStringEndsWith;
+      paramCount = 1;
+    } else if (!strcmp(key, "replace")) {
+      fn = stdStringReplace;
+      paramCount = 2;
+    }
+    if (fn) {
+      RuntimeValue method = valueNativeFunction(key, fn, paramCount);
+      method.as.nativeFunc->hasReceiver = true;
+      method.as.nativeFunc->receiver = malloc(sizeof(RuntimeValue));
+      if (method.as.nativeFunc->receiver)
+        *method.as.nativeFunc->receiver = obj.value;
+      return resultNormal(method);
+    }
+  }
 
   if (obj.value.type == VALUE_NULL)
     return resultNormal(valueNull());

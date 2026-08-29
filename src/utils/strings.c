@@ -167,3 +167,20 @@ void trimquote(char *value) {
     }
   }
 }
+
+int consumeToEnd(const char *buffer, int pos) {
+  if (!buffer || pos == -1)
+    return -1;
+
+  if (buffer[pos] == '\0')
+    return pos;
+
+  while (buffer[pos])
+    pos++;
+  return pos;
+}
+
+void skipWhitespace(const char *buffer, int *position) {
+  while (isspace(buffer[*position]))
+    (*position)++;
+}

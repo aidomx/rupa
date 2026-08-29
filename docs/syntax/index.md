@@ -21,6 +21,7 @@ Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](g
 
 ## Data
 
+- [String Methods](string.md)
 - [Array](array.md)
 - [Object](object.md)
 - [Struct](struct.md)
@@ -46,6 +47,8 @@ Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](g
 
 ## Module dan Program
 
+- [Main](main.md)
+- [View Module](view.md)
 - [Module](module.md)
 - [Annotation](annotation.md)
 - [Print](print.md)

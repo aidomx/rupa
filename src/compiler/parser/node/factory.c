@@ -260,9 +260,10 @@ int createAnnotation(Node *root, int name, int type, int value) {
   return createAst(root, n);
 }
 
-int createModule(Node *root, NodeType type, int value) {
+int createModule(Node *root, NodeType type, int value, int name) {
   AstNode n = {.type = type};
   n.module.value = value;
+  n.module.name = name;
   return createAst(root, n);
 }
 
@@ -316,4 +317,21 @@ int createMemberAssign(Node *root, int target, int value) {
   AstNode node = {.type = NODE_MEMBER_ASSIGN,
                   .memberAssign = {.target = target, .value = value}};
   return createAst(root, node);
+}
+
+int createModuleImport(Node *root, int basePath,
+                       struct AstModuleImportEntry *entries, int entryCount,
+                       int alias) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_MODULE_IMPORT};
+  n.moduleImport.basePath = basePath;
+  n.moduleImport.entries = NULL;
+  n.moduleImport.entryCount = entryCount;
+  n.moduleImport.alias = alias;
+  if (entryCount > 0 && entries) {
+    n.moduleImport.entries = gcmall(sizeof(struct AstModuleImportEntry) * entryCount);
+    memcpy(n.moduleImport.entries, entries,
+           sizeof(struct AstModuleImportEntry) * entryCount);
+  }
+  return createAst(root, n);
 }

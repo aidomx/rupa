@@ -55,6 +55,48 @@ RuntimeValue valueArray(RuntimeValue *items, int length) {
                         .as.array = {.items = items, .length = length}};
 }
 
+static void printStringWithInterp(const char *str, RuntimeEnv *env) {
+  if (!str) return;
+  const char *p = str;
+  while (*p) {
+    if (*p == '{') {
+      /* Find matching closing brace */
+      const char *end = strchr(p + 1, '}');
+      if (end) {
+        /* Extract variable name */
+        int len = (int)(end - p - 1);
+        if (len > 0) {
+          char name[256];
+          if (len >= (int)sizeof(name)) len = (int)sizeof(name) - 1;
+          memcpy(name, p + 1, len);
+          name[len] = '\0';
+          /* Resolve variable */
+          RuntimeValue val;
+          if (env && semGet(env, name, &val)) {
+            valuePrint(val);
+          } else {
+            printf("{%s}", name); /* unresolved */
+          }
+        } else {
+          printf("{}" ); /* empty braces */
+        }
+        p = end + 1;
+        continue;
+      }
+    }
+    putchar(*p);
+    p++;
+  }
+}
+
+void valuePrintInterp(RuntimeValue value, RuntimeEnv *env) {
+  if (value.type == VALUE_STRING) {
+    printStringWithInterp(value.as.string, env);
+    return;
+  }
+  valuePrint(value);
+}
+
 void valuePrint(RuntimeValue value) {
   switch (value.type) {
   case VALUE_NUMBER:

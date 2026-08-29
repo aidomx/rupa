@@ -72,6 +72,9 @@ void run(const char *paths[], int length) {
     return;
   }
 
+  /* Set source file path for resolving relative imports */
+  setSourceFilePath(index);
+
   processInput(state);
 
   Flags *flags = state->input->flags;

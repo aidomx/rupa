@@ -1,0 +1,13 @@
+create() {
+    print("a.create called")
+}
+
+update() {
+    print("a.update called")
+}
+
+delete() {
+    print("a.delete called")
+}
+
+export a

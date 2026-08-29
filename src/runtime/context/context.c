@@ -25,16 +25,6 @@ FlagType determineFlag(const char c) {
   return FLAG_UNKNOWN;
 }
 
-FlagType detectAssignment(FlagType flag, StateInput *current) {
-  // FlagType nextFlag = FLAG_UNKNOWN;
-
-  if (flag == FLAG_IDENTIFIER) {
-    printf("flag: %d\n", current->flag);
-  }
-
-  return flag;
-}
-
 StateInput *createContextInput(StateInput *input, Buffer *buffer, int line) {
   StateInput *head = NULL;
   StateInput *current = NULL;
@@ -104,31 +94,6 @@ char *getContextInput(const char *input, int start, int end) {
   }
 
   return NULL;
-}
-
-void addContextInput(State *state, char c, int line, int row) {
-  if (!state)
-    return;
-
-  FlagType flag = determineFlag(c);
-  printf("DEBUG: (line: %d, col: %d, char: %c, flag: %d)\n", line, row, c,
-         flag);
-}
-
-int secureId(const char *input, int start, int end) {
-  if (!input)
-    return -1;
-
-  int id = 1;
-  for (int i = start; i < end; i++) {
-    Symbol *symbol = getSymbolToken(input[i]);
-    if (symbol && symbol->type != UNDERLINE) {
-      id--;
-      break;
-    }
-  }
-
-  return id;
 }
 
 const char *skipId(const char *ptr) {

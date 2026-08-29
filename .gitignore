@@ -4,6 +4,7 @@
 .clangd
 .env
 .env.local
+.logs
 build
 compile_commands.json
 bin/rupa

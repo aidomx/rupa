@@ -3,6 +3,14 @@
 /* Forward declarations for module initializers */
 extern InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env,
                                    Error *error);
+extern InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
+                                   Error *error);
+extern InterpreterResult stdMathInit(Node *node, int id, RuntimeEnv *env,
+                                     Error *error);
+extern InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
+                                       Error *error);
+extern InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env,
+                                     Error *error);
 
 /* Module registry */
 typedef struct {
@@ -10,7 +18,12 @@ typedef struct {
   InterpreterResult (*init)(Node *node, int id, RuntimeEnv *env, Error *error);
 } StdModuleEntry;
 
-static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit}, {NULL, NULL}};
+static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit},
+                                         {"io", stdIoInit},
+                                         {"math", stdMathInit},
+                                         {"string", stdStringInit},
+                                         {"json", stdJsonInit},
+                                         {NULL, NULL}};
 
 /* Initialize all standard modules and register them in the environment */
 void stdlibInit(RuntimeEnv *env) {

@@ -21,6 +21,8 @@ struct RuntimeNativeFunction {
   const char *name;
   NativeFn func;
   int paramCount;
+  bool hasReceiver;
+  struct RuntimeValue *receiver;
 };
 
 struct RuntimeValue {

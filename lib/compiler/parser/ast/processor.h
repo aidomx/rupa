@@ -3,8 +3,6 @@
 
 extern struct Response processAssignment(struct Request *req, struct Token *t,
                                          int init);
-extern struct Response processStandaloneExpression(struct Request *req,
-                                                   struct Token *t, int init);
 
 /**
  * @brief Loop utama untuk membangun AST dari token list.

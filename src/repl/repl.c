@@ -9,63 +9,6 @@
  */
 #include <rupa.h>
 
-void processInput(State *state) {
-  if (!state)
-    return;
-
-  printf("\n");
-  ReplState *repl = state->repl;
-  Buffer *buffer = repl->buffer;
-
-  if (buffer->length == 0 || isblank(*buffer->value))
-    return;
-
-  if (strcmp(buffer->value, ".help") == 0) {
-    help(true);
-    return;
-  }
-
-  if (strcmp(buffer->value, ".clear") == 0) {
-    clearScreen();
-    welcomeMessage();
-    repl->editor->lineNumber = 0;
-    /*clearInput(state->input);*/
-    /*clearReplState(repl);*/
-    /*clearStateToken(state->tokens);*/
-    return;
-  }
-
-  if (strcmp(buffer->value, ".exit") == 0) {
-    state->isRepl = false;
-    clearInput(state->input);
-    clearReplState(repl);
-    clearStateToken(state->tokens);
-    return;
-  }
-
-  if (buffer->value[0] == '.')
-    return;
-
-  setIndent(repl);
-  // Jika gagal menyimpan pada history hentikan
-  if (!addToHistory(state))
-    return;
-  // Hentikan jika transfer history pada input besar
-  // mengalami kegagalan saat proses transmisi
-  if (!addToInput(state))
-    return;
-
-  lexer(state);
-
-  Flags *flags = state->input->flags;
-  Token *tokens = state->tokens;
-
-  if (!flags->isWaiting && (tokens && tokens->length > 0))
-    generateAst(tokens);
-
-  resetFlags(flags);
-}
-
 /**
  * @brief Fungsi utama untuk memulai REPL.
  *
@@ -79,6 +22,7 @@ void startRepl(bool actived) {
     printf("Failed to enter raw mode\n");
     return;
   }
+  stdIoSetRawMode(true);
 
   welcomeMessage();
   ReplState *repl = state->repl;

@@ -1,4 +1,9 @@
 #pragma once
+
+#include "io.h"
+#include "os.h"
+#include "string.h"
+
 #if defined(RUPA_PACKAGE_H)
 
 /* Initialize all standard modules and register them in the environment */

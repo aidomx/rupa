@@ -11,5 +11,7 @@ extern char *substring(const char *input, int start, int end);
 extern void trimquote(char *value);
 extern void trimbracket(char *value, char open, char close);
 extern char *trimspace(char *value);
+extern int consumeToEnd(const char *buffer, int pos);
+extern void skipWhitespace(const char *buffer, int *position);
 
 #endif

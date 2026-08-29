@@ -3,7 +3,7 @@
 #define KEYWORD_LENGTH 256
 #define MAX_BUFFER_SIZE (256 * 1024)
 #define MAX_DEPTH (256)
-#define MAX_TOKENS (256)
+#define MAX_TOKENS (1024)
 #define MAX_TOKEN_LENGTH (1024)
 #define MAX_VALUE (1024)
 #define MAX_MESSAGE_LENGTH (512)

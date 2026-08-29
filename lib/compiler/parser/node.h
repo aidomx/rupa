@@ -100,7 +100,8 @@ int createLoop(struct Node *root, const char *kind, int condition, int body);
 int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body);
 int createStructDecl(struct Node *root, int name, int body);
 int createAnnotation(struct Node *root, int name, int type, int value);
-int createModule(struct Node *root, enum NodeType type, int value);
+int createModule(struct Node *root, enum NodeType type, int value, int name);
+int createModuleImport(struct Node *root, int basePath, struct AstModuleImportEntry *entries, int entryCount, int alias);
 
 /**
  * @brief Membuat request baru untuk parser.

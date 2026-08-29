@@ -1,0 +1,9 @@
+auth() {
+    print("d.auth called")
+}
+
+users() {
+    print("d.users called")
+}
+
+export d

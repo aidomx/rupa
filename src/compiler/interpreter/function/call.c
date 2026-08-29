@@ -30,7 +30,8 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   /* Handle native function calls */
   if (callee.value.type == VALUE_NATIVE_FUNCTION && callee.value.as.nativeFunc) {
     struct RuntimeNativeFunction *nf = callee.value.as.nativeFunc;
-    int argc = ast->call.length;
+    int explicitArgc = ast->call.length;
+    int argc = explicitArgc + (nf->hasReceiver ? 1 : 0);
     RuntimeValue *argv = calloc(argc, sizeof(RuntimeValue));
     if (!argv && argc > 0) {
       if (error)
@@ -39,10 +40,15 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
                                    .line = 0, .row = 0, .type = ERR_INTERNAL});
       return resultFlow(FLOW_ERROR, valueNull());
     }
-    for (int i = 0; i < argc; i++) {
+    int offset = 0;
+    if (nf->hasReceiver) {
+      argv[0] = nf->receiver ? *nf->receiver : valueNull();
+      offset = 1;
+    }
+    for (int i = 0; i < explicitArgc; i++) {
       InterpreterResult arg = interpretNode(node, ast->call.args[i], env, error);
       if (arg.flow != FLOW_NORMAL) { free(argv); return arg; }
-      argv[i] = arg.value;
+      argv[i + offset] = arg.value;
     }
     InterpreterResult result = nf->func(argc, argv, env, error);
     free(argv);
@@ -81,11 +87,11 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   for (int i = 0; i < count; i++) {
     InterpreterResult arg = interpretNode(node, ast->call.args[i], env, error);
     if (arg.flow != FLOW_NORMAL) return arg;
-    const char *name = paramName(node, function->params[i]);
+    const char *name = paramName(function->node, function->params[i]);
     if (name) semSet(local, name, arg.value);
   }
 
-  InterpreterResult result = interpretNode(node, function->body, local, error);
+  InterpreterResult result = interpretNode(function->node, function->body, local, error);
   if (result.flow == FLOW_RETURN) return resultNormal(result.value);
   return result;
 }

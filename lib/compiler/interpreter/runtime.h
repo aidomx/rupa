@@ -14,6 +14,7 @@ RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out);
 bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value);
 void valuePrint(RuntimeValue value);
+void valuePrintInterp(RuntimeValue value, struct RuntimeEnv *env);
 bool valueTruthy(RuntimeValue value);
 bool valueEquals(RuntimeValue left, RuntimeValue right);
 /* Variable management is provided by the semantic layer.

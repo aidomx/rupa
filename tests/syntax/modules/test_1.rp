@@ -1,0 +1,5 @@
+add(name: string) {
+  print(name)
+}
+
+export test_1

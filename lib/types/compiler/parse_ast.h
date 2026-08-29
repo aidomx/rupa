@@ -228,6 +228,7 @@ struct AstAnnotation {
 
 struct AstModule {
   int value;
+  int name;   // submodule index (-1 if not used, e.g. import X from rupa)
 };
 
 struct AstUpdate {
@@ -261,6 +262,25 @@ struct AstCase {
 struct AstMemberAssign {
   int target; /* NODE_MEMBER or NODE_SUBSCRIPT node id */
   int value;  /* expression node id */
+};
+
+/**
+ * Single entry dalam flat import: `a.create`, `b.login as auth`, `d.*`
+ */
+struct AstModuleImportEntry {
+  int pathNode;    /* node id untuk path (e.g., "a.create", "b.login") */
+  int aliasNode;   /* node id untuk alias setelah `as`, atau -1 */
+  bool isWildcard; /* true jika `d.*` */
+};
+
+/**
+ * Import statement baru: `import a.create, b.login as auth, d.* from modules as m`
+ */
+struct AstModuleImport {
+  int basePath;                       /* node id untuk base path ("modules") */
+  struct AstModuleImportEntry *entries; /* array of entries */
+  int entryCount;                     /* jumlah entries */
+  int alias;                          /* node id untuk `as m`, atau -1 */
 };
 
 
@@ -301,6 +321,7 @@ struct AstNode {
     struct AstStructDecl asStruct;
     struct AstAnnotation annotation;
     struct AstModule module;
+    struct AstModuleImport moduleImport;
     struct AstObject object;
     struct AstCase asCase;
     struct AstUpdate update;

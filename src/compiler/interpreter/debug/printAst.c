@@ -337,7 +337,43 @@ static void printAst(Node *node, int index, int level) {
     printf("Module statement:\n");
     if (n->module.value >= 0)
       printAst(node, n->module.value, level + 1);
+    if (n->module.name >= 0) {
+      printIndent(level + 1);
+      printf("from: ");
+      printAst(node, n->module.name, level + 1);
+    }
     break;
+
+  case NODE_MODULE_IMPORT: {
+    printIndent(level);
+    printf("Module Import:\n");
+    printIndent(level + 1);
+    printf("base: ");
+    if (n->moduleImport.basePath >= 0)
+      printAst(node, n->moduleImport.basePath, level + 2);
+    else
+      printf("(null)");
+    /* Print entries */
+    for (int i = 0; i < n->moduleImport.entryCount; i++) {
+      struct AstModuleImportEntry *e = &n->moduleImport.entries[i];
+      printIndent(level + 1);
+      printf("entry: ");
+      if (e->pathNode >= 0)
+        printAst(node, e->pathNode, level + 2);
+      if (e->aliasNode >= 0) {
+        printf(" as ");
+        printAst(node, e->aliasNode, level + 2);
+      }
+      if (e->isWildcard) printf(" (wildcard)");
+      printf("\n");
+    }
+    if (n->moduleImport.alias >= 0) {
+      printIndent(level + 1);
+      printf("alias: ");
+      printAst(node, n->moduleImport.alias, level + 2);
+    }
+    break;
+  }
 
   case NODE_ASYNC:
     printIndent(level);

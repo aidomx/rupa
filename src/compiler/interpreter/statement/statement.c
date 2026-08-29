@@ -78,7 +78,7 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       if (result.flow != FLOW_NORMAL)
         return result;
 
-      valuePrint(last);
+      valuePrintInterp(last, e);
 
       if (i + 1 < a->print.length)
         putchar(' ');

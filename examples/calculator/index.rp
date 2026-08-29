@@ -1,0 +1,113 @@
+# ============================================
+# Calculator — Interactive Mode
+# Uses rupa.io for user input
+# ============================================
+
+import input from rupa.io
+import toNumber from rupa.io
+
+# ── Operator functions ──
+
+add(x: number, y: number) {
+    return x + y
+}
+
+subtract(x: number, y: number) {
+    return x - y
+}
+
+multiply(x: number, y: number) {
+    return x * y
+}
+
+divide(x: number, y: number) {
+    if y == 0 {
+        print("Error: division by zero")
+        return null
+    }
+    return x / y
+}
+
+modulo(x: number, y: number) {
+    if y == 0 {
+        print("Error: modulo by zero")
+        return null
+    }
+    return x % y
+}
+
+# ── Calculate using if/else chain ──
+
+calculate(x: number, op: string, y: number) {
+    if op == "+" {
+        return add(x, y)
+    }
+    if op == "-" {
+        return subtract(x, y)
+    }
+    if op == "*" {
+        return multiply(x, y)
+    }
+    if op == "/" {
+        return divide(x, y)
+    }
+    if op == "%" {
+        return modulo(x, y)
+    }
+    print("Unknown operator: " + op)
+    return null
+}
+
+# ── Display menu ──
+
+print("╔══════════════════════════╗")
+print("║   Rupa Calculator v1.0   ║")
+print("╚══════════════════════════╝")
+print("")
+print("Operators: +, -, *, /, %")
+print("Type 'q' to quit")
+print("")
+
+# ── Interactive loop ──
+
+running = true
+
+while running {
+    a_str = input("First number: ")
+    if a_str == "q" {
+        running = false
+    }
+    if running {
+        op = input("Operator (+, -, *, /, %): ")
+        if op == "q" {
+            running = false
+        }
+    }
+    if running {
+        b_str = input("Second number: ")
+        if b_str == "q" {
+            running = false
+        }
+    }
+    if running {
+        a = toNumber(a_str)
+        b = toNumber(b_str)
+        if a == null {
+            print("Invalid number: " + a_str)
+        }
+        if b == null {
+            print("Invalid number: " + b_str)
+        }
+        if a != null {
+            if b != null {
+                result = calculate(a, op, b)
+                if result != null {
+                    print(a + " " + op + " " + b + " = " + result)
+                }
+            }
+        }
+        print("")
+    }
+}
+
+print("Goodbye!")

@@ -3,7 +3,7 @@ set_default_compiler() {
   # Compiler flags
   export WALL_FLAGS="-Wall -Wextra"
   export INCLUDE_FLAGS="-Iinclude -I."
-  export CLANGD_FLAGS="-xc -std=gnu11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -fPIE"
+  export CLANGD_FLAGS="-xc -std=gnu11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -fPIE -lm"
 
   # Build flags - FIXED untuk aarch64
   export DEBUG_FLAGS="-g -O0"
@@ -56,7 +56,7 @@ set_target_compiler() {
       return 1
     fi
     ;;
-  unix|*)
+  unix | *)
     export CC="gcc"
     export TARGET_EXT=""
     export TARGET_PLATFORM="unix"

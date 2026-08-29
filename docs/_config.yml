@@ -1,0 +1,14 @@
+title: Rupa
+description: A general-purpose programming language built from scratch.
+theme: minima
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+exclude:
+  - node_modules/
+  - vendor/

@@ -52,7 +52,8 @@ expression
 ├── fallback
 ├── array literal
 ├── object literal
-└── call expression
+├── call expression
+└── member expression
 ```
 
 `?=`, `->`, dan `|` tetap dipandang sebagai grammar yang berbeda. Mereka dapat

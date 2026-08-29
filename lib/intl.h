@@ -1,6 +1,6 @@
 #pragma once
 
-// Standard library
+// Standard library C language
 #include "stdlib.h"
 
 // forward (enum, struct)
@@ -40,8 +40,7 @@
 #include "repl/repl.h"
 #include "runtime/runtime.h"
 #include "state/state.h"
-// stdlib
-#include "stdlib/os.h"
+// Standard library rupa language
 #include "stdlib/rupa_stdlib.h"
 // support
 /*#include "utils/atom.h"*/

@@ -83,7 +83,7 @@ int createTokenId(State *state, int start, int end) {
 }
 
 int addToken(Token *tokens, DataToken data) {
-  if (!tokens || tokens->length >= MAX_TOKENS)
+  if (!tokens)
     return -1;
 
   if (tokens->length >= tokens->capacity) {

@@ -15,10 +15,6 @@ Response processAssignment(Request *req, Token *t, int init) {
   return z;
 }
 
-Response processStandaloneExpression(Request *req, Token *t, int init) {
-  return processAssignment(req, t, init);
-}
-
 Response generateHandler(Request *req, Token *t, int init) {
   return processAssignment(req, t, init);
 }

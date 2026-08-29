@@ -98,11 +98,6 @@ bool isAssignmentStatement(Token *t, int init) {
          match(next, ASSIGN);
 }
 
-bool isAssignmentToken(Token *t, int init) {
-  DataToken *data = getToken(t, init);
-  return match(data, ASSIGN) || isAssignmentStatement(t, init);
-}
-
 bool isPartOfAssignment(Token *t, int pos) {
   // Cek jika token ini adalah ASSIGN
   if (isToken(t, pos, ASSIGN))

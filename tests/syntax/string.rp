@@ -1,0 +1,6 @@
+name = "rupa"
+
+print(name.length)
+print(name.upper())
+print(name.lower())
+print("Hello {name}")
