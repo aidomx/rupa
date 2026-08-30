@@ -1,6 +1,7 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
 
 export default defineConfig({
+  base: '/rupa/',
   title: 'Rupa',
   description: 'A general-purpose programming language built from scratch.',
   ignoreDeadLinks: true,
@@ -8,7 +9,7 @@ export default defineConfig({
   head: [
     ['meta', { name: 'theme-color', content: '#c8a2ff' }],
     ['meta', { name: 'og:type', content: 'website' }],
-    ['meta', { name: 'og:title', content: 'Rupa Documentation' }],
+    ['meta', { name: 'og:title', content: 'Rupa Documentation' }]
   ],
 
   themeConfig: {
@@ -17,7 +18,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Syntax', link: '/syntax/' },
-      { text: 'Grammar', link: '/grammar/' },
+      { text: 'Grammar', link: '/grammar/' }
     ],
 
     sidebar: {
@@ -31,8 +32,8 @@ export default defineConfig({
             { text: 'Expression', link: '/syntax/expression' },
             { text: 'Assignment', link: '/syntax/assignment' },
             { text: 'Update', link: '/syntax/update' },
-            { text: 'Fallback', link: '/syntax/fallback' },
-          ],
+            { text: 'Fallback', link: '/syntax/fallback' }
+          ]
         },
         {
           text: 'Data',
@@ -40,16 +41,16 @@ export default defineConfig({
             { text: 'String Methods', link: '/syntax/string' },
             { text: 'Array', link: '/syntax/array' },
             { text: 'Object', link: '/syntax/object' },
-            { text: 'Struct', link: '/syntax/struct' },
-          ],
+            { text: 'Struct', link: '/syntax/struct' }
+          ]
         },
         {
           text: 'Function',
           items: [
             { text: 'Function', link: '/syntax/function' },
             { text: 'Call', link: '/syntax/call' },
-            { text: 'Return', link: '/syntax/return' },
-          ],
+            { text: 'Return', link: '/syntax/return' }
+          ]
         },
         {
           text: 'Control Flow',
@@ -58,15 +59,15 @@ export default defineConfig({
             { text: 'Case', link: '/syntax/case' },
             { text: 'Loop', link: '/syntax/loop' },
             { text: 'Control', link: '/syntax/control' },
-            { text: 'Block', link: '/syntax/block' },
-          ],
+            { text: 'Block', link: '/syntax/block' }
+          ]
         },
         {
           text: 'Asynchronous',
           items: [
             { text: 'Async', link: '/syntax/async' },
-            { text: 'Then', link: '/syntax/then' },
-          ],
+            { text: 'Then', link: '/syntax/then' }
+          ]
         },
         {
           text: 'Program',
@@ -77,9 +78,9 @@ export default defineConfig({
             { text: 'Import', link: '/syntax/import' },
             { text: 'Export', link: '/syntax/export' },
             { text: 'Annotation', link: '/syntax/annotation' },
-            { text: 'Print', link: '/syntax/print' },
-          ],
-        },
+            { text: 'Print', link: '/syntax/print' }
+          ]
+        }
       ],
 
       '/grammar/': [
@@ -92,8 +93,8 @@ export default defineConfig({
             { text: 'Expression', link: '/grammar/expression' },
             { text: 'Assignment', link: '/grammar/assignment' },
             { text: 'Update', link: '/grammar/update' },
-            { text: 'Fallback', link: '/grammar/fallback' },
-          ],
+            { text: 'Fallback', link: '/grammar/fallback' }
+          ]
         },
         {
           text: 'Data',
@@ -101,16 +102,16 @@ export default defineConfig({
             { text: 'Array', link: '/grammar/array' },
             { text: 'Object', link: '/grammar/object' },
             { text: 'Struct', link: '/grammar/struct' },
-            { text: 'Member', link: '/grammar/member' },
-          ],
+            { text: 'Member', link: '/grammar/member' }
+          ]
         },
         {
           text: 'Function',
           items: [
             { text: 'Function', link: '/grammar/function' },
             { text: 'Call', link: '/grammar/call' },
-            { text: 'Return', link: '/grammar/return' },
-          ],
+            { text: 'Return', link: '/grammar/return' }
+          ]
         },
         {
           text: 'Control Flow',
@@ -119,15 +120,15 @@ export default defineConfig({
             { text: 'Case', link: '/grammar/case' },
             { text: 'Loop', link: '/grammar/loop' },
             { text: 'Control', link: '/grammar/control' },
-            { text: 'Block', link: '/grammar/block' },
-          ],
+            { text: 'Block', link: '/grammar/block' }
+          ]
         },
         {
           text: 'Asynchronous',
           items: [
             { text: 'Async', link: '/grammar/async' },
-            { text: 'Then', link: '/grammar/then' },
-          ],
+            { text: 'Then', link: '/grammar/then' }
+          ]
         },
         {
           text: 'Program',
@@ -136,9 +137,9 @@ export default defineConfig({
             { text: 'Import', link: '/grammar/import' },
             { text: 'Export', link: '/grammar/export' },
             { text: 'Annotation', link: '/grammar/annotation' },
-            { text: 'Print', link: '/grammar/print' },
-          ],
-        },
+            { text: 'Print', link: '/grammar/print' }
+          ]
+        }
       ],
 
       '/': [
@@ -149,45 +150,43 @@ export default defineConfig({
             { text: 'Vision', link: '/vision' },
             { text: 'Mission', link: '/mission' },
             { text: 'Contributing', link: '/instruction' },
-            { text: 'Project Structure', link: '/structure' },
-          ],
-        },
-      ],
+            { text: 'Project Structure', link: '/structure' }
+          ]
+        }
+      ]
     },
 
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/aidomx/rupa' },
-    ],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/aidomx/rupa' }],
 
     editLink: {
       pattern: 'https://github.com/aidomx/rupa/edit/main/docs/:path',
-      text: 'Edit this page on GitHub',
+      text: 'Edit this page on GitHub'
     },
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: '© 2024 Rupa',
+      copyright: '© 2024 Rupa'
     },
 
     search: {
-      provider: 'local',
-    },
+      provider: 'local'
+    }
   },
 
   markdown: {
     lineNumbers: true,
     theme: 'github-dark',
     // Alias 'rupa' language to JavaScript for syntax highlighting
-    config: (md) => {
+    config: md => {
       // Override the fence renderer to map 'rupa' to 'js'
-      const defaultFence = md.renderer.rules.fence.bind(md.renderer.rules)
+      const defaultFence = md.renderer.rules.fence.bind(md.renderer.rules);
       md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-        const token = tokens[idx]
+        const token = tokens[idx];
         if (token.info === 'rupa') {
-          token.info = 'js'
+          token.info = 'js';
         }
-        return defaultFence(tokens, idx, options, env, self)
-      }
-    },
-  },
-})
+        return defaultFence(tokens, idx, options, env, self);
+      };
+    }
+  }
+});
