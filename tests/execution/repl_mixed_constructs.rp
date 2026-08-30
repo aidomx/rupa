@@ -1,0 +1,27 @@
+# Mixed: variables, functions, objects, arrays in sequence
+x = 10
+y = 20
+assertEq(x + y, 30)
+# Define helper
+square(n) {
+    return n * n
+}
+assertEq(square(x), 100)
+# Object construction
+config = { host: "localhost", port: 8080, debug: true }
+assertEq(config.host, "localhost")
+assertEq(config.port, 8080)
+assert(config.debug)
+# Array operations
+nums = [1, 2, 3, 4, 5]
+total = 0
+for i in 5 {
+    total = total + nums[i]
+}
+assertEq(total, 15)
+# Function using object and array
+getConfig() {
+    return { host: "localhost", port: 8080 }
+}
+cfg = getConfig()
+assertEq(cfg.host, "localhost")

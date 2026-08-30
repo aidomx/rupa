@@ -1,0 +1,23 @@
+# Simple function declaration
+add(x, y) {
+    return x + y
+}
+
+# Nested function calls
+result = add(add(1, 2), add(3, 4))
+
+# Function with multiple args
+multiply(x, y) {
+    return x * y
+}
+
+# Complex nested calls
+complex = multiply(add(1, 2), add(3, 4))
+
+# Function returning function call
+compute(a, b) {
+    return add(a, b)
+}
+
+# Call with expression arguments
+deep = add(1 + 2, 3 * 4)

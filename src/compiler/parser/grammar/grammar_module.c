@@ -39,8 +39,14 @@ static int detectFrom(Token *t, int from_pos, int limit, int *end) {
       strcmp(t->data[from_pos].value, "from"))
     return -1;
   int mod_start = from_pos + 1;
-  if (t->data[mod_start].type != IDENTIFIER &&
-      t->data[mod_start].type != LITERAL_ID)
+  /* Handle ./ prefix: skip DOT SLASH, resolveModulePath strips it */
+  while (mod_start < limit && t->data[mod_start].type == DOT &&
+         mod_start + 1 < limit && t->data[mod_start + 1].type == SLASH) {
+    mod_start += 2;
+  }
+  if (mod_start >= limit ||
+      (t->data[mod_start].type != IDENTIFIER &&
+       t->data[mod_start].type != LITERAL_ID))
     return -1;
   /* Scan for DOT.IDENTIFIER chains */
   int mod_end = mod_start;
@@ -72,7 +78,7 @@ static char *buildModulePath(Token *t, int start, int end) {
   int parts = 0;
   for (int i = start; i <= end; i++)
     if (t->data[i].type != DOT) parts++;
-  total += (parts - 1); /* dots between parts */
+  if (parts > 1) total += (parts - 1);
 
   char *buf = malloc(total + 1);
   if (!buf) return NULL;
@@ -115,11 +121,11 @@ static char *buildModulePath(Token *t, int start, int end) {
       *fromPos = cur;
       return a;
     }
-    /* Skip commas and identifiers */
+    /* Skip commas, identifiers, etc */
     if (t->data[cur].type == COMMA || t->data[cur].type == IDENTIFIER ||
         t->data[cur].type == LITERAL_ID || t->data[cur].type == DOT ||
         t->data[cur].type == KEYWORD || !strcmp(t->data[cur].value, "as") ||
-        t->data[cur].type == STAR) {
+        t->data[cur].type == STAR || t->data[cur].type == SLASH) {
       cur++;
       continue;
     }
@@ -171,7 +177,7 @@ int grammarParseModule(Request *r, int a, int b, int *pos) {
           cur++;
         }
 
-        /* Check for wildcard: path.* */
+        /* Check for wildcard: path.* [as alias] */
         if (cur < fromPos && t->data[cur].type == STAR) {
           char pathBuf[256] = {0};
           for (int i = pathStart; i < cur; i++) {
@@ -183,8 +189,24 @@ int grammarParseModule(Request *r, int a, int b, int *pos) {
               createString(r->node, pathBuf, NODE_LITERAL_ID);
           entries[entryCount].aliasNode = -1;
           entries[entryCount].isWildcard = true;
-          entryCount++;
           cur++;
+          /* Check for `as alias` after wildcard */
+          if (cur < fromPos &&
+              (t->data[cur].type == KEYWORD ||
+               t->data[cur].type == IDENTIFIER ||
+               t->data[cur].type == LITERAL_ID) &&
+              !strcmp(t->data[cur].value, "as")) {
+            cur++;
+            if (cur < fromPos &&
+                (t->data[cur].type == IDENTIFIER ||
+                 t->data[cur].type == LITERAL_ID)) {
+              entries[entryCount].aliasNode =
+                  createString(r->node, t->data[cur].value,
+                               NODE_LITERAL_ID);
+              cur++;
+            }
+          }
+          entryCount++;
           continue;
         }
 

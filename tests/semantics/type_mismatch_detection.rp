@@ -1,0 +1,23 @@
+# Type enforcement: wrong type should cause error
+# These tests verify that type annotations are enforced
+# when a value is assigned to a typed variable.
+
+# This should work (correct type)
+n: number = 10
+assertEq(n, 10)
+
+# This should work (number accepts decimal too)
+m: number = 3.14
+assertType(m, "decimal")
+
+# String type enforcement
+s: string = "hello"
+assertEq(s, "hello")
+
+# Boolean type enforcement
+b: boolean = false
+assert(b == false)
+
+# Type with expression
+computed: number = 5 * 10
+assertEq(computed, 50)

@@ -1,0 +1,25 @@
+# Basic type annotations
+count: number = 42
+assertEq(count, 42)
+assertType(count, "number")
+
+name: string = "hello"
+assertEq(name, "hello")
+assertType(name, "string")
+
+active: boolean = true
+assert(active)
+assertType(active, "boolean")
+
+# Type annotation without value (declaration only)
+x: number
+y: string
+
+# Decimal type
+pi: decimal = 3.14
+assertType(pi, "decimal")
+
+# Annotation with expression
+sum: number = 10 + 20
+assertEq(sum, 30)
+assertType(sum, "number")

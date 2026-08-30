@@ -1,0 +1,36 @@
+# Type reassignment: variable keeps its declared type
+x: number = 10
+assertEq(x, 10)
+
+# Reassignment with same type
+x = 20
+assertEq(x, 20)
+
+# Annotation without value (just declaration)
+y: string
+y = "assigned later"
+assertEq(y, "assigned later")
+
+# Variable without initial type annotation
+z = 42
+assertEq(z, 42)
+z = 100
+assertEq(z, 100)
+
+# Multiple variables in sequence
+a = 1
+b = 2
+c = a + b
+assertEq(c, 3)
+
+# Variable used across function boundaries
+global_val = 100
+getGlobal() {
+    return global_val
+}
+assertEq(getGlobal(), 100)
+
+# Conditional assignment with type
+val = null
+val ?= 42
+assertEq(val, 42)

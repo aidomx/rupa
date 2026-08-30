@@ -1,8 +1,10 @@
 # Call Grammar
 
-Call expression membentuk `NODE_CALL`.
+Grammar call membentuk node call dari callee dan arguments.
 
-## Source
+## Simple call
+
+Source:
 
 ```rupa
 add(1, 2)
@@ -11,47 +13,60 @@ add(1, 2)
 AST:
 
 ```text
-Call
-├── Callee
-│   └── Identifier: add
-├── Arg 1
-│   └── Number: 1
-└── Arg 2
-    └── Number: 2
+Program:
+  Call:
+    Callee:
+      Identifier: add
+    Arg 1:
+      Number: 1
+    Arg 2:
+      Number: 2
 ```
 
-## Member method sebagai call
+## Nested call
 
-Member method menggunakan `NODE_MEMBER` sebagai callee dari `NODE_CALL`:
-
-```rupa
-name.upper()
-name.contains("R")
-```
-
-Receiver tidak ditulis sebagai argument eksplisit. Runtime native method menyimpan receiver dan meneruskannya sebelum argument call lainnya.
-
-Detail aturan member tersedia di [member.md](member.md).
-
-## Call sebagai expression
-
-Test print menunjukkan call dapat menjadi argument:
+Source:
 
 ```rupa
-print(add(1, 2), [3, 4])
+double(triple(5))
 ```
 
 AST:
 
 ```text
-Print
-├── Call
-│   ├── Callee: add
-│   ├── Arg 1: 1
-│   └── Arg 2: 2
-└── ArrayLiteral
-    ├── 3
-    └── 4
+Program:
+  Call:
+    Callee:
+      Identifier: double
+    Arg 1:
+      Call:
+        Callee:
+          Identifier: triple
+        Arg 1:
+          Number: 5
 ```
 
-Grammar call dapat dipakai sebagai expression di dalam construct lain.
+## Call with expression args
+
+Source:
+
+```rupa
+print("result:", x + y, true)
+```
+
+AST:
+
+```text
+Program:
+  Call:
+    Callee:
+      Identifier: print
+    Arg 1:
+      String: result:
+    Arg 2:
+      Binary: +
+        Left: Identifier: x
+        Right: Identifier: y
+    Arg 3:
+      Boolean: true
+```

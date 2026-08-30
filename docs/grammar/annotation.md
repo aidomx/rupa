@@ -1,61 +1,71 @@
 # Annotation Grammar
 
-Annotation menghubungkan nama dengan type.
+Grammar annotation membentuk node annotation dari nama dan type.
 
-## Source
+## Simple annotation
+
+Source:
 
 ```rupa
 name: string
-age: number
-price: float
 ```
 
 AST:
 
 ```text
-Annotation
-├── Name
-│   └── Identifier: name
-└── Type
-    └── Identifier: string
+Program:
+  Annotation:
+    Name:
+      Identifier: name
+    Type:
+      Identifier: string
 ```
 
-## Annotation dengan value
+## Annotation with value
 
 Source:
 
 ```rupa
 x: number = 1
-name: string = "Rupa"
 ```
 
-Pada bentuk statement, parser membentuk annotation yang dapat membawa value.
-
-Type yang sudah dikenali lexer juga dapat digunakan langsung oleh grammar lain,
-terutama assignment dan parameter function.
-
-## Context
-
-Token `:` tidak selalu berarti hal yang sama di seluruh grammar. Test saat ini
-menunjukkan context seperti:
-
-```rupa
-if x > 0: print(x)
-
-x: number = 1
-
-people: People = {
-    name: "rupa",
-    age: 20
-}
-```
-
-Maka parser membedakan `:` berdasarkan struktur statement dan expression:
+AST:
 
 ```text
-if condition : body
-name : Type = value
-key : value
+Program:
+  Annotation:
+    Name:
+      Identifier: x
+    Type:
+      Identifier: number
+    Value:
+      Number: 1
 ```
 
-AST yang dihasilkan bergantung pada context tersebut.
+## Multiple annotations
+
+Source:
+
+```rupa
+count: number = 42
+name: string = "hello"
+active: boolean = true
+```
+
+AST:
+
+```text
+Program:
+  Annotation:
+    Name: Identifier: count
+    Type: Identifier: number
+    Value: Number: 42
+  Annotation:
+    Name: Identifier: name
+    Type: Identifier: string
+    Value: String: hello
+  Annotation:
+    Name: Identifier: active
+    Type: Identifier: boolean
+    Value: Boolean: true
+```

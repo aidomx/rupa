@@ -3,15 +3,59 @@
 ## Apa yang bisa ditulis?
 
 ```rupa
-return config
-return x + y
-return add(1, 2)
+add(x, y) {
+    return x + y
+}
+```
+
+Return tanpa value:
+
+```rupa
+greet() {
+    print("Hello!")
+    return
+}
 ```
 
 ## Kapan digunakan?
 
-Gunakan `return` ketika sebuah body, terutama function, perlu menghasilkan expression sebagai hasilnya.
+Gunakan `return` untuk mengembalikan value dari function. Return dapat digunakan di mana saja dalam function body.
 
 ## Apa hasilnya?
 
-Expression setelah `return` menjadi nilai yang dikembalikan oleh statement tersebut.
+Return menghentikan eksekusi function dan mengembalikan value ke pemanggil.
+
+### Contoh execution
+
+```rupa
+add(x, y) {
+    return x + y
+}
+
+result = add(1, 2)
+print(result)
+```
+
+Output: `3`
+
+```rupa
+double(n) {
+    return n * 2
+}
+
+val = double(5)
+print(val)
+```
+
+Output: `10`
+
+```rupa
+makePoint(px, py) {
+    return { x: px, y: py }
+}
+
+p = makePoint(10, 20)
+print(p.x, p.y)
+```
+
+Output: `10 20`

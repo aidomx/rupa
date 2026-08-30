@@ -1,0 +1,6 @@
+# Function definition, then call
+double(n) {
+    return n * 2
+}
+assertEq(double(5), 10)
+assertEq(double(21), 42)

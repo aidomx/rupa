@@ -1,0 +1,16 @@
+# Update operators
+counter = 0
+counter++
+assertEq(counter, 1)
+counter++
+assertEq(counter, 2)
+counter--
+assertEq(counter, 1)
+# Update in expression
+x = 10
+x += 5
+assertEq(x, 15)
+x -= 3
+assertEq(x, 12)
+x *= 2
+assertEq(x, 24)

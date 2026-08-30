@@ -15,4 +15,4 @@ Tahap berikutnya adalah percobaan membuat DSL dengan C sebagai bagian dari toolc
 5. Fondasi proyek berkembang melampaui kebutuhan sistem sebelumnya.
 6. Rupa kemudian dibangun sebagai bahasa pemrograman mandiri.
 
-Dokumen ini menjelaskan latar belakang, bukan spesifikasi teknis. Untuk implementasi dan kontribusi, lihat [instruction.md](instruction.md) dan [syntax.md](syntax.md).
+Dokumen ini menjelaskan latar belakang, bukan spesifikasi teknis. Untuk implementasi dan kontribusi, lihat [instruction.md](instruction.md) dan [syntax/](syntax/index.md).

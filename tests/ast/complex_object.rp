@@ -1,0 +1,21 @@
+# Simple object
+simple = { name: "test" }
+
+# Object with multiple types
+mixed = { id: 1, name: "hello", active: true }
+
+# Nested objects
+nested = { user: { name: "admin", role: "super" } }
+
+# Object with expression values
+dynamic = { sum: 1 + 2, product: 3 * 4 }
+
+# Member access chains
+obj = { a: { b: { c: 42 } } }
+deep = obj.a.b.c
+
+# Object in array
+list = [{ id: 1 }, { id: 2 }, { id: 3 }]
+
+# Array in object
+record = { items: [1, 2, 3], tags: ["a", "b"] }

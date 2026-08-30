@@ -17,29 +17,24 @@ add(x: number, y: number) {
 AST:
 
 ```text
-Function
-├── Name
-│   └── Identifier: add
-├── Parameters
-│   ├── Annotation: x → number
-│   └── Annotation: y → number
-└── Body
-    └── Block
-        └── Return
-            └── Binary: +
-                ├── x
-                └── y
+Program:
+  Function:
+    Name:
+      Identifier: add
+    Parameters:
+      Annotation:
+        Name: Identifier: x
+        Type: Identifier: number
+      Annotation:
+        Name: Identifier: y
+        Type: Identifier: number
+    Body:
+      Block:
+        Return:
+          Binary: +
+            Identifier: x
+            Identifier: y
 ```
-
-## Typed parameter
-
-```rupa
-save(config: Settings) {
-    return config
-}
-```
-
-Parameter typed direpresentasikan sebagai `Annotation`.
 
 ## Call statement
 
@@ -48,4 +43,45 @@ add(1, 2)
 ```
 
 Jika pola identifier + arguments tidak membentuk declaration dengan body,
-parser membuat `Call`.
+parser membuat `Call`:
+
+```text
+Program:
+  Call:
+    Callee:
+      Identifier: add
+    Arg 1:
+      Number: 1
+    Arg 2:
+      Number: 2
+```
+
+## Function with object return
+
+```rupa
+makePoint(px, py) {
+    return { x: px, y: py }
+}
+```
+
+AST:
+
+```text
+Program:
+  Function:
+    Name:
+      Identifier: makePoint
+    Parameters:
+      Identifier: px
+      Identifier: py
+    Body:
+      Block:
+        Return:
+          Object:
+            Entry 1:
+              Key: Identifier: x
+              Value: Identifier: px
+            Entry 2:
+              Key: Identifier: y
+              Value: Identifier: py
+```

@@ -1,0 +1,28 @@
+---
+layout: home
+hero:
+  name: Rupa
+  text: One Language, Many Ways to Speak
+  tagline: A general-purpose programming language built from scratch with a simple foundation that doesn't limit where it can go.
+  actions:
+    - theme: brand
+      text: Syntax Reference
+      link: /syntax/
+    - theme: alt
+      text: GitHub
+      link: https://github.com/aidomx/rupa
+
+features:
+  - title: Versatile
+    details: Designed to grow across different contexts — from small experiments to larger systems.
+  - title: Lightweight
+    details: No unnecessary complexity. Built with a minimal core that stays out of your way.
+  - title: Flexible
+    details: Syntax adapts to your needs with async/await, pattern matching, and type annotations.
+  - title: Solid Foundation
+    details: Feature changes never compromise the core structure without clear reasoning.
+  - title: Built-in GC
+    details: Automatic memory management through a centralised garbage collector with clear ownership.
+  - title: Native Async
+    details: First-class async/await with handlers, timeouts, and status tracking built into the language.
+---

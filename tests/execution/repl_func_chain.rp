@@ -1,0 +1,17 @@
+# Define multiple functions across lines
+add(a, b) {
+    return a + b
+}
+sub(a, b) {
+    return a - b
+}
+mul(a, b) {
+    return a * b
+}
+# Call each function
+assertEq(add(10, 5), 15)
+assertEq(sub(10, 5), 5)
+assertEq(mul(10, 5), 50)
+# Compose functions
+result = add(mul(2, 3), sub(10, 4))
+assertEq(result, 12)

@@ -1,0 +1,8 @@
+result = 0
+compute() {
+    temp = 42
+    return temp
+}
+val = compute()
+assertEq(val, 42)
+assertEq(result, 0)

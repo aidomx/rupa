@@ -4,25 +4,66 @@
 
 ```rupa
 1 + 2
-1 + 2 * 3
-((1 + 2) * (3 - 4))
-add(1, 2)
-[1, 2]
-{ name: "rupa" }
+10 * 5
+100 / 4
+2 + 3 * 4
+10 % 3
 ```
 
-Expression juga dapat berdiri sendiri:
+String expression:
 
 ```rupa
-1
-true
-"hello"
+"hello" + " " + "world"
 ```
 
 ## Kapan digunakan?
 
-Gunakan expression ketika sebuah syntax membutuhkan value atau hasil perhitungan, seperti assignment, return, condition, argument, array, dan object.
+Expression adalah kombinasi value, operator, dan function calls yang menghasilkan value. Expression dapat digunakan di mana saja value diharapkan.
 
 ## Apa hasilnya?
 
-Operator mengikuti precedence. Parentheses dapat mengubah urutan pembentukan expression. Expression yang berdiri sendiri tetap menghasilkan nilai expression.
+Expression dievaluasi sesuai operator precedence. Hasilnya adalah value yang dapat digunakan atau ditampilkan.
+
+### Contoh execution
+
+```rupa
+x = 1 + 2
+print(x)
+```
+
+Output: `3`
+
+```rupa
+y = 10 * 5
+print(y)
+```
+
+Output: `50`
+
+```rupa
+z = 100 / 4
+print(z)
+```
+
+Output: `25`
+
+```rupa
+w = 2 + 3 * 4
+print(w)
+```
+
+Output: `14`
+
+```rupa
+m = 10 % 3
+print(m)
+```
+
+Output: `1`
+
+```rupa
+s = "hello" + " " + "world"
+print(s)
+```
+
+Output: `hello world`

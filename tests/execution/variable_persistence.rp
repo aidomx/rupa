@@ -1,0 +1,27 @@
+# Variable persistence across lines
+x = 10
+y = x + 5
+assertEq(y, 15)
+
+# Reassignment
+x = 20
+z = x * 2
+assertEq(z, 40)
+
+# Variable from previous line used in function
+value = 42
+getResult() {
+    return value
+}
+r = getResult()
+assertEq(r, 42)
+
+# Object property persistence
+config = { host: "localhost", port: 8080 }
+h = config.host
+assertEq(h, "localhost")
+
+# Array persistence
+items = [1, 2, 3]
+first = items[0]
+assertEq(first, 1)

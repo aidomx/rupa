@@ -1,0 +1,16 @@
+# If/else with single-line body
+x = 10
+if x > 5 {
+    result = "big"
+} else {
+    result = "small"
+}
+assertEq(result, "big")
+# Change x and re-evaluate
+x = 3
+if x > 5 {
+    result = "big"
+} else {
+    result = "small"
+}
+assertEq(result, "small")

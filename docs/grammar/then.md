@@ -1,44 +1,55 @@
 # Then Grammar
 
-`->` adalah grammar expression tersendiri dan membentuk `NODE_THEN`.
+Grammar then membentuk node then dari condition dan result.
 
-## Source
+## Simple then
 
-```rupa
-valid -> "Sukses"
-```
-
-AST:
-
-```text
-Then
-├── Condition
-│   └── Literal ID: valid
-└── Result
-    └── String: "Sukses"
-```
-
-Secara pembacaan:
-
-> jika condition, maka result
-
-Node ini dapat menjadi expression di dalam grammar lain.
-
-Contoh:
+Source:
 
 ```rupa
 result ?= valid -> "Sukses"
 ```
 
-AST tidak membuat operator gabungan tunggal. Struktur yang terbentuk adalah:
+AST:
 
 ```text
-Conditional Assignment
-└── Value
-    └── Then
-        ├── Condition
-        └── Result
+Then:
+  Condition: Literal ID: valid
+  Result: String: Sukses
 ```
 
-Dengan demikian `->` tetap merupakan grammar `Then`, sedangkan `?=` tetap
-merupakan grammar assignment.
+## Then with expression
+
+Source:
+
+```rupa
+result ?= x > 0 -> "positive"
+```
+
+AST:
+
+```text
+Then:
+  Condition: Binary: >
+    Left: Identifier: x
+    Right: Number: 0
+  Result: String: positive
+```
+
+## Usage
+
+```rupa
+valid = true
+result ?= valid -> "Condition met"
+print(result)
+```
+
+Output: `Condition met`
+
+```rupa
+valid = false
+result ?= valid -> "Condition met"
+print(result)
+```
+
+Output: `null`

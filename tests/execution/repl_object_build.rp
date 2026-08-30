@@ -1,0 +1,12 @@
+# Build object step by step
+data = { id: 1 }
+data2 = { id: 2, name: "test" }
+assertEq(data.id, 1)
+assertEq(data2.name, "test")
+# Array of objects
+items = [{ id: 1 }, { id: 2 }]
+assertEq(items[0].id, 1)
+assertEq(items[1].id, 2)
+# Object with nested access
+nested = { a: { b: { c: 42 } } }
+assertEq(nested.a.b.c, 42)

@@ -1,10 +1,26 @@
 # Print Grammar
 
-`print(...)` membentuk `NODE_PRINT`.
+Grammar print membentuk node print dari arguments yang dipisahkan koma.
 
-Argument dipisahkan koma dan masing-masing diparse sebagai expression.
+## Single argument
 
-## Source
+Source:
+
+```rupa
+print("hello world")
+```
+
+AST:
+
+```text
+Program:
+  Print:
+    String: "hello world"
+```
+
+## Multiple arguments
+
+Source:
 
 ```rupa
 print("result:", x + y, true)
@@ -13,13 +29,33 @@ print("result:", x + y, true)
 AST:
 
 ```text
-Print
-├── String: "result:"
-├── Binary: +
-│   ├── x
-│   └── y
-└── Boolean: true
+Program:
+  Print:
+    String: "result:"
+    Binary: +
+      Identifier: x
+      Identifier: y
+    Boolean: true
 ```
 
-Grammar print tidak membatasi argument pada literal. Test saat ini menunjukkan
-identifier, binary expression, call, dan array dapat menjadi argument.
+## Print dengan expression
+
+Source:
+
+```rupa
+print(add(1, 2), [3, 4])
+```
+
+AST:
+
+```text
+Program:
+  Print:
+    Call:
+      Callee: Identifier: add
+      Arg 1: Number: 1
+      Arg 2: Number: 2
+    Array:
+      Number: 3
+      Number: 4
+```

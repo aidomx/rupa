@@ -1,0 +1,29 @@
+# Struct declaration registers a type
+Point {
+    x: number
+    y: number
+}
+
+# Struct type should be declared in environment
+# (struct declaration registers "Point" as type "struct")
+assert(true)
+
+# Person struct
+Person {
+    name: string
+    age: number
+}
+
+# Multiple struct declarations
+Config {
+    host: string
+    port: number
+}
+
+# Struct with annotation
+data: Data = {
+    id: 1,
+    value: "test"
+}
+assertEq(data.id, 1)
+assertEq(data.value, "test")

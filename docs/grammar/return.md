@@ -1,24 +1,76 @@
 # Return Grammar
 
-Keyword `return` membentuk `NODE_RETURN` dengan satu expression child.
+Grammar return membentuk node return dari expression.
 
-## Source
+## Return with value
+
+Source:
 
 ```rupa
-return config
 return x + y
 ```
 
 AST:
 
 ```text
-Return
-└── Identifier: config
-
-Return
-└── Binary: +
-    ├── x
-    └── y
+Return:
+  Binary: +
+    Left: Identifier: x
+    Right: Identifier: y
 ```
 
-Grammar return memanggil grammar expression untuk bagian setelah keyword.
+## Return in function
+
+Source:
+
+```rupa
+add(x, y) {
+    return x + y
+}
+```
+
+AST:
+
+```text
+Program:
+  Function:
+    Name: Identifier: add
+    Parameters:
+      Identifier: x
+      Identifier: y
+    Body: Block
+      Return:
+        Binary: +
+          Left: Identifier: x
+          Right: Identifier: y
+```
+
+## Return with object
+
+Source:
+
+```rupa
+makePoint(px, py) {
+    return { x: px, y: py }
+}
+```
+
+AST:
+
+```text
+Program:
+  Function:
+    Name: Identifier: makePoint
+    Parameters:
+      Identifier: px
+      Identifier: py
+    Body: Block
+      Return:
+        Object:
+          Entry 1:
+            Key: Identifier: x
+            Value: Identifier: px
+          Entry 2:
+            Key: Identifier: y
+            Value: Identifier: py
+```

@@ -18,12 +18,9 @@ typedef struct {
   InterpreterResult (*init)(Node *node, int id, RuntimeEnv *env, Error *error);
 } StdModuleEntry;
 
-static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit},
-                                         {"io", stdIoInit},
-                                         {"math", stdMathInit},
-                                         {"string", stdStringInit},
-                                         {"json", stdJsonInit},
-                                         {NULL, NULL}};
+static StdModuleEntry stdlib_modules[] = {
+    {"os", stdOsInit},         {"io", stdIoInit},     {"math", stdMathInit},
+    {"string", stdStringInit}, {"json", stdJsonInit}, {NULL, NULL}};
 
 /* Initialize all standard modules and register them in the environment */
 void stdlibInit(RuntimeEnv *env) {

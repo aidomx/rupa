@@ -1,0 +1,28 @@
+# Array creation and access
+arr = [10, 20, 30, 40, 50]
+assertEq(arr[0], 10)
+assertEq(arr[4], 50)
+
+# Array with expressions
+computed = [1 + 1, 2 * 2, 3 * 3]
+assertEq(computed[0], 2)
+assertEq(computed[1], 4)
+assertEq(computed[2], 9)
+
+# Nested arrays
+matrix = [[1, 2], [3, 4]]
+assertEq(matrix[0][0], 1)
+assertEq(matrix[1][1], 4)
+
+# Array in function
+getFirst(items) {
+    return items[0]
+}
+myArr = [100, 200]
+assertEq(getFirst(myArr), 100)
+
+# Array with objects
+items = [{ id: 1 }, { id: 2 }, { id: 3 }]
+assertEq(items[1].id, 2)
+
+# Empty array behavior (skip - empty array not yet supported)

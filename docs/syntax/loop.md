@@ -1,83 +1,35 @@
 # Loop
 
-Rupa memiliki tiga loop utama: `for`, `rev`, dan `while`.
-
-## `for`
-
-`for` selalu bergerak maju dan hanya menerima kondisi `<` atau `<=`.
-
-### Bentuk singkat
+## Apa yang bisa ditulis?
 
 ```rupa
 i = 10
 for i: print(i)
 ```
 
-Nilai `i` disalin sebagai batas, kemudian `i` menjadi penampung iterasi yang
-mulai dari `0`.
-
-Hasil:
-
-```text
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-```
-
-### Dengan kondisi
+With condition:
 
 ```rupa
-i = 0
 for i < 10: print(i)
 ```
 
-Pada bentuk ini `i` sudah merupakan counter. Nilai awalnya tidak diinisiasi
-ulang oleh `for`.
-
-Karena itu:
+With block:
 
 ```rupa
-i = 10
-for i < 10: print(i)
+for i < 10 {
+    print(i)
+}
 ```
 
-Tidak menghasilkan apa pun karena kondisi awal sudah salah.
-
-## `rev`
-
-`rev` selalu bergerak mundur dan hanya menerima kondisi `>` atau `>=`.
-
-### Bentuk singkat
+Reverse loop:
 
 ```rupa
-i = 10
-rev i: print(i)
+rev i > 0 {
+    print(i)
+}
 ```
 
-Nilai `10` disalin sebagai batas. Kemudian `i` menjadi counter dan dimulai dari
-`9` hingga `0`.
-
-### Dengan kondisi
-
-```rupa
-i = 10
-rev i > 0: print(i)
-```
-
-Nilai `i` berasal dari pengguna. `rev` mengambil langkah mundur pertama,
-sehingga hasilnya `9` sampai `0`.
-
-## `while`
-
-`while` menggunakan kondisi biasa dan tidak mengatur arah maupun inisiasi
-counter.
+While loop:
 
 ```rupa
 x = 0
@@ -87,20 +39,62 @@ while x < 10 {
 }
 ```
 
-## Body
+## Kapan digunakan?
 
-Loop dapat memakai satu statement:
+Gunakan `for` untuk iterasi maju, `rev` untuk iterasi mundur, dan `while` untuk iterasi berdasarkan condition.
+
+## Apa hasilnya?
+
+Loop menjalankan body berulang kali sampai condition tidak terpenuhi. Gunakan `break` untuk keluar dan `continue` untuk skip iterasi.
+
+### Contoh execution
 
 ```rupa
-for i: print(i)
-```
-
-atau block:
-
-```rupa
-for i {
+for i < 5 {
     print(i)
 }
 ```
 
-Body dapat menggunakan `break`, `continue`, dan operasi seperti `++` atau `--`.
+Output:
+```
+0
+1
+2
+3
+4
+```
+
+```rupa
+x = 0
+while x < 5 {
+    print(x)
+    x++
+}
+```
+
+Output:
+```
+0
+1
+2
+3
+4
+```
+
+```rupa
+for i < 10 {
+    if i == 3: continue
+    if i == 7: break
+    print(i)
+}
+```
+
+Output:
+```
+0
+1
+2
+4
+5
+6
+```

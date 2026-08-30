@@ -3,19 +3,31 @@
 ## Apa yang bisa ditulis?
 
 ```rupa
-valid -> "Sukses"
-```
-
-Dalam conditional assignment:
-
-```rupa
 result ?= valid -> "Sukses"
 ```
 
 ## Kapan digunakan?
 
-Gunakan `->` untuk membentuk hubungan condition dan result dalam sebuah expression.
+Gunakan `->` dalam conditional assignment untuk menentukan value yang dihasilkan jika condition terpenuhi.
 
 ## Apa hasilnya?
 
-Bagian kiri menjadi condition dan bagian kanan menjadi result. `->` tetap merupakan expression tersendiri dan dapat dikombinasikan dengan grammar lain.
+`->` membentuk expression `NODE_THEN`. Value di sebelah kanan dihasilkan jika condition di sebelah kiri terpenuhi.
+
+### Contoh execution
+
+```rupa
+valid = true
+result ?= valid -> "Condition met"
+print(result)
+```
+
+Output: `Condition met`
+
+```rupa
+valid = false
+result ?= valid -> "Condition met"
+print(result)
+```
+
+Output: `null`

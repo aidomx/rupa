@@ -1,0 +1,10 @@
+# Variable defined before function
+greeting = "Hello"
+name = "World"
+greet() {
+    return greeting + ", " + name + "!"
+}
+assertEq(greet(), "Hello, World!")
+# Update variable, function picks up new value
+name = "Rupa"
+assertEq(greet(), "Hello, Rupa!")

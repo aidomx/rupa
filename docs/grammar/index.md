@@ -2,51 +2,96 @@
 
 Dokumentasi ini menjelaskan grammar Rupa dari sudut pandang parser dan AST.
 
-Setiap halaman menjelaskan secara ringkas:
+`docs/syntax.md` menjelaskan cara memakai syntax. Sebaliknya, direktori ini
+menjelaskan bagaimana bentuk source yang sudah dikenali parser direpresentasikan
+sebagai node dan hubungan antar-node.
 
-1. **Bentuk source yang dikenali**
-2. **Struktur AST yang dihasilkan**
-3. **Aturan parser yang terkait**
-
-Dokumentasi grammar berbeda dari dokumentasi syntax:
+Alur umum:
 
 ```text
-docs/syntax/
-→ cara pengguna menulis Rupa
-
-docs/grammar/
-→ bentuk dan aturan syntax dari sisi sistem
+source
+  ↓
+token
+  ↓
+grammarParseStatement()
+  ↓
+grammarParseExpr()
+  ↓
+AST node
 ```
 
-## Daftar Grammar
+## Status dokumentasi
 
-- [Grammar](grammar.md)
-- [Expression](expression.md)
-- [Call](call.md)
-- [Member](member.md)
-- [Function](function.md)
-- [Assignment](assignment.md)
-- [Update](update.md)
-- [Array](array.md)
-- [Object](object.md)
-- [Literal](literal.md)
-- [If](if.md)
-- [Case](case.md)
-- [Loop](loop.md)
-- [Control](control.md)
-- [Block](block.md)
-- [Return](return.md)
-- [Print](print.md)
-- [Async](async.md)
-- [Then](then.md)
-- [Fallback](fallback.md)
-- [Annotation](annotation.md)
-- [Module](module.md)
+Dokumentasi ini mengikuti source dan test yang tersedia saat ini. Bentuk yang
+belum diuji atau belum direpresentasikan oleh AST tidak dianggap sebagai grammar
+yang sudah dikunci.
 
-## Module Reference
+## Peta grammar
 
-- [IO](modules/io.md)
-- [JSON](modules/json.md)
-- [Math](modules/math.md)
-- [String](modules/string.md)
-- [Struct](struct.md)
+```text
+statement
+├── annotation
+├── assignment
+│   ├── normal assignment
+│   └── conditional assignment
+├── function / call
+├── struct
+├── if / elseif / else
+├── loop
+├── print
+├── return
+├── break / continue
+├── module statement
+├── update
+└── expression statement
+
+expression
+├── literal / identifier
+├── binary expression
+├── then
+├── fallback
+├── array literal
+├── object literal
+├── call expression
+└── member expression
+```
+
+`?=`, `->`, dan `|` tetap dipandang sebagai grammar yang berbeda. Mereka dapat
+muncul dalam satu AST karena grammar expression dapat dikomposisikan.
+
+## Navigasi
+
+### Dasar
+- [Grammar](grammar.md) - Overview grammar
+- [Literal](literal.md) - Nilai konstan
+- [Expression](expression.md) - Kombinasi value dan operator
+- [Assignment](assignment.md) - Assignment grammar
+- [Update](update.md) - Update operator
+- [Fallback](fallback.md) - Conditional assignment
+
+### Data
+- [Array](array.md) - Array grammar
+- [Object](object.md) - Object grammar
+- [Struct](struct.md) - Struct grammar
+- [Member](member.md) - Member access
+
+### Function
+- [Function](function.md) - Function grammar
+- [Call](call.md) - Function call
+- [Return](return.md) - Return statement
+
+### Control Flow
+- [If](if.md) - If statement
+- [Case](case.md) - Pattern matching
+- [Loop](loop.md) - Loop statement
+- [Control](control.md) - Break/continue
+- [Block](block.md) - Block statement
+
+### Asynchronous
+- [Async](async.md) - Async statement
+- [Then](then.md) - Then expression
+
+### Program
+- [Module](module.md) - Module import
+- [Annotation](annotation.md) - Type annotation
+- [Print](print.md) - Print statement

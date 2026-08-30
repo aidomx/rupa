@@ -42,6 +42,7 @@
 #include "state/state.h"
 // Standard library rupa language
 #include "stdlib/rupa_stdlib.h"
+#include "stdlib/test_helper.h"
 // support
 /*#include "utils/atom.h"*/
 /*#include "utils/identifier.h"*/

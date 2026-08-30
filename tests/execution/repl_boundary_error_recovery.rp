@@ -1,0 +1,6 @@
+a = 1
+b = 2
+c = a + b
+assertEq(c, 3)
+d = c * 10
+assertEq(d, 30)

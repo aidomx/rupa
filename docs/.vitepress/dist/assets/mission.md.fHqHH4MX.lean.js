@@ -1,0 +1,1 @@
+import{_ as n,o as i,c as e,a2 as t}from"./chunks/framework.BXzK3EA4.js";const p=JSON.parse('{"title":"Mission","description":"","frontmatter":{},"headers":[],"relativePath":"mission.md","filePath":"mission.md"}'),s={name:"mission.md"};function r(o,a,l,u,d,m){return i(),e("div",null,[...a[0]||(a[0]=[t("",5)])])}const k=n(s,[["render",r]]);export{p as __pageData,k as default};

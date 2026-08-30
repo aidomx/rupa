@@ -1,0 +1,42 @@
+# Function with typed parameters
+add(x: number, y: number) {
+    return x + y
+}
+result = add(10, 20)
+assertEq(result, 30)
+
+# Function with string parameter
+greet(name: string) {
+    return "Hello, " + name
+}
+msg = greet("World")
+assertEq(msg, "Hello, World")
+
+# Function with boolean parameter
+isPositive(n: number) {
+    if n > 0 {
+        return true
+    } else {
+        return false
+    }
+}
+assert(isPositive(5))
+assert(isPositive(-3) == false)
+
+# Function returning typed value
+getConfig() {
+    return { host: "localhost", port: 8080 }
+}
+config = getConfig()
+assertEq(config.host, "localhost")
+assertEq(config.port, 8080)
+
+# Nested typed function calls
+double(n: number) {
+    return n * 2
+}
+triple(n: number) {
+    return n * 3
+}
+val = double(triple(5))
+assertEq(val, 30)

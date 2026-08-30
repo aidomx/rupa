@@ -1,101 +1,60 @@
-# Grammar Async
+# Async Grammar
 
-## Definisi
+Grammar async membentuk node async dari request, handler, dan timeout.
 
-`async` menciptakan konteks evaluasi asinkron untuk sebuah ekspresi permintaan (request expression).
+## Simple async
 
-Hasil dari sebuah `async-expression` adalah sebuah async handle.
+Source:
 
-## Bentuk Grammar
-
-```text
-async-expression
-    = "async" request-expression
-      [ async-handler ]
-      [ timeout ]
+```rupa
+async request => {
+    print("Request started")
+}
 ```
 
-## Komponen
-
-### Request
+AST:
 
 ```text
-request-expression
+Async:
+  Request: Identifier: request
+  Handler: Block
+    Print: String: Request started
 ```
 
-Ekspresi yang dievaluasi secara asinkron.
+## Async with timeout
 
-## Handler
+Source:
 
-```text
-async-handler
-    = "=>" expression
-    | "=>" block
+```rupa
+async request => {
+    print("Request started")
+} timeout 5000 {
+    print("Request timed out")
+}
 ```
 
-## Timeout
+AST:
 
 ```text
-timeout
-    = "->" expression
+Async:
+  Request: Identifier: request
+  Handler: Block
+    Print: String: Request started
+  Timeout: Number: 5000
+  TimeoutHandler: Block
+    Print: String: Request timed out
 ```
 
-## Struktur Parse
+## Async structure
 
 ```text
-AsyncExpression
-├── request
-├── handler
-└── timeout
-```
-
-## Hasil
-
-```text
-AsyncHandle
-├── status
-├── data
-└── error
-```
-
-## Evaluasi
-
-```text
-AsyncExpression
-        │
-        ├── evaluate request asynchronously
-        ├── create AsyncHandle
-        ├── status = AWAIT
-        ├── register handler
-        └── apply timeout
-```
-
-## Ketergantungan Await
-
-```text
-await-expression
-    = "await" expression
-```
-
-`await` menandai ekspresi yang memuatnya sebagai bergantung pada sebuah nilai asinkron.
-
-## Konteks Handler
-
-Di dalam sebuah async handler:
-
-```text
-this
-└── AsyncHandle
-    ├── status
-    ├── data
-    └── error
-```
-
-## Transisi State
-
-```text
-AWAIT
-├── completed → SUCCESS
-├── failed    → FAILED
-└── timeout   → FAILED
+Async
+├── Request
+│   └── Identifier: request
+├── Handler
+│   └── Block
+├── Timeout
+│   └── Number: 5000
+└── TimeoutHandler
+    └── Block
 ```

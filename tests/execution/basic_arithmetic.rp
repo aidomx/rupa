@@ -1,0 +1,21 @@
+# Basic arithmetic execution
+x = 1 + 2
+assertEq(x, 3)
+
+y = 10 * 5
+assertEq(y, 50)
+
+z = 100 / 4
+assertEq(z, 25)
+
+# Mixed operations
+w = 2 + 3 * 4
+assertEq(w, 14)
+
+# Modulo
+m = 10 % 3
+assertEq(m, 1)
+
+# String operations
+s = "hello" + " " + "world"
+assertEq(s, "hello world")

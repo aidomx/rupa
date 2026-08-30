@@ -1,0 +1,4 @@
+x = 10
+y = x + 5
+assertEq(y, 15)
+assertEq(x, 10)

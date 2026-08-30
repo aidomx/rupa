@@ -1,115 +1,60 @@
-# String Methods
+# String
 
-String dapat mengakses property dan method langsung melalui member access.
-
-```rupa
-name = "Rupa"
-
-print(name.length)
-print(name.upper())
-print(name.lower())
-```
-
-Hasilnya:
-
-```text
-4
-RUPA
-rupa
-```
-
-## Property `length`
-
-`length` adalah property read-only yang menghasilkan jumlah karakter string:
+## Apa yang bisa ditulis?
 
 ```rupa
-name = "Rupa"
-print(name.length)
+"hello world"
+"rupa"
 ```
 
-`name.length` setara secara konsep dengan pemanggilan fungsi string yang menerima `name` sebagai receiver, tetapi tidak menggunakan tanda kurung.
-
-## Method string
-
-Method yang tersedia:
+String concatenation:
 
 ```rupa
-text.upper()
-text.lower()
-text.trim()
-text.contains(search)
-text.startsWith(prefix)
-text.endsWith(suffix)
-text.replace(old, new)
+"hello" + " " + "world"
 ```
 
-Contoh:
+String dengan variable:
 
 ```rupa
-text = "  Rupa Language  "
-
-print(text.upper())
-print(text.lower())
-print(text.trim())
-print(text.contains("Language"))
-print(text.startsWith("  Ru"))
-print(text.endsWith("  "))
-print(text.replace("Language", "Lang"))
+name = "rupa"
+print(name + " language")
 ```
 
-## Receiver method
+## Kapan digunakan?
 
-Pada pemanggilan:
+Gunakan string untuk menyimpan dan memanipulasi teks. String dibuat dengan tanda kutip `"`.
+
+## Apahasilnya?
+
+String adalah tipe data teks. Operator `+` digunakan untuk concatenation.
+
+### Contoh execution
 
 ```rupa
-name.upper()
+s = "hello" + " " + "world"
+print(s)
 ```
 
-`name` adalah receiver. Runtime meneruskan receiver tersebut secara otomatis kepada implementasi native method. Secara konsep, bentuk ini setara dengan:
+Output: `hello world`
 
 ```rupa
-string.upper(name)
+name = "rupa"
+print(name + " language")
 ```
 
-Namun bentuk member access lebih ringkas dan natural.
-
-Module `string` tetap dapat digunakan untuk pemanggilan eksplisit:
+Output: `rupa language`
 
 ```rupa
-import string from rupa
-
-print(string.upper("rupa"))
+x = 1
+print("x =", x)
 ```
 
-Kedua bentuk tersebut dapat didukung secara bersamaan.
-
-## Chaining
-
-Karena method transformasi menghasilkan string baru, method dapat dirangkai:
+Output: `x = 1`
 
 ```rupa
-name = "  Rupa  "
-result = name.trim().upper()
-print(result)
+x = 1
+y = 2
+print("result:", x + y, true)
 ```
 
-String awal tidak diubah. Method seperti `upper`, `lower`, `trim`, dan `replace` menghasilkan nilai string baru.
-
-## Read-only property
-
-`length` digunakan untuk membaca informasi string:
-
-```rupa
-name = "Rupa"
-print(name.length)
-```
-
-Ia bukan method dan tidak dipanggil dengan `()`:
-
-```rupa
-# Bentuk yang benar
-name.length
-
-# Bukan bentuk property
-# name.length()
-```
+Output: `result: 3 true`

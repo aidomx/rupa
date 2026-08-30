@@ -1,6 +1,17 @@
-# import sys from rupa
-# import sys, render, resources from rupa
-# import rupa.system as sys
-import add from modules.test_1
+import create, update from ./modules.a
+import b.*, c.*, d.* from ./modules as m
+import os from rupa
+import a.* as form, b.login, b.register from ./modules
+import d from ./modules
 
-add("rupa")
+create()
+update()
+m.login()
+m.services()
+m.auth()
+print(os.info().user)
+form.create()
+login()
+register()
+d.auth()
+d.users()

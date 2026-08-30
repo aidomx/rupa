@@ -11,7 +11,7 @@ local_has_target=false
 for ((i = 1; i <= $#; i++)); do
   arg="${!i}"
   case "$arg" in
-  debug | release | test)
+  debug | release | test | docs)
     [[ -z "$local_action" ]] && local_action="$arg"
     ;;
   --target | -t)
@@ -28,4 +28,12 @@ case "$local_action" in
 debug) build_debug "$@" ;;
 release) build_release "$local_target" "$@" ;;
 test) run_test "$@" ;;
+docs)
+  cd "$APP_ROOT/docs"
+  case "${2:-}" in
+  build) npx vitepress build ;;
+  preview) npx vitepress preview ;;
+  *) npx vitepress dev ;;
+  esac
+  ;;
 esac

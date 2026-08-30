@@ -3,25 +3,81 @@
 ## Apa yang bisa ditulis?
 
 ```rupa
-{
-    name: "rupa",
-    age: 20
-}
+person = { name: "Rupa", age: 1 }
 ```
 
-Object typed:
+Nested object:
 
 ```rupa
-people: People = {
-    name: "rupa",
-    age: 20
-}
+company = { ceo: { name: "Boss", title: "CEO" } }
+```
+
+Object dengan array:
+
+```rupa
+team = { members: ["Alice", "Bob", "Charlie"] }
+```
+
+Array of objects:
+
+```rupa
+people = [{ name: "A", score: 90 }, { name: "B", score: 85 }]
 ```
 
 ## Kapan digunakan?
 
-Gunakan object untuk mengelompokkan pasangan property dan value. Gunakan annotation sebelum `=` ketika object dikaitkan dengan type tertentu.
+Gunakan object untuk mengelompokkan data dengan key-value pairs. Akses member menggunakan dot notation.
 
 ## Apa hasilnya?
 
-Setiap entry memiliki key dan value. Value dapat berupa expression, bukan hanya literal. `:` di dalam object memisahkan key dan value, berbeda dari type annotation.
+Object dibuat dengan `{ }` dan setiap entry berupa `key: value`. Member diakses dengan `.` notation.
+
+### Contoh execution
+
+```rupa
+person = { name: "Rupa", age: 1 }
+print(person.name)
+print(person.age)
+```
+
+Output:
+```
+Rupa
+1
+```
+
+```rupa
+company = { ceo: { name: "Boss", title: "CEO" } }
+print(company.ceo.name)
+print(company.ceo.title)
+```
+
+Output:
+```
+Boss
+CEO
+```
+
+```rupa
+team = { members: ["Alice", "Bob", "Charlie"] }
+print(team.members[0])
+print(team.members[2])
+```
+
+Output:
+```
+Alice
+Charlie
+```
+
+```rupa
+people = [{ name: "A", score: 90 }, { name: "B", score: 85 }]
+print(people[0].name)
+print(people[1].score)
+```
+
+Output:
+```
+A
+85
+```

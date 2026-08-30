@@ -1,0 +1,35 @@
+# Function scope: local variables don't leak
+# Assignment inside function creates local scope (lexical scoping)
+counter = 0
+increment() {
+    local_val = 10
+    return local_val
+}
+result = increment()
+assertEq(result, 10)
+assertEq(counter, 0)
+
+# Function with parameters
+add(a, b) {
+    return a + b
+}
+sum = add(3, 7)
+assertEq(sum, 10)
+
+# Nested function calls
+double(n) {
+    return n * 2
+}
+triple(n) {
+    return n * 3
+}
+val = double(triple(5))
+assertEq(val, 30)
+
+# Function returning object
+makePoint(px, py) {
+    return { x: px, y: py }
+}
+p = makePoint(10, 20)
+assertEq(p.x, 10)
+assertEq(p.y, 20)

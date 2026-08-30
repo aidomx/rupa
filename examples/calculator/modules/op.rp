@@ -1,0 +1,53 @@
+# ── Operator functions ──
+
+add(x: number, y: number) {
+    return x + y
+}
+
+subtract(x: number, y: number) {
+    return x - y
+}
+
+multiply(x: number, y: number) {
+    return x * y
+}
+
+divide(x: number, y: number) {
+    if y == 0 {
+        print("Error: division by zero")
+        return null
+    }
+    return x / y
+}
+
+modulo(x: number, y: number) {
+    if y == 0 {
+        print("Error: modulo by zero")
+        return null
+    }
+    return x % y
+}
+
+# ── Calculate using if/else chain ──
+
+calculate(x: number, op: string, y: number) {
+    if op == "+" {
+        return add(x, y)
+    }
+    if op == "-" {
+        return subtract(x, y)
+    }
+    if op == "*" {
+        return multiply(x, y)
+    }
+    if op == "/" {
+        return divide(x, y)
+    }
+    if op == "%" {
+        return modulo(x, y)
+    }
+    print("Unknown operator: " + op)
+    return null
+}
+
+export op

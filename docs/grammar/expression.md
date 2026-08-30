@@ -1,88 +1,58 @@
 # Expression Grammar
 
-Grammar expression adalah pusat pembentukan value dan expression majemuk.
-
-Dispatcher expression mencoba bentuk khusus terlebih dahulu:
-
-```text
-array literal
-object literal
-call expression
-binary expression
-```
-
-Jika expression tidak cocok dengan bentuk literal khusus, parser binary membangun
-struktur berdasarkan operator dan precedence.
+Grammar expression membentuk node expression dari kombinasi value dan operator.
 
 ## Binary expression
 
 Source:
 
 ```rupa
-x = 1 + 2
+1 + 2
 ```
 
 AST:
 
 ```text
-Binary: +
-├── Left
-│   └── Number: 1
-└── Right
-    └── Number: 2
+Program:
+  Binary: +
+    Left: Number: 1
+    Right: Number: 2
 ```
 
-## Precedence
+## Mixed operations
 
-Test menunjukkan:
+Source:
 
 ```rupa
-x = 1 + 2 * 3
+2 + 3 * 4
 ```
 
 AST:
 
 ```text
-Binary: +
-├── Left: Number: 1
-└── Right
-    └── Binary: *
-        ├── Left: Number: 2
-        └── Right: Number: 3
+Program:
+  Binary: +
+    Left: Number: 2
+    Right: Binary: *
+      Left: Number: 3
+      Right: Number: 4
 ```
 
-Artinya `*` mengikat lebih kuat daripada `+`.
+## String expression
 
-Parentheses mengubah struktur:
+Source:
 
 ```rupa
-x = ((1 + 2) * (3 - 4))
+"hello" + " " + "world"
 ```
 
 AST:
 
 ```text
-Binary: *
-├── Left
-│   └── Binary: +
-└── Right
-    └── Binary: -
+Program:
+  Binary: +
+    Left: Binary: +
+      Left: String: hello
+      Right: String: " "
+    Right: String: world
 ```
-
-## Expression statement
-
-Expression yang berdiri sendiri diparse sebagai expression statement dan
-dibungkus menjadi `Return` node. Mekanisme ini dipakai parser untuk membawa hasil
-expression, terutama sesuai kebutuhan REPL.
-
-Contoh literal berdiri sendiri:
-
-```rupa
-1
-3.14
-true
-null
-"hello"
-```
-
-Pada test, bentuk tersebut menjadi `Return` dengan expression sebagai child.

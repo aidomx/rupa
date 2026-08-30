@@ -9,4 +9,6 @@ build
 compile_commands.json
 bin/rupa
 cscope.out
+docs/node_modules
+docs/package-lock.json
 tags

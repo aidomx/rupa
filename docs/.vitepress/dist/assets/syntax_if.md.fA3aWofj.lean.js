@@ -1,0 +1,1 @@
+import{_ as a,o as n,c as l,a2 as p}from"./chunks/framework.BXzK3EA4.js";const y=JSON.parse('{"title":"If","description":"","frontmatter":{},"headers":[],"relativePath":"syntax/if.md","filePath":"syntax/if.md"}'),e={name:"syntax/if.md"};function o(t,s,r,c,i,E){return n(),l("div",null,[...s[0]||(s[0]=[p("",14)])])}const d=a(e,[["render",o]]);export{y as __pageData,d as default};

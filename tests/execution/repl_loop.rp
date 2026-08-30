@@ -1,0 +1,12 @@
+# Loop that accumulates value
+sum = 0
+for i in 5 {
+    sum = sum + i
+}
+assertEq(sum, 10)
+# Another loop
+product = 1
+for i in 4 {
+    product = product * (i + 1)
+}
+assertEq(product, 24)

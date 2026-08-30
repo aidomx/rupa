@@ -1,33 +1,80 @@
 # Object Grammar
 
-Object literal menggunakan `{ ... }` dan diparse sebagai expression.
+Grammar object membentuk node object dari key-value pairs.
 
-## Source
+## Simple object
+
+Source:
 
 ```rupa
-people: People = {
-    name: "rupa",
-    age: 20
-}
+person = { name: "Rupa", age: 1 }
 ```
 
 AST:
 
 ```text
-Object
-├── Entry 1
-│   ├── Key
-│   │   └── Identifier: name
-│   └── Value
-│       └── String: "rupa"
-└── Entry 2
-    ├── Key
-    │   └── Identifier: age
-    └── Value
-        └── Number: 20
+Program:
+  Assignment:
+    Target: Identifier: person
+    Value:
+      Object:
+        Entry 1:
+          Key: Identifier: name
+          Value: String: Rupa
+        Entry 2:
+          Key: Identifier: age
+          Value: Number: 1
 ```
 
-Setiap entry disimpan sebagai pasangan key dan value.
+## Nested object
 
-Value diparse sebagai expression, sehingga secara struktur dapat berkembang
-menjadi expression lain yang didukung parser.
+Source:
+
+```rupa
+company = { ceo: { name: "Boss", title: "CEO" } }
+```
+
+AST:
+
+```text
+Program:
+  Assignment:
+    Target: Identifier: company
+    Value:
+      Object:
+        Entry 1:
+          Key: Identifier: ceo
+          Value:
+            Object:
+              Entry 1:
+                Key: Identifier: name
+                Value: String: Boss
+              Entry 2:
+                Key: Identifier: title
+                Value: String: CEO
+```
+
+## Object with array
+
+Source:
+
+```rupa
+team = { members: ["Alice", "Bob", "Charlie"] }
+```
+
+AST:
+
+```text
+Program:
+  Assignment:
+    Target: Identifier: team
+    Value:
+      Object:
+        Entry 1:
+          Key: Identifier: members
+          Value:
+            Array:
+              String: Alice
+              String: Bob
+              String: Charlie
+```

@@ -39,6 +39,27 @@ int loader(const char *args[], int length) {
       break;
     }
 
+    else if (strcmp(args[i], "--test-ast") == 0) {
+      testAst(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
+    else if (strcmp(args[i], "--test-exec") == 0) {
+      testExec(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
+    else if (strcmp(args[i], "--test-repl") == 0) {
+      testRepl(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
     else if (strcmp(args[i], "--version") == 0) {
       version();
       handled = true;

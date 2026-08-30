@@ -1,0 +1,28 @@
+# If-else execution
+x = 10
+if x > 5 {
+    result = "big"
+} else {
+    result = "small"
+}
+assertEq(result, "big")
+
+# Function with if-else
+classify(n) {
+    if n > 0 {
+        return "positive"
+    } else {
+        return "non-positive"
+    }
+}
+assertEq(classify(5), "positive")
+assertEq(classify(-3), "non-positive")
+
+# Nested objects and arrays (single-line)
+data = { users: [{ name: "Alice", age: 30 }, { name: "Bob", age: 25 }] }
+assertEq(data.users[0].name, "Alice")
+assertEq(data.users[1].name, "Bob")
+
+# Print works (doesn't break execution)
+print("test output")
+assert(true)

@@ -1,37 +1,78 @@
-# Literal and Atomic Nodes
+# Literal Grammar
 
-Literal dan atom menjadi leaf node untuk grammar expression.
+Grammar literal membentuk node literal dari nilai konstan.
 
-Test saat ini mencakup:
+## Number
+
+Source:
 
 ```rupa
-0
-1
-10
-100
-
-1.0
-3.14
-0.5
-
-true
-false
-null
-
-"hello"
-'hello'
+42
 ```
 
-AST menggunakan node seperti:
+AST:
 
 ```text
-Number
-Decimal
-Boolean
-Nullable
-String
-Identifier / Literal ID
+Program:
+  Number: 42
 ```
 
-Ketika literal berdiri sebagai statement, grammar expression statement membungkus
-hasil expression ke dalam `Return` node.
+## Decimal
+
+Source:
+
+```rupa
+3.14
+```
+
+AST:
+
+```text
+Program:
+  Decimal: 3.14
+```
+
+## String
+
+Source:
+
+```rupa
+"hello"
+```
+
+AST:
+
+```text
+Program:
+  String: hello
+```
+
+## Boolean
+
+Source:
+
+```rupa
+true
+```
+
+AST:
+
+```text
+Program:
+  Boolean: true
+```
+
+## Null
+
+Source:
+
+```rupa
+null
+```
+
+AST:
+
+```text
+Program:
+  Nullable: null
+```

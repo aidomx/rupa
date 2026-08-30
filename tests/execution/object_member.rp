@@ -1,0 +1,24 @@
+# Object member access
+person = { name: "Rupa", age: 1 }
+assertEq(person.name, "Rupa")
+assertEq(person.age, 1)
+
+# Nested member access
+company = { ceo: { name: "Boss", title: "CEO" } }
+assertEq(company.ceo.name, "Boss")
+assertEq(company.ceo.title, "CEO")
+
+# Object with array member
+team = { members: ["Alice", "Bob", "Charlie"] }
+assertEq(team.members[0], "Alice")
+assertEq(team.members[2], "Charlie")
+
+# Array of objects (single-line)
+people = [{ name: "A", score: 90 }, { name: "B", score: 85 }]
+assertEq(people[0].name, "A")
+assertEq(people[1].score, 85)
+
+# Object with boolean
+settings = { debug: true, verbose: false }
+assert(settings.debug)
+assert(settings.verbose == false)

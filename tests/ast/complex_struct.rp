@@ -1,0 +1,19 @@
+# Simple struct
+Point {
+    x: number
+    y: number
+}
+
+# Struct with string fields
+Person {
+    name: string
+    age: number
+    email: string
+}
+
+# Struct declaration (just registration, no instantiation)
+Config {
+    host: string
+    port: number
+    debug: boolean
+}

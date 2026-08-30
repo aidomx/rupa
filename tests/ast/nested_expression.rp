@@ -1,0 +1,13 @@
+# Nested parenthesized expressions
+x = (((((1 + 2)))))
+
+# Deeply nested binary operations
+y = ((1 + 2) * (3 - 4)) / ((5 + 6) * (7 - 8))
+
+# Nested in assignment with type
+z: number = ((10 + 20) * (30 - 40))
+
+# Mixed nesting depths
+a = (((1 + 2)))
+b = ((((1 + 2) * 3)))
+c = (((((1 + 2) * 3) + 4)))

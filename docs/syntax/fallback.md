@@ -3,20 +3,32 @@
 ## Apa yang bisa ditulis?
 
 ```rupa
-value = first | second
-value = primary | fallback | default
-```
-
-Dapat digabung dengan `->`:
-
-```rupa
+result ?= valid -> "Sukses"
 result ?= valid -> primary | fallback | "Unavailable"
 ```
 
 ## Kapan digunakan?
 
-Gunakan `|` ketika beberapa expression disusun sebagai pilihan atau fallback.
+Gunakan `?=` untuk conditional assignment. `->` menentukan condition, `|` menentukan fallback values.
 
 ## Apa hasilnya?
 
-Expression membentuk chain fallback. `|` dapat digunakan sendiri sebagai bagian dari expression dan tidak bergantung pada `?=` atau `->`.
+`?=` membentuk conditional assignment. Value dipilih berdasarkan condition dan fallback chain.
+
+### Contoh execution
+
+```rupa
+valid = true
+result ?= valid -> "Success"
+print(result)
+```
+
+Output: `Success`
+
+```rupa
+valid = false
+result ?= valid -> "Success" | "Default"
+print(result)
+```
+
+Output: `Default`

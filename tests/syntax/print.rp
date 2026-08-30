@@ -2,6 +2,10 @@ name = "rupa"
 x = 1
 y = 2
 
+add(x,y) {
+  return x + y
+}
+
 print("hello world")
 print(name)
 print(name + " language")

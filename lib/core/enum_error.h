@@ -43,5 +43,8 @@ enum ErrorType {
 
   // Internal/engine errors
   ERR_INTERNAL,       // Kesalahan internal interpreter
-  ERR_NOT_IMPLEMENTED // Fitur belum diimplementasi
+  ERR_NOT_IMPLEMENTED, // Fitur belum diimplementasi
+
+  // Test assertion errors
+  ERR_ASSERT_FAILED   // Assertion gagal dalam test
 };

@@ -1,36 +1,87 @@
 # Block Grammar
 
-Block menggunakan:
+Grammar block membentuk node block dari statements.
+
+## Simple block
+
+Source:
 
 ```rupa
-{
-    statement
-    statement
+if true {
+    print("inside block")
+    print("still inside")
 }
 ```
 
-Parser membaca setiap statement di dalam rentang brace dan membentuk satu
-`NODE_BLOCK` yang menyimpan child statement.
-
-## Keyword body
-
-Keyword tertentu juga menerima body satu baris melalui `:`:
-
-```rupa
-if x > 0: print(x)
-for i < 10: print(i)
-```
-
-Body setelah `:` diparse sebagai satu statement dan kemudian tetap dibungkus
-menjadi `Block`.
-
-Secara AST, bentuk satu baris dan brace body memiliki container `Block`:
+AST:
 
 ```text
-If / Loop
-└── Body
-    └── Block
-        └── Statement
+Program:
+  If:
+    Condition: Boolean: true
+    Body: Block
+      Print: String: inside block
+      Print: String: still inside
 ```
 
-Hal ini menyatukan representasi AST meskipun syntax source berbeda.
+## Function body
+
+Source:
+
+```rupa
+add(x, y) {
+    result = x + y
+    return result
+}
+```
+
+AST:
+
+```text
+Program:
+  Function:
+    Name: Identifier: add
+    Parameters:
+      Identifier: x
+      Identifier: y
+    Body: Block
+      Assignment:
+        Target: Identifier: result
+        Value: Binary: +
+          Left: Identifier: x
+          Right: Identifier: y
+      Return: Identifier: result
+```
+
+## Nested blocks
+
+Source:
+
+```rupa
+if x > 0 {
+    if x > 10 {
+        print("large")
+    } else {
+        print("small")
+    }
+}
+```
+
+AST:
+
+```text
+Program:
+  If:
+    Condition: Binary: >
+      Left: Identifier: x
+      Right: Number: 0
+    Body: Block
+      If:
+        Condition: Binary: >
+          Left: Identifier: x
+          Right: Number: 10
+        Body: Block
+          Print: String: large
+        Else: Block
+          Print: String: small
+```

@@ -1,21 +1,65 @@
 # Control Grammar
 
-Control grammar saat ini mencakup:
+Grammar control membentuk node break dan continue.
+
+## Break
+
+Source:
 
 ```rupa
 break
-continue
 ```
-
-Keduanya tidak membawa expression.
 
 AST:
 
 ```text
 Break
+```
+
+## Continue
+
+Source:
+
+```rupa
+continue
+```
+
+AST:
+
+```text
 Continue
 ```
 
-Dalam test, node ini muncul di dalam `If` yang berada di body loop.
-Grammar parser memastikan bentuk control tidak membawa token tambahan pada
-statement yang sama.
+## Usage in loop
+
+Source:
+
+```rupa
+for i < 10 {
+    if i == 3: continue
+    if i == 7: break
+    print(i)
+}
+```
+
+AST:
+
+```text
+Program:
+  Loop: for
+    Condition: Binary: <
+      Left: Identifier: i
+      Right: Number: 10
+    Body: Block
+      If:
+        Condition: Binary: ==
+          Left: Identifier: i
+          Right: Number: 3
+        Body: Continue
+      If:
+        Condition: Binary: ==
+          Left: Identifier: i
+          Right: Number: 7
+        Body: Break
+      Print: Identifier: i
+```

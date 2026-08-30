@@ -149,7 +149,7 @@ get_file_tests() {
   while IFS= read -r -d '' file; do
     tests_ref+=("$file")
   done < <(
-    find "$APP_ROOT/tests" \
+    find "$APP_ROOT/tests/syntax" \
       -type f \
       -name '*.rp' \
       -print0 2>/dev/null |
@@ -157,7 +157,50 @@ get_file_tests() {
   )
 
   if [[ ${#tests_ref[@]} -eq 0 ]]; then
-    print_warning "No .rp files found in tests/"
+    print_warning "No .rp files found in tests/syntax/"
+    return 1
+  fi
+}
+
+get_file_exec_tests() {
+  local -n tests_ref=$1
+
+  tests_ref=()
+
+  while IFS= read -r -d '' file; do
+    tests_ref+=("$file")
+  done < <(
+    find "$APP_ROOT/tests/execution" "$APP_ROOT/tests/semantics" \
+      -type f \
+      -name '*.rp' \
+      ! -name 'repl_*' \
+      -print0 2>/dev/null |
+      sort -z
+  )
+
+  if [[ ${#tests_ref[@]} -eq 0 ]]; then
+    print_warning "No .rp files found in tests/execution/ or tests/semantics/"
+    return 1
+  fi
+}
+
+get_file_repl_tests() {
+  local -n tests_ref=$1
+
+  tests_ref=()
+
+  while IFS= read -r -d '' file; do
+    tests_ref+=("$file")
+  done < <(
+    find "$APP_ROOT/tests/execution" \
+      -type f \
+      -name 'repl_*.rp' \
+      -print0 2>/dev/null |
+      sort -z
+  )
+
+  if [[ ${#tests_ref[@]} -eq 0 ]]; then
+    print_warning "No repl_*.rp files found in tests/execution/"
     return 1
   fi
 }
@@ -168,56 +211,91 @@ Usage:
   DEV_MODE=1 ./build.sh test [options]
 
 Options:
+  (none)              Run syntax tests — PASS/FAIL only (tests/syntax/)
+  --ast               Show AST structure for syntax tests
+  --exec              Run execution tests (tests/execution/ + tests/semantics/)
+  --repl              Run REPL boundary tests (tests/execution/repl_*.rp)
   --list              Show all available test files
-  --select "1,3,7"    Run selected test files
+  --select "1,3,7"    Run selected test files (syntax only)
   --help | -h         Show this help message
 
 Examples:
   DEV_MODE=1 ./build.sh test
+  DEV_MODE=1 ./build.sh test --ast
+  DEV_MODE=1 ./build.sh test --exec
+  DEV_MODE=1 ./build.sh test --repl
   DEV_MODE=1 ./build.sh test --list
   DEV_MODE=1 ./build.sh test --select "7,13"
 EOF
 }
 
 test_lists() {
-  local files=()
-  local file
-  local total
-  local width=1
-  local i=0
+  local files=() exec_files=() repl_files=()
+  local file total width=1 i=0
 
-  get_file_tests files || return $?
+  get_file_tests files 2>/dev/null
+  get_file_exec_tests exec_files 2>/dev/null
+  get_file_repl_tests repl_files 2>/dev/null
 
-  total="${#files[@]}"
-
-  if [[ "$total" -eq 0 ]]; then
+  local all_total=$((${#files[@]} + ${#exec_files[@]} + ${#repl_files[@]}))
+  if [[ "$all_total" -eq 0 ]]; then
     print_warning "No .rp files found in tests/"
     return 0
   fi
 
-  # Hitung lebar nomor terbesar
-  width="${#total}"
+  width="${#all_total}"
 
-  echo
-  echo -e "${CYAN}> Syntax Tests${NC}"
-  echo "  Found ${total} test files"
-  echo
+  # --- Syntax tests ---
+  if [[ ${#files[@]} -gt 0 ]]; then
+    echo
+    echo -e "${CYAN}> Syntax Tests${NC} (--test)"
+    echo "  Found ${#files[@]} test files"
+    echo
+    printf "%-${width}s | %s\n" "#" "Filename"
+    printf "%-${width}s-+-%s\n" \
+      "$(printf '%*s' "$width" '' | tr ' ' '-')" \
+      "$(printf '%*s' 40 '' | tr ' ' '-')"
+    for file in "${files[@]}"; do
+      i=$((i + 1))
+      file="${file#"$APP_ROOT/tests/"}"
+      printf "%-${width}d | %s\n" "$i" "$file"
+    done
+    echo
+  fi
 
-  printf "%-${width}s | %s\n" "#" "Filename"
-  printf "%-${width}s-+-%s\n" \
-    "$(printf '%*s' "$width" '' | tr ' ' '-')" \
-    "$(printf '%*s' 40 '' | tr ' ' '-')"
+  # --- Execution tests ---
+  if [[ ${#exec_files[@]} -gt 0 ]]; then
+    echo -e "${CYAN}> Execution Tests${NC} (--exec)"
+    echo "  Found ${#exec_files[@]} test files"
+    echo
+    printf "%-${width}s | %s\n" "#" "Filename"
+    printf "%-${width}s-+-%s\n" \
+      "$(printf '%*s' "$width" '' | tr ' ' '-')" \
+      "$(printf '%*s' 40 '' | tr ' ' '-')"
+    for file in "${exec_files[@]}"; do
+      i=$((i + 1))
+      file="${file#"$APP_ROOT/tests/"}"
+      printf "%-${width}d | %s\n" "$i" "$file"
+    done
+    echo
+  fi
 
-  for file in "${files[@]}"; do
-    i=$((i + 1))
-
-    # Hilangkan APP_ROOT agar path lebih pendek
-    file="${file#"$APP_ROOT/tests/"}"
-
-    printf "%-${width}d | %s\n" "$i" "$file"
-  done
-
-  echo
+  # --- REPL boundary tests ---
+  if [[ ${#repl_files[@]} -gt 0 ]]; then
+    echo -e "${CYAN}> REPL Boundary Tests${NC} (--repl)"
+    echo "  Found ${#repl_files[@]} test files"
+    echo
+    printf "%-${width}s | %s\n" "#" "Filename"
+    printf "%-${width}s-+-%s\n" \
+      "$(printf '%*s' "$width" '' | tr ' ' '-')" \
+      "$(printf '%*s' 40 '' | tr ' ' '-')"
+    for file in "${repl_files[@]}"; do
+      i=$((i + 1))
+      file="${file#"$APP_ROOT/tests/"}"
+      printf "%-${width}d | %s\n" "$i" "$file"
+    done
+    echo
+  fi
 }
 
 select_file_test() {
@@ -291,6 +369,24 @@ run_test() {
 
       select_file_test "${arguments[$i]}"
       return 0
+      ;;
+
+    --ast)
+      get_file_tests tests || return $?
+      "$TARGET" --test-ast "${tests[@]}"
+      return $?
+      ;;
+
+    --exec)
+      get_file_exec_tests tests || return $?
+      "$TARGET" --test-exec "${tests[@]}"
+      return $?
+      ;;
+
+    --repl)
+      get_file_repl_tests tests || return $?
+      "$TARGET" --test-repl "${tests[@]}"
+      return $?
       ;;
     esac
   done

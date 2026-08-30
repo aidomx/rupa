@@ -1,0 +1,20 @@
+# Chained arithmetic
+result = 1 + 2 + 3 + 4 + 5
+
+# Mixed precedence chains
+mixed = 1 + 2 * 3 - 4 / 5 % 6
+
+# String concatenation chains
+greeting = "hello" + " " + "world"
+
+# Boolean chains
+flag = true and false or true
+
+# Comparison chains
+check = 1 < 2 and 2 <= 3 and 3 == 3
+
+# Fallback chains
+fallback = primary | secondary | tertiary
+
+# Then chains
+then_val = condition -> result

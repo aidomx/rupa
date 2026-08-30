@@ -2,41 +2,51 @@
 
 ## Apa yang bisa ditulis?
 
-Number:
-
 ```rupa
-0
-1
-100
-```
-
-Decimal:
-
-```rupa
-1.0
+42
 3.14
-0.5
-```
-
-Boolean dan null:
-
-```rupa
+"hello"
 true
 false
 null
 ```
 
-String:
-
-```rupa
-"hello"
-'hello'
-```
-
 ## Kapan digunakan?
 
-Gunakan literal ketika value ditulis langsung di source tanpa mengambilnya dari identifier atau hasil expression lain.
+Literal adalah nilai konstan yang ditulis langsung dalam kode. Setiap literal memiliki tipe data yang sesuai.
 
 ## Apa hasilnya?
 
-Source menghasilkan value dasar seperti number, decimal, boolean, null, atau string. Decimal tidak langsung menentukan `float` atau `double`; precision dapat ditentukan kemudian melalui annotation atau inference.
+Literal langsung menghasilkan value sesuai tipenya.
+
+### Contoh execution
+
+```rupa
+print(42)
+```
+
+Output: `42`
+
+```rupa
+print(3.14)
+```
+
+Output: `3.14`
+
+```rupa
+print("hello")
+```
+
+Output: `hello`
+
+```rupa
+print(true)
+```
+
+Output: `true`
+
+```rupa
+print(false)
+```
+
+Output: `false`

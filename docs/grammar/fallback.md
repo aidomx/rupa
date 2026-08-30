@@ -1,47 +1,29 @@
-# Fallback Chain Grammar
+# Fallback Grammar
 
-`|` membentuk `NODE_FALLBACK`.
+Grammar fallback membentuk node fallback dari primary dan fallback values.
 
-## Source
+## Simple fallback
+
+Source:
 
 ```rupa
-value = first | second
+result ?= valid -> "Success" | "Default"
 ```
 
 AST:
 
 ```text
-Fallback
-├── Primary
-│   └── Literal ID: first
-└── Fallback
-    └── Literal ID: second
+Program:
+  Conditional Assignment:
+    Target: Identifier: result
+    Value: Then
+      Condition: Literal ID: valid
+      Result: Fallback
+        Primary: String: Success
+        Fallback: String: Default
 ```
 
-## Chain
-
-Source:
-
-```rupa
-value = primary | fallback | default
-```
-
-AST aktual:
-
-```text
-Fallback
-├── Primary
-│   └── Fallback
-│       ├── Primary: Literal ID: primary
-│       └── Fallback: Literal ID: fallback
-└── Fallback
-    └── Literal ID: default
-```
-
-Jadi implementasi parser saat ini membentuk tree untuk chain tersebut; `|` tidak
-disimpan sebagai array flat khusus.
-
-## Digabung dengan then
+## Chained fallback
 
 Source:
 
@@ -49,16 +31,43 @@ Source:
 result ?= valid -> primary | fallback | "Unavailable"
 ```
 
-Bagian kanan `Then` menjadi `Fallback` tree:
+AST:
 
 ```text
-Then
-├── Condition: valid
-└── Result
-    └── Fallback
-        ├── Primary: Fallback(primary, fallback)
-        └── Fallback: "Unavailable"
+Program:
+  Conditional Assignment:
+    Target: Identifier: result
+    Value: Then
+      Condition: Literal ID: valid
+      Result: Fallback
+        Primary: Fallback
+          Primary: Literal ID: primary
+          Fallback: Literal ID: fallback
+        Fallback: String: Unavailable
 ```
 
-`|` tidak bergantung pada `?=` atau `->`. Ketiganya adalah grammar terpisah
-yang dapat dikomposisikan.
+## Grammar operators
+
+```text
+?=  → NODE_CONDITIONAL_ASSIGN
+->  → NODE_THEN
+|   → NODE_FALLBACK
+```
+
+## Usage
+
+```rupa
+valid = true
+result ?= valid -> "Success"
+print(result)
+```
+
+Output: `Success`
+
+```rupa
+valid = false
+result ?= valid -> "Success" | "Default"
+print(result)
+```
+
+Output: `Default`

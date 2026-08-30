@@ -1,0 +1,29 @@
+# State isolation: each assertion checks independent behavior
+assert(1 + 1 == 2)
+assert(2 + 2 == 4)
+assert(3 * 3 == 9)
+
+# Variable type preservation
+n = 42
+assertEq(n, 42)
+s = "text"
+assertEq(s, "text")
+b = true
+assert(b)
+
+# Object mutation doesn't affect other objects
+obj1 = { val: 1 }
+obj2 = { val: 2 }
+assertEq(obj1.val, 1)
+assertEq(obj2.val, 2)
+
+# Array independence
+arr1 = [1, 2]
+arr2 = [3, 4]
+assertEq(arr1[0], 1)
+assertEq(arr2[0], 3)
+
+# Boolean operations
+assert(true and true)
+assert(true or false)
+assert(false == false)

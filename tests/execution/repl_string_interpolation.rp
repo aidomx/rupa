@@ -1,0 +1,11 @@
+# String interpolation with variables defined on previous lines
+greeting = "Hello"
+name = "Rupa"
+msg = "{greeting}, {name}!"
+print(msg)
+assertEq(msg, "Hello, Rupa!")
+# Update and re-interpolate
+name = "World"
+msg2 = "{greeting}, {name}!"
+print(msg2)
+assertEq(msg2, "Hello, World!")

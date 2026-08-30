@@ -16,13 +16,23 @@ struct EventLoop *getEventLoop(void) { return g_event_loop; }
  * E.g. "modules.test_1" -> "modules/test_1.rp"
  * Caller must free() the result.
  */
+static bool fileExists(const char *path) {
+  if (!path) return false;
+  FILE *f = fopen(path, "rb");
+  if (f) { fclose(f); return true; }
+  return false;
+}
+
 static char *resolveModulePath(const char *module_path) {
   if (!module_path) return NULL;
-  int len = (int)strlen(module_path);
+  /* Strip ./ prefix */
+  const char *path = module_path;
+  if (path[0] == '.' && path[1] == '/') path += 2;
+  int len = (int)strlen(path);
   char *buf = malloc(len + 4); /* +4 for .rp + null */
   if (!buf) return NULL;
   for (int i = 0; i < len; i++)
-    buf[i] = module_path[i] == '.' ? '/' : module_path[i];
+    buf[i] = path[i] == '.' ? '/' : path[i];
   buf[len] = '\0';
   strcat(buf, ".rp");
   return buf;
@@ -101,7 +111,6 @@ static RuntimeValue loadModuleFile(const char *module_path) {
 
   Buffer *buffer = state->repl->buffer;
   if (!readfile(full_path, buffer)) {
-    fprintf(stderr, "Module not found: %s\n", full_path);
     free(full_path);
     return valueNull();
   }
@@ -211,11 +220,40 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
       RuntimeValue module_val;
       bool is_stdlib = stdlibGetModule(mod_name, &module_val);
 
-      /* If not stdlib, try loading as local file */
+      /* If not stdlib, check if direct file exists before loading */
       if (!is_stdlib) {
-        module_val = loadModuleFile(mod_name);
-        if (module_val.type == VALUE_OBJECT)
-          is_stdlib = true; /* treat as found */
+        char *direct_path = resolveModulePath(mod_name);
+        if (direct_path) {
+          char *source_dir = dirName(g_source_file_path);
+          char *full = joinPath(source_dir, direct_path);
+          free(direct_path);
+          if (full && fileExists(full)) {
+            free(full);
+            module_val = loadModuleFile(mod_name);
+            if (module_val.type == VALUE_OBJECT)
+              is_stdlib = true;
+          } else {
+            free(full);
+          }
+        }
+      }
+
+      /* If module file not found and single import, try sub-module:
+       * import d from modules -> try modules/d.rp */
+      if (!is_stdlib && n->ast[expr_id].type != NODE_ARRAY) {
+        AstNode *tmp_ast = &n->ast[expr_id];
+        const char *tmp_func = NULL;
+        if (tmp_ast->type == NODE_LITERAL_ID) tmp_func = tmp_ast->string.value;
+        else if (tmp_ast->type == NODE_IDENTIFIER) tmp_func = tmp_ast->identifier.name;
+        if (tmp_func) {
+          char combined[512];
+          snprintf(combined, sizeof(combined), "%s.%s", mod_name, tmp_func);
+          module_val = loadModuleFile(combined);
+          if (module_val.type == VALUE_OBJECT) {
+            is_stdlib = true;
+            semSet(e, tmp_func, module_val);
+          }
+        }
       }
 
       if (!is_stdlib)
@@ -355,14 +393,26 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
       }
 
       if (e->isWildcard) {
-        /* Wildcard: import all functions as nested object */
-        struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-        se->key = strdup(key_name);
-        se->value = mod_val;
-        se->next = nsEntries;
-        nsEntries = se;
+        if (alias_str) {
+          /* Per-entry alias: a.* as form -> form = module object */
+          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
+          se->key = strdup(alias_str);
+          se->value = mod_val;
+          se->next = nsEntries;
+          nsEntries = se;
+        } else {
+          /* No alias: flatten all functions into namespace */
+          for (struct RuntimeObjectEntry *fe = mod_val.as.object.entries;
+               fe; fe = fe->next) {
+            struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
+            se->key = strdup(fe->key);
+            se->value = fe->value;
+            se->next = nsEntries;
+            nsEntries = se;
+          }
+        }
       } else {
-        /* Specific function: extract from module object */
+        /* Specific function: b.login -> extract login from b */
         const char *func_name = dot ? dot + 1 : path_str;
         RuntimeValue fn_val;
         if (valueObjectGet(mod_val, func_name, &fn_val)) {
@@ -376,7 +426,17 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
     }
 
     /* Bind namespace to environment */
-    semSet(e, ns_name, valueObject(nsEntries));
+    if (aliasId >= 0) {
+      /* Has namespace alias (e.g. "as m"): bind all under ns */
+      semSet(e, ns_name, valueObject(nsEntries));
+    } else {
+      /* No namespace alias: bind each entry at top level */
+      struct RuntimeObjectEntry *se = nsEntries;
+      while (se) {
+        semSet(e, se->key, se->value);
+        se = se->next;
+      }
+    }
     return resultNormal(valueNull());
   }
   case NODE_ASSIGN:

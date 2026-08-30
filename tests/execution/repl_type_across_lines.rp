@@ -1,0 +1,14 @@
+# Type annotation persists across lines
+count: number = 0
+count = 10
+assertEq(count, 10)
+count = 20
+assertEq(count, 20)
+# String type
+name: string = "hello"
+name = "world"
+assertEq(name, "world")
+# Boolean type
+flag: boolean = true
+flag = false
+assert(flag == false)

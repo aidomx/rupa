@@ -1,8 +1,10 @@
 # Struct Grammar
 
-Struct declaration menggunakan identifier diikuti block.
+Grammar struct membentuk node struct dari nama dan field declarations.
 
-## Source
+## Simple struct
+
+Source:
 
 ```rupa
 People {
@@ -14,16 +16,54 @@ People {
 AST:
 
 ```text
-Struct
-├── Identifier: People
-└── Block
-    ├── Annotation
-    │   ├── Name: name
-    │   └── Type: string
-    └── Annotation
-        ├── Name: age
-        └── Type: number
+Program:
+  Struct:
+    Name: Identifier: People
+    Body:
+      Block:
+        Annotation:
+          Name: Identifier: name
+          Type: Identifier: string
+        Annotation:
+          Name: Identifier: age
+          Type: Identifier: number
 ```
 
-Isi struct diparse sebagai block biasa. Dengan demikian annotation field menjadi
-statement child di dalam block struct.
+## Struct usage
+
+Struct berfungsi sebagai blueprint untuk membuat object:
+
+```rupa
+People {
+    name: string
+    age: number
+}
+
+person = { name: "Rupa", age: 20 }
+```
+
+AST:
+
+```text
+Program:
+  Struct:
+    Name: Identifier: People
+    Body:
+      Block:
+        Annotation:
+          Name: Identifier: name
+          Type: Identifier: string
+        Annotation:
+          Name: Identifier: age
+          Type: Identifier: number
+  Assignment:
+    Target: Identifier: person
+    Value:
+      Object:
+        Entry 1:
+          Key: Identifier: name
+          Value: String: Rupa
+        Entry 2:
+          Key: Identifier: age
+          Value: Number: 20
+```

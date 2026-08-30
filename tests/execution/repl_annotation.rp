@@ -1,0 +1,15 @@
+# Annotation without value, then assign
+x: number
+x = 42
+assertEq(x, 42)
+# Annotation with value
+y: string = "hello"
+assertEq(y, "hello")
+# Function with typed params
+add(a: number, b: number) {
+    return a + b
+}
+assertEq(add(3, 7), 10)
+# Annotation on result
+result: number = add(100, 200)
+assertEq(result, 300)
