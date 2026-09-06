@@ -1,0 +1,6 @@
+{
+  "name": "net",
+  "author": "Aidomx",
+  "version": "1.0.0",
+  "description": "Network socket and TCP/UDP utilities"
+}

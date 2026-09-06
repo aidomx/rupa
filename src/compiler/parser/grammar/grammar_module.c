@@ -39,25 +39,29 @@ static int detectFrom(Token *t, int from_pos, int limit, int *end) {
       strcmp(t->data[from_pos].value, "from"))
     return -1;
   int mod_start = from_pos + 1;
-  /* Handle ./ prefix: skip DOT SLASH, resolveModulePath strips it */
-  while (mod_start < limit && t->data[mod_start].type == DOT &&
-         mod_start + 1 < limit && t->data[mod_start + 1].type == SLASH) {
-    mod_start += 2;
-  }
-  if (mod_start >= limit ||
-      (t->data[mod_start].type != IDENTIFIER &&
-       t->data[mod_start].type != LITERAL_ID))
+  if (mod_start >= limit)
     return -1;
-  /* Scan for DOT.IDENTIFIER chains */
+  /* Scan forward: accept IDENTIFIER, LITERAL_ID, DOT, SLASH
+   * Stop at 'as' keyword, comma, or unrecognized token.
+   * This handles: math, modules.a, ./math, ../modules.a, etc. */
   int mod_end = mod_start;
-  int cur = mod_start + 1;
-  while (cur + 1 < limit && t->data[cur].type == DOT) {
-    if (t->data[cur + 1].type != IDENTIFIER &&
-        t->data[cur + 1].type != LITERAL_ID)
+  int cur = mod_start;
+  while (cur < limit) {
+    if ((t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER) &&
+        !strcmp(t->data[cur].value, "as"))
       break;
-    mod_end = cur + 1;
-    cur += 2;
+    if (t->data[cur].type == COMMA)
+      break;
+    if (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID ||
+        t->data[cur].type == DOT || t->data[cur].type == SLASH) {
+      mod_end = cur;
+      cur++;
+    } else {
+      break;
+    }
   }
+  if (cur == mod_start)
+    return -1;
   *end = mod_end;
   return mod_start;
 }
@@ -68,16 +72,29 @@ static int detectFrom(Token *t, int from_pos, int limit, int *end) {
  * Caller must free() the result.
  */
 static char *buildModulePath(Token *t, int start, int end) {
-  /* Calculate total length */
+  /* Build path string from tokens[start..end]
+   * Handle ./ and ../ prefixes by detecting DOT SLASH / DOT DOT SLASH patterns
+   * Join remaining identifiers with dots: modules.a -> "modules.a"
+   */
   int total = 0;
   for (int i = start; i <= end; i++) {
-    if (t->data[i].type != DOT)
+    if (t->data[i].type == DOT) {
+      /* Count DOT if followed by SLASH or another DOT (part of ./ or ../) */
+      if (i + 1 <= end && (t->data[i + 1].type == SLASH || t->data[i + 1].type == DOT))
+        total++; /* for the "." in "./" or ".." */
+      /* else: dot between identifiers, handled by separator logic */
+    } else if (t->data[i].type == SLASH) {
+      total++; /* for the "/" in "./" or "../" */
+    } else {
       total += (int)strlen(t->data[i].value);
+    }
   }
-  /* Add dots between parts */
+  /* Add dots between identifier parts (but not for ./  prefix dots) */
   int parts = 0;
-  for (int i = start; i <= end; i++)
-    if (t->data[i].type != DOT) parts++;
+  for (int i = start; i <= end; i++) {
+    if (t->data[i].type == IDENTIFIER || t->data[i].type == LITERAL_ID)
+      parts++;
+  }
   if (parts > 1) total += (parts - 1);
 
   char *buf = malloc(total + 1);
@@ -85,10 +102,23 @@ static char *buildModulePath(Token *t, int start, int end) {
   buf[0] = '\0';
   int first = 1;
   for (int i = start; i <= end; i++) {
-    if (t->data[i].type == DOT) continue;
-    if (!first) strcat(buf, ".");
-    strcat(buf, t->data[i].value);
-    first = 0;
+    if (t->data[i].type == DOT) {
+      /* Part of ./ or ../ prefix: DOT followed by DOT or SLASH */
+      if (i + 1 <= end && (t->data[i + 1].type == SLASH || t->data[i + 1].type == DOT)) {
+        strcat(buf, ".");
+        first = 0;
+      }
+      /* else: dot separator between identifiers (added below) */
+    } else if (t->data[i].type == SLASH) {
+      strcat(buf, "/");
+      first = 0;
+    } else {
+      /* IDENTIFIER or LITERAL_ID */
+      if (!first && (i == start || t->data[i - 1].type != SLASH))
+        strcat(buf, ".");
+      strcat(buf, t->data[i].value);
+      first = 0;
+    }
   }
   return buf;
 }
@@ -286,6 +316,123 @@ int grammarParseModule(Request *r, int a, int b, int *pos) {
       *pos = afterPath;
       return createModuleImport(r->node, basePath, entries, entryCount, aliasIdx);
     }
+  }  /* --- NEW: export a, b from ./c / export c from ./c / export c from ./c -> { a: private } --- */
+  if (nt == NODE_EXPORT) {
+    int cur = a + 1;
+    
+    /* Collect names before 'from' */
+    int names[64];
+    int nameCount = 0;
+    int fromPos = -1;
+    
+    while (cur < b) {
+      /* Check for 'from' keyword */
+      if ((t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
+           t->data[cur].type == LITERAL_ID) &&
+          !strcmp(t->data[cur].value, "from")) {
+        fromPos = cur;
+        break;
+      }
+      
+      /* Expect IDENTIFIER or LITERAL_ID */
+      if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID)
+        break;
+      
+      names[nameCount++] = cur;
+      cur++;
+      
+      /* Skip comma if present */
+      if (cur < b && t->data[cur].type == COMMA)
+        cur++;
+    }
+    
+    if (nameCount == 0 || fromPos < 0) {
+      /* No 'from' found, fallback to old-style export */
+      int v = grammarParseExpr(r, a + 1, b);
+      *pos = b;
+      return createModule(r->node, nt, v, -1);
+    }
+    
+    /* Parse 'from PATH' */
+    int fromPathEnd = -1;
+    int fromStart = detectFrom(t, fromPos, b, &fromPathEnd);
+    if (fromStart < 0) {
+      *pos = b;
+      return GRAMMAR_NO_MATCH;
+    }
+    
+    char *fromPath = buildModulePath(t, fromStart, fromPathEnd);
+    int sourcePath = fromPath ? createString(r->node, fromPath, NODE_LITERAL_ID)
+                              : -1;
+    free(fromPath);
+    
+    /* Check for optional '-> { ... }' policy block */
+    int policyStart = fromPathEnd + 1;
+    struct AstExportPolicyEntry policies[64];
+    int policyCount = 0;
+    
+    if (policyStart < b && t->data[policyStart].type == ARROW) {
+      policyStart++;
+      if (policyStart < b && t->data[policyStart].type == LBRACE) {
+        policyStart++;
+        /* Parse policy entries: name: private/public */
+        while (policyStart < b && t->data[policyStart].type != RBRACE) {
+          if (t->data[policyStart].type == COMMA) {
+            policyStart++;
+            continue;
+          }
+          
+          /* Expect name */
+          if (t->data[policyStart].type != IDENTIFIER &&
+              t->data[policyStart].type != LITERAL_ID)
+            break;
+          
+          int nameNode = createString(r->node, t->data[policyStart].value,
+                                      NODE_LITERAL_ID);
+          policyStart++;
+          
+          /* Expect ':' */
+          if (policyStart >= b || t->data[policyStart].type != COLON)
+            break;
+          policyStart++;
+          
+          /* Expect 'private' or 'public' */
+          if (policyStart >= b ||
+              (t->data[policyStart].type != KEYWORD &&
+               t->data[policyStart].type != IDENTIFIER))
+            break;
+          
+          policies[policyCount].nameNode = nameNode;
+          policies[policyCount].policy = strdup(t->data[policyStart].value);
+          policyCount++;
+          policyStart++;
+        }
+        /* Skip closing brace */
+        if (policyStart < b && t->data[policyStart].type == RBRACE)
+          policyStart++;
+      }
+    }
+    
+    /* Determine export type */
+    int namespaceName = -1;
+    int selectiveItems = -1;
+    
+    if (nameCount == 1) {
+      /* Single name: export c from ./c (namespace export) */
+      namespaceName = createString(r->node, t->data[names[0]].value,
+                                   NODE_LITERAL_ID);
+    } else {
+      /* Multiple names: export a, b from ./c (selective export) */
+      int nameIds[64];
+      for (int i = 0; i < nameCount; i++)
+        nameIds[i] = createString(r->node, t->data[names[i]].value,
+                                  NODE_LITERAL_ID);
+      selectiveItems = createArray(r->node, nameIds, nameCount);
+    }
+    
+    *pos = policyStart > fromPathEnd + 1 ? policyStart : fromPathEnd + 1;
+    return createExportDecl(r->node, namespaceName, sourcePath, selectiveItems,
+                           policyCount > 0 ? policies : NULL, policyCount);
   }
 
   /* --- OLD: import X, Y, ... from rupa.MODULE --- */
@@ -355,8 +502,7 @@ int grammarParseModule(Request *r, int a, int b, int *pos) {
       }
 
       /* Expect IDENTIFIER or LITERAL_ID */
-      if (t->data[cur].type != IDENTIFIER &&
-          t->data[cur].type != LITERAL_ID)
+      if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID)
         break;
 
       names[nameCount++] = cur;

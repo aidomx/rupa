@@ -1,0 +1,12 @@
+import math from rupa
+
+print(math.add(2, 3) + "\n")
+print(math.sub(10, 4) + "\n")
+print(math.mul(3, 7) + "\n")
+print(math.div(20, 4) + "\n")
+print(math.mod(17, 5) + "\n")
+print(math.clamp(15, 0, 10) + "\n")
+print(math.lerp(0, 100, 0.5) + "\n")
+print(math.isEven(4) + "\n")
+print(math.isOdd(7) + "\n")
+print(math.factorial(5) + "\n")

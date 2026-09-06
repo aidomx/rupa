@@ -1,6 +1,8 @@
 # Math
 
-Modul `math` menyediakan operasi matematika umum.
+Modul `math` ditulis dengan bahasa Rupa dan tersedia melalui root namespace
+`rupa`. Package ini dapat dikembangkan di `tests/modules/math/` untuk
+simulasi stdlib project, lalu dipublikasikan ke archive module.
 
 ```rupa
 import math from rupa
@@ -9,27 +11,42 @@ import math from rupa
 ## Fungsi
 
 ```rupa
-print(math.abs(-8))
-print(math.sqrt(25))
-print(math.pow(2, 3))
-print(math.floor(3.8))
-print(math.ceil(3.2))
-print(math.round(3.5))
-print(math.sin(0))
-print(math.cos(0))
-print(math.tan(0))
+print(math.add(2, 3))
+print(math.sub(10, 4))
+print(math.mul(3, 7))
+print(math.div(20, 4))
+print(math.mod(17, 5))
+print(math.clamp(15, 0, 10))
+print(math.lerp(0, 100, 0.5))
+print(math.isEven(4))
+print(math.isOdd(7))
+print(math.factorial(5))
 ```
 
 | Fungsi | Parameter | Deskripsi |
 |---|---|---|
-| `abs(value)` | number | Nilai absolut |
-| `sqrt(value)` | number non-negatif | Akar kuadrat |
-| `pow(base, exponent)` | dua number | Perpangkatan |
-| `floor(value)` | number | Pembulatan ke bawah |
-| `ceil(value)` | number | Pembulatan ke atas |
-| `round(value)` | number | Pembulatan terdekat |
-| `sin(value)` | number | Sinus, dalam radian |
-| `cos(value)` | number | Cosinus, dalam radian |
-| `tan(value)` | number | Tangen, dalam radian |
+| `add(a, b)` | dua number | Penjumlahan |
+| `sub(a, b)` | dua number | Pengurangan |
+| `mul(a, b)` | dua number | Perkalian |
+| `div(a, b)` | dua number | Pembagian |
+| `mod(a, b)` | dua number | Sisa pembagian |
+| `clamp(value, min, max)` | tiga number | Membatasi nilai ke rentang |
+| `lerp(a, b, t)` | tiga number | Interpolasi linear |
+| `isEven(value)` | number | Memeriksa bilangan genap |
+| `isOdd(value)` | number | Memeriksa bilangan ganjil |
+| `factorial(value)` | number | Faktorial |
 
-Fungsi matematika mengembalikan integer jika hasilnya merupakan integer yang dapat direpresentasikan, atau decimal jika tidak.
+## System module
+
+Implementasi `math` berasal dari source Rupa dan dikemas ke dalam binary
+sebagai system module. Pengguna cukup memakai:
+
+```rupa
+import math from rupa
+
+print(math.sqrt(25))
+print(math.pow(2, 3))
+```
+
+Source pengembangan berada di `tests/modules/math/`. Saat build, source tersebut
+dikemas menjadi `modules/rupa_modules.tar.gz` dan archive-nya ditanam ke binary.

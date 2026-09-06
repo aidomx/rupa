@@ -1,9 +1,9 @@
 login() {
-    print("b.login called")
+    print("b.login called\n")
 }
 
 register() {
-    print("b.register called")
+    print("b.register called\n")
 }
 
 export b

@@ -1,25 +1,25 @@
 x = 0
 
-if x > 0: print(true)
+if x > 0: print(true + "\n")
 if x > 0 {
-    print(true)
-} elseif x == 0 {
-    print("zero")
+    print(true + "\n")
+} else if x == 0 {
+    print("zero\n")
 } else {
-    print("negative")
+    print("negative\n")
 }
 
-for i < 10: print("for " + i)
+for i < 10: print("for " + i + "\n")
 for i < 10 {
-    print("for " + i)
+    print("for " + i + "\n")
 }
 
-rev 10 > i: print("rev " + i)
+rev 10 > i: print("rev " + i + "\n")
 rev 10 > i {
-  print("rev" + i)
+  print("rev" + i + "\n")
 }
 
 while x < 10 {
-    print(x)
+    print(x + "\n")
     x++
 }

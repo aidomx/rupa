@@ -1,0 +1,4 @@
+add(x,y) { return x + y }
+
+print(add(1,2) + "\n")
+print("Done!\n")

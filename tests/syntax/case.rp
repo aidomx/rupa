@@ -1,14 +1,14 @@
 case username => {
-    "budi": print(true)
-    "arman": print(true)
-    *: print(false)
+    "budi": print("true\n")
+    "arman": print("true\n")
+    default: print("false\n")
 }
 
 case status => {
-    200: print("success")
+    200: print("success\n")
     404: {
-        print("not found")
+        print("not found\n")
         save()
     }
-    *: print("unknown")
+    default: print("unknown\n")
 }

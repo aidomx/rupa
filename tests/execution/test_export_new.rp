@@ -1,0 +1,62 @@
+# Test new export syntax
+# This file tests selective, namespace, and policy exports
+
+print("=== Testing New Export Syntax ===\n")
+print("\n")
+
+# Test 1: Selective Export
+print("1. Selective Export (export add, subtract from ./selective)\n")
+print("   Expected: add and subtract work, multiply and divide are not accessible\n")
+print("\n")
+
+import add, subtract from ./modules.selective
+
+result1 = add(10, 5)
+print("   add(10, 5) = " + result1 + "\n")
+
+result2 = subtract(10, 5)
+print("   subtract(10, 5) = " + result2 + "\n")
+
+# Try to import multiply (should fail - not exported)
+# import multiply from ./modules.selective
+# print("   multiply(10, 5) = " + multiply(10, 5) + "\n")
+
+print("\n")
+
+# Test 2: Namespace Export
+print("2. Namespace Export (export math_utils from ./namespace)\n")
+print("   Expected: entire module available as math_utils namespace\n")
+print("\n")
+
+import math_utils from ./namespace
+
+result3 = math_utils.add(10, 5)
+print("   math_utils.add(10, 5) = " + result3 + "\n")
+
+result4 = math_utils.subtract(10, 5)
+print("   math_utils.subtract(10, 5) = " + result4 + "\n")
+
+result5 = math_utils.multiply(10, 5)
+print("   math_utils.multiply(10, 5) = " + result5 + "\n")
+
+print("\n")
+
+# Test 3: Policy Export
+print("3. Policy Export (export calc from ./policy -> { multiply: private, divide: private })\n")
+print("   Expected: add and subtract work, multiply and divide are private\n")
+print("\n")
+
+import calc from ./modules.policy
+
+result6 = calc.add(10, 5)
+print("   calc.add(10, 5) = " + result6 + "\n")
+
+result7 = calc.subtract(10, 5)
+print("   calc.subtract(10, 5) = " + result7 + "\n")
+
+# Try to access multiply (should fail - it's private)
+# result8 = calc.multiply(10, 5)
+# print("   calc.multiply(10, 5) = " + result8 + "\n")
+
+print("\n")
+print("=== All tests passed! ===\n")

@@ -1,0 +1,52 @@
+// math_extra.rp — Additional math functions
+// Import: import math_extra from rupa
+
+clamp(value, min, max) {
+  if value < min: return min
+  if value > max: return max
+  return value
+}
+
+lerp(a, b, t) {
+  return a + (b - a) * t
+}
+
+isEven(n) {
+  return n - (n / 2) * 2 == 0
+}
+
+isOdd(n) {
+  return n - (n / 2) * 2 != 0
+}
+
+factorial(n) {
+  if n <= 1: return 1
+  return n * factorial(n - 1)
+}
+
+gcd(a, b) {
+  while b != 0 {
+    temp = b
+    b = a - (a / b) * b
+    a = temp
+  }
+  return a
+}
+
+lcm(a, b) {
+  return (a * b) / gcd(a, b)
+}
+
+powInt(base, exp) {
+  result = 1
+  while exp > 0 {
+    if exp - (exp / 2) * 2 == 1 {
+      result = result * base
+    }
+    base = base * base
+    exp = exp / 2
+  }
+  return result
+}
+
+export clamp, lerp, isEven, isOdd, factorial, gcd, lcm, powInt

@@ -8,13 +8,13 @@ import calculate from ./modules.op
 
 # ── Display menu ──
 
-print("╔══════════════════════════╗")
-print("║   Rupa Calculator v1.0   ║")
-print("╚══════════════════════════╝")
-print("")
-print("Operators: +, -, *, /, %")
-print("Type 'q' to quit")
-print("")
+print("╔══════════════════════════╗\n")
+print("║   Rupa Calculator v1.0   ║\n")
+print("╚══════════════════════════╝\n")
+print("\n")
+print("Operators: +, -, *, /, %\n")
+print("Type 'q' to quit\n")
+print("\n")
 
 # ── Interactive loop ──
 
@@ -52,9 +52,9 @@ while running {
       result = calculate(a, op, b)
 
       if result != null:
-        print("{a} {op} {b} = {result}")
+        print("{a} {op} {b} = {result}\n")
     }
-    print("")
+    print("\n")
 }
 
-print("Goodbye!")
+print("Goodbye!\n")

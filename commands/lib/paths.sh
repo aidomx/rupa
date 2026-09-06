@@ -4,6 +4,7 @@ set_default_path() {
   export BINARY_DIR="${APP_ROOT}/bin"
   export BUILD_DIR="${APP_ROOT}/build"
   export CMD_DIR="${APP_ROOT}/commands"
+  export CACHE_DIR="${APP_ROOT}/.cache"
   export LOG_DIR="${APP_ROOT}/.logs"
   export SRC_DIR="${APP_ROOT}/src"
   export TARGET_EXT="${TARGET_EXT:-}"
@@ -25,7 +26,7 @@ set_target_path() {
     export BINARY_DIR="${APP_ROOT}/bin/win64"
     export TARGET_EXT=".exe"
     ;;
-  unix|*)
+  unix | *)
     export BUILD_DIR="${APP_ROOT}/build"
     export BINARY_DIR="${APP_ROOT}/bin"
     export TARGET_EXT=""

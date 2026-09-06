@@ -1,53 +1,18 @@
-# ── Operator functions ──
-
-add(x: number, y: number) {
-    return x + y
-}
-
-subtract(x: number, y: number) {
-    return x - y
-}
-
-multiply(x: number, y: number) {
-    return x * y
-}
-
-divide(x: number, y: number) {
-    if y == 0 {
-        print("Error: division by zero")
-        return null
-    }
-    return x / y
-}
-
-modulo(x: number, y: number) {
-    if y == 0 {
-        print("Error: modulo by zero")
-        return null
-    }
-    return x % y
-}
-
-# ── Calculate using if/else chain ──
+import math from rupa
+# ── Calculate using case ──
 
 calculate(x: number, op: string, y: number) {
-    if op == "+" {
-        return add(x, y)
+  case op => {
+    "+":  return math.add(x, y)
+    "-": return math.sub(x, y)
+    "*": return math.mul(x, y)
+    "/": return math.div(x, y)
+    "%": return math.mod(x, y)
+    default: {
+      print("Unknown operator: {op}")
+      return null
     }
-    if op == "-" {
-        return subtract(x, y)
-    }
-    if op == "*" {
-        return multiply(x, y)
-    }
-    if op == "/" {
-        return divide(x, y)
-    }
-    if op == "%" {
-        return modulo(x, y)
-    }
-    print("Unknown operator: " + op)
-    return null
+  }
 }
 
 export op

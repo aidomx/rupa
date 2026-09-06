@@ -3,7 +3,7 @@ set_default_compiler() {
   # Compiler flags
   export WALL_FLAGS="-Wall -Wextra"
   export INCLUDE_FLAGS="-Iinclude -I."
-  export CLANGD_FLAGS="-xc -std=gnu11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -fPIE -lm"
+  export CLANGD_FLAGS="-xc -std=gnu11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -fPIE"
 
   # Build flags - FIXED untuk aarch64
   export DEBUG_FLAGS="-g -O0"
@@ -18,7 +18,7 @@ set_default_compiler() {
   fi
 
   export CFLAGS="${INCLUDE_FLAGS} ${WALL_FLAGS} ${CLANGD_FLAGS}"
-  export LDFLAGS=""
+  export LDFLAGS="-lm"
 }
 
 # Setup cross-compilation for target platform

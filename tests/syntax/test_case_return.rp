@@ -1,0 +1,12 @@
+add(a, b) { return a + b }
+
+calc(x, op, y) {
+  case op => {
+    "+": return x + y
+    "-": return add(x, y * -1)
+    default: return null
+  }
+}
+
+print(calc(1, "+", 2) + "\n")
+print(calc(10, "-", 3) + "\n")

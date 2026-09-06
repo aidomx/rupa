@@ -231,6 +231,28 @@ struct AstModule {
   int name;   // submodule index (-1 if not used, e.g. import X from rupa)
 };
 
+/**
+ * Export policy entry: `a: private` or `a: public`
+ */
+struct AstExportPolicyEntry {
+  int nameNode;    /* node id for the name (e.g., "a") */
+  char *policy;    /* "private" or "public" */
+};
+
+/**
+ * Extended export statement with policies:
+ *   export a, b from ./c
+ *   export c from ./c
+ *   export c from ./c -> { a: private }
+ */
+struct AstExport {
+  int namespaceName;  /* node id for namespace name (e.g., "c" in `export c from ./c`), or -1 for selective */
+  int sourcePath;     /* node id for source path (e.g., "./c") */
+  int selectiveItems; /* node id for array of names (for selective export), or -1 */
+  struct AstExportPolicyEntry *policies;  /* array of policies, or NULL */
+  int policyCount;    /* number of policies */
+};
+
 struct AstUpdate {
   int target;
   char *op;
@@ -262,6 +284,15 @@ struct AstCase {
 struct AstMemberAssign {
   int target; /* NODE_MEMBER or NODE_SUBSCRIPT node id */
   int value;  /* expression node id */
+};
+
+/**
+ * String interpolation: "Hello {{name}}, you have {{count}} items\n"
+ * Parts array alternates between NODE_STRING (literal) and expression nodes.
+ */
+struct AstStringInterp {
+  int *parts;   /* array of node IDs */
+  int length;   /* number of parts */
 };
 
 /**
@@ -321,11 +352,13 @@ struct AstNode {
     struct AstStructDecl asStruct;
     struct AstAnnotation annotation;
     struct AstModule module;
+    struct AstExport astExport;
     struct AstModuleImport moduleImport;
     struct AstObject object;
     struct AstCase asCase;
     struct AstUpdate update;
     struct AstMemberAssign memberAssign;
+    struct AstStringInterp stringInterp;
     struct DataToken *token; ///< Raw token data
   };
 };

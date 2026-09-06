@@ -2,26 +2,26 @@
 person = { name: "Budi", age: 25 }
 person.name = "Andi"
 person.age = 30
-print(person.name)
-print(person.age)
+print(person.name + "\n")
+print(person.age + "\n")
 
 # Array element assignment: arr[i] = value
 items = [10, 20, 30]
 items[1] = 99
-print(items[0])
-print(items[1])
-print(items[2])
+print(items[0] + "\n")
+print(items[1] + "\n")
+print(items[2] + "\n")
 
 # Nested member assignment
 data = { user: { name: "Rupa" } }
 data.user.name = "Updated"
-print(data.user.name)
+print(data.user.name + "\n")
 
 # Add new property via assignment
 config = { host: "localhost" }
 config.port = 8080
-print(config.host)
-print(config.port)
+print(config.host + "\n")
+print(config.port + "\n")
 
 # Mixed: function returning object, then modify
 createPerson(n) {
@@ -29,5 +29,5 @@ createPerson(n) {
 }
 p = createPerson("Test")
 p.age = 25
-print(p.name)
-print(p.age)
+print(p.name + "\n")
+print(p.age + "\n")

@@ -48,6 +48,7 @@ int grammarParseArgs(Request *r, int a, int b, int **out) {
       else if (q == RPAREN || q == RBLOCK || q == RBRACE)
         d--;
     }
+
     if (i == b || (i < b && t->data[i].type == COMMA && d == 0)) {
       int id = grammarParseExpr(r, start, i);
       if (id >= 0)

@@ -11,4 +11,4 @@ Module memungkinkan kode untuk diorganisir dan digunakan kembali dengan mengimpo
 |------|-------------|
 | `./modules.a` | `./modules/a.rp` |
 | `./modules` | `./modules/*.rp` |
-| `rupa` | stdlib module |
+| `rupa` | Root namespace package Rupa dari archive project/global/system |

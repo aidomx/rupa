@@ -49,14 +49,20 @@ int grammarParseKeywordBody(Request *r, int bodyStart, int limit, int *next) {
     int paren = 0, bracket = 0, brace = 0;
     for (int i = bodyStart; i < limit; i++) {
       TokenType q = t->data[i].type;
-      if (q == LPAREN) paren++;
-      else if (q == RPAREN && paren > 0) paren--;
-      else if (q == LBLOCK) bracket++;
-      else if (q == RBLOCK && bracket > 0) bracket--;
-      else if (q == LBRACE) brace++;
-      else if (q == RBRACE && brace > 0) brace--;
+      if (q == LPAREN)
+        paren++;
+      else if (q == RPAREN && paren > 0)
+        paren--;
+      else if (q == LBLOCK)
+        bracket++;
+      else if (q == RBLOCK && bracket > 0)
+        bracket--;
+      else if (q == LBRACE)
+        brace++;
+      else if (q == RBRACE && brace > 0)
+        brace--;
       else if (q == KEYWORD && paren == 0 && bracket == 0 && brace == 0 &&
-               (!strcmp(t->data[i].value, "elseif") ||
+               (!strcmp(t->data[i].value, "else if") ||
                 !strcmp(t->data[i].value, "else"))) {
         end = i;
         break;

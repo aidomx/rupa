@@ -1,4 +1,11 @@
 #include <rupa.h>
+#include <sys/stat.h>
+
+static int isDirectory(const char *path) {
+  struct stat st;
+  if (stat(path, &st) != 0) return 0;
+  return S_ISDIR(st.st_mode);
+}
 
 void run(const char *paths[], int length) {
   if (!paths || length <= 0) {
@@ -13,6 +20,13 @@ void run(const char *paths[], int length) {
   }
 
   const char *index = paths[length];
+
+  /* If path is a directory, try <dir>/index.rp */
+  if (isDirectory(index)) {
+    static char indexBuf[1024];
+    snprintf(indexBuf, sizeof(indexBuf), "%s/index.rp", index);
+    index = indexBuf;
+  }
   clearReplState(state->repl);
   clearInput(state->input);
   clearStateToken(state->tokens);

@@ -1,0 +1,25 @@
+# This module demonstrates selective export
+# Only 'add' and 'subtract' will be exported
+
+add(x, y) {
+    return x + y
+}
+
+subtract(x, y) {
+    return x - y
+}
+
+multiply(x, y) {
+    return x * y
+}
+
+divide(x, y) {
+    if y == 0 {
+        print("Error: division by zero")
+        return null
+    }
+    return x / y
+}
+
+# Selective export: only add and subtract
+export add, subtract from ./selective

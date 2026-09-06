@@ -49,7 +49,7 @@ case status => {
     200: print("success")
     404: print("not found")
     500: print("server error")
-    *: print("unknown")
+    default: print("unknown")
 }
 ```
 

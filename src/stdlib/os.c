@@ -1,14 +1,14 @@
 #include <rupa.h>
-#include <dirent.h>
-#include <sys/utsname.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* Helper: create error */
-static InterpreterResult osError(Error *error, const char *code, const char *msg) {
+static InterpreterResult osError(Error *error, const char *code,
+                                 const char *msg) {
   if (error)
-    addError(error, (ErrorInfo){.code = (char *)code, .message = (char *)msg,
-                                  .line = 0, .row = 0, .type = ERR_INTERNAL});
+    addError(error, (ErrorInfo){.code = (char *)code,
+                                .message = (char *)msg,
+                                .line = 0,
+                                .row = 0,
+                                .type = ERR_INTERNAL});
   return resultFlow(FLOW_ERROR, valueNull());
 }
 
@@ -19,7 +19,8 @@ static InterpreterResult osExec(int argc, RuntimeValue *argv, RuntimeEnv *env,
     return osError(error, "TypeError", "os.exec() expects a string argument");
 
   FILE *fp = popen(argv[0].as.string, "r");
-  if (!fp) return osError(error, "IOError", "failed to execute command");
+  if (!fp)
+    return osError(error, "IOError", "failed to execute command");
 
   char buf[4096];
   size_t total = 0;
@@ -27,14 +28,19 @@ static InterpreterResult osExec(int argc, RuntimeValue *argv, RuntimeEnv *env,
   while (fgets(buf, sizeof(buf), fp)) {
     size_t len = strlen(buf);
     char *tmp = realloc(out, total + len + 1);
-    if (!tmp) { free(out); pclose(fp); return resultFlow(FLOW_ERROR, valueNull()); }
+    if (!tmp) {
+      free(out);
+      pclose(fp);
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
     out = tmp;
     memcpy(out + total, buf, len);
     total += len;
     out[total] = '\0';
   }
   pclose(fp);
-  if (!out) out = strdup("");
+  if (!out)
+    out = strdup("");
   RuntimeValue result = valueString(out);
   free(out);
   return resultNormal(result);
@@ -53,7 +59,8 @@ static InterpreterResult osGetcwd(int argc, RuntimeValue *argv, RuntimeEnv *env,
 static InterpreterResult osExit(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                 Error *error) {
   int code = 0;
-  if (argc >= 1 && argv[0].type == VALUE_NUMBER) code = argv[0].as.number;
+  if (argc >= 1 && argv[0].type == VALUE_NUMBER)
+    code = argv[0].as.number;
   exit(code);
   return resultNormal(valueNull());
 }
@@ -101,20 +108,23 @@ static InterpreterResult osRemove(int argc, RuntimeValue *argv, RuntimeEnv *env,
 static InterpreterResult osRename(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                   Error *error) {
   if (argc < 2 || argv[0].type != VALUE_STRING || argv[1].type != VALUE_STRING)
-    return osError(error, "TypeError", "os.rename() expects two string arguments");
+    return osError(error, "TypeError",
+                   "os.rename() expects two string arguments");
   if (rename(argv[0].as.string, argv[1].as.string) != 0)
     return osError(error, "IOError", "failed to rename file");
   return resultNormal(valueBoolean(true));
 }
 
 /* ==================== os.listdir(path) ==================== */
-static InterpreterResult osListdir(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                   Error *error) {
+static InterpreterResult osListdir(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error) {
   const char *path = ".";
-  if (argc >= 1 && argv[0].type == VALUE_STRING) path = argv[0].as.string;
+  if (argc >= 1 && argv[0].type == VALUE_STRING)
+    path = argv[0].as.string;
 
   DIR *d = opendir(path);
-  if (!d) return osError(error, "IOError", "failed to open directory");
+  if (!d)
+    return osError(error, "IOError", "failed to open directory");
 
   int capacity = 16, count = 0;
   RuntimeValue *items = calloc(capacity, sizeof(RuntimeValue));
@@ -169,12 +179,15 @@ static InterpreterResult osInfo(int argc, RuntimeValue *argv, RuntimeEnv *env,
   if (argc < 1 || argv[0].type == VALUE_NULL) {
     struct RuntimeObjectEntry *entries = NULL;
 
-    /* Helper macro to add entry */
-    #define ADD_ENTRY(k, v) do { \
-      struct RuntimeObjectEntry *_e = calloc(1, sizeof(*_e)); \
-      _e->key = strdup(k); _e->value = valueString(v); \
-      _e->next = entries; entries = _e; \
-    } while(0)
+/* Helper macro to add entry */
+#define ADD_ENTRY(k, v)                                                        \
+  do {                                                                         \
+    struct RuntimeObjectEntry *_e = calloc(1, sizeof(*_e));                    \
+    _e->key = strdup(k);                                                       \
+    _e->value = valueString(v);                                                \
+    _e->next = entries;                                                        \
+    entries = _e;                                                              \
+  } while (0)
 
     ADD_ENTRY("sysname", uts.sysname);
     ADD_ENTRY("nodename", uts.nodename);
@@ -184,36 +197,46 @@ static InterpreterResult osInfo(int argc, RuntimeValue *argv, RuntimeEnv *env,
 
     /* Get username */
     const char *user = getenv("USER");
-    if (!user) user = getenv("LOGNAME");
-    if (user) ADD_ENTRY("user", user);
+    if (!user)
+      user = getenv("LOGNAME");
+    if (user)
+      ADD_ENTRY("user", user);
 
     /* Get hostname */
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0)
       ADD_ENTRY("hostname", hostname);
 
-    #undef ADD_ENTRY
+#undef ADD_ENTRY
     return resultNormal(valueObject(entries));
   }
 
   /* If string argument, return specific field */
   if (argv[0].type != VALUE_STRING)
-    return osError(error, "TypeError", "os.info() expects a string or no argument");
+    return osError(error, "TypeError",
+                   "os.info() expects a string or no argument");
 
   const char *key = argv[0].as.string;
-  if (strcmp(key, "sysname") == 0) return resultNormal(valueString(uts.sysname));
-  if (strcmp(key, "nodename") == 0) return resultNormal(valueString(uts.nodename));
-  if (strcmp(key, "release") == 0) return resultNormal(valueString(uts.release));
-  if (strcmp(key, "version") == 0) return resultNormal(valueString(uts.version));
-  if (strcmp(key, "machine") == 0) return resultNormal(valueString(uts.machine));
+  if (strcmp(key, "sysname") == 0)
+    return resultNormal(valueString(uts.sysname));
+  if (strcmp(key, "nodename") == 0)
+    return resultNormal(valueString(uts.nodename));
+  if (strcmp(key, "release") == 0)
+    return resultNormal(valueString(uts.release));
+  if (strcmp(key, "version") == 0)
+    return resultNormal(valueString(uts.version));
+  if (strcmp(key, "machine") == 0)
+    return resultNormal(valueString(uts.machine));
   if (strcmp(key, "user") == 0) {
     const char *u = getenv("USER");
-    if (!u) u = getenv("LOGNAME");
+    if (!u)
+      u = getenv("LOGNAME");
     return resultNormal(u ? valueString(u) : valueNull());
   }
   if (strcmp(key, "hostname") == 0) {
     char h[256];
-    if (gethostname(h, sizeof(h)) == 0) return resultNormal(valueString(h));
+    if (gethostname(h, sizeof(h)) == 0)
+      return resultNormal(valueString(h));
     return resultNormal(valueNull());
   }
 

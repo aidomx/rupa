@@ -16,6 +16,7 @@ struct Flags {
   bool isBlockElse;
   bool isBlockProgram;
   bool isBroken;
+  bool isCase;
   bool isImport;
   bool isInvalid;
   bool isExport;

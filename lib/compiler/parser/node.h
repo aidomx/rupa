@@ -92,6 +92,7 @@ int createAwait(struct Node *root, int expression);
 int createMember(struct Node *root, int object, int member);
 int createCase(struct Node *root, int subject, struct AstCaseEntry *entries, int length);
 int createMemberAssign(struct Node *root, int target, int value);
+int createStringInterp(struct Node *root, int *parts, int length);
 int createCall(struct Node *root, int callee, int *args, int length);
 int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);
@@ -102,6 +103,21 @@ int createStructDecl(struct Node *root, int name, int body);
 int createAnnotation(struct Node *root, int name, int type, int value);
 int createModule(struct Node *root, enum NodeType type, int value, int name);
 int createModuleImport(struct Node *root, int basePath, struct AstModuleImportEntry *entries, int entryCount, int alias);
+
+/**
+ * Membuat export declaration node dengan optional policies.
+ *
+ * @param root Root node AST.
+ * @param namespaceName node id untuk namespace name, atau -1 untuk selective export.
+ * @param sourcePath node id untuk source path.
+ * @param selectiveItems node id untuk array of names (selective export), atau -1.
+ * @param policies Array of export policy entries, atau NULL.
+ * @param policyCount Jumlah policies.
+ * @return ID node yang dibuat.
+ */
+int createExportDecl(struct Node *root, int namespaceName, int sourcePath,
+                     int selectiveItems, struct AstExportPolicyEntry *policies,
+                     int policyCount);
 
 /**
  * @brief Membuat request baru untuk parser.

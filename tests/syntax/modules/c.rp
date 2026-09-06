@@ -1,5 +1,5 @@
 services() {
-    print("c.services called")
+    print("c.services called\n")
 }
 
 export c

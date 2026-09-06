@@ -26,6 +26,5 @@ build_release() {
     ;;
   esac
 
-  build_clean
   build_common
 }

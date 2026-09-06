@@ -6,11 +6,11 @@ Grammar case membentuk node case dari subject dan entries.
 
 Source:
 
-```rupa
+```js
 case status => {
     200: print("success")
     404: print("not found")
-    *: print("unknown")
+    default: print("unknown")
 }
 ```
 
@@ -46,4 +46,4 @@ Case
     └── Body: Print
 ```
 
-Wildcard `*` menangkap semua case yang tidak terpenuhi.
+Wildcard `default` menangkap semua case yang tidak terpenuhi.

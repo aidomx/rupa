@@ -1,0 +1,12 @@
+// test.rp — Test module
+// This file is for testing import/export functionality
+
+greet(name) {
+  return "Hello, " + name + "!"
+}
+
+add(a, b) {
+  return a + b
+}
+
+export greet, add

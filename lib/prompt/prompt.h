@@ -5,6 +5,8 @@
 /* prompt.c — UI */
 extern void welcomeMessage(void);
 extern void help(bool prepend);
+extern void showModuleHelp(void);
+extern void showTestHelp(void);
 extern void version(void);
 
 /* runner.c — file & code execution */

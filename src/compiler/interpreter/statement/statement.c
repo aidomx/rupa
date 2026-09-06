@@ -7,10 +7,13 @@ static const char *nameOf(Node *n, int id) {
 }
 
 static const char *typeOf(Node *n, int id) {
-  if (!n || id < 0 || id >= n->length) return NULL;
+  if (!n || id < 0 || id >= n->length)
+    return NULL;
   AstNode *a = &n->ast[id];
-  if (a->type == NODE_IDENTIFIER) return a->identifier.name;
-  if (a->type == NODE_LITERAL_ID) return a->string.value;
+  if (a->type == NODE_IDENTIFIER)
+    return a->identifier.name;
+  if (a->type == NODE_LITERAL_ID)
+    return a->string.value;
   return NULL;
 }
 
@@ -54,12 +57,14 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     const char *type = typeOf(n, a->annotation.type);
 
     if (a->annotation.value < 0) {
-      if (k) semDeclare(e, k, type);
+      if (k)
+        semDeclare(e, k, type);
       return resultNormal(valueNull());
     }
 
     InterpreterResult r = interpretNode(n, a->annotation.value, e, x);
-    if (r.flow != FLOW_NORMAL) return r;
+    if (r.flow != FLOW_NORMAL)
+      return r;
     if (!validateAnnotation(n, a->annotation.type, r.value, x))
       return resultFlow(FLOW_ERROR, valueNull());
     if (k) {
@@ -78,13 +83,12 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       if (result.flow != FLOW_NORMAL)
         return result;
 
-      valuePrintInterp(last, e);
+      valuePrintInterp(last, e, x);
 
       if (i + 1 < a->print.length)
         putchar(' ');
     }
 
-    putchar('\n');
     return resultNormal(last);
   }
   case NODE_RETURN:

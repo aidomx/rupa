@@ -344,6 +344,39 @@ static void printAst(Node *node, int index, int level) {
     }
     break;
 
+  case NODE_EXPORT_DECL: {
+    printIndent(level);
+    printf("Export Declaration:\n");
+    if (n->astExport.namespaceName >= 0) {
+      printIndent(level + 1);
+      printf("namespace: ");
+      printAst(node, n->astExport.namespaceName, level + 2);
+    }
+    if (n->astExport.selectiveItems >= 0) {
+      printIndent(level + 1);
+      printf("selective items: ");
+      printAst(node, n->astExport.selectiveItems, level + 2);
+    }
+    if (n->astExport.sourcePath >= 0) {
+      printIndent(level + 1);
+      printf("from: ");
+      printAst(node, n->astExport.sourcePath, level + 2);
+    }
+    if (n->astExport.policyCount > 0 && n->astExport.policies) {
+      printIndent(level + 1);
+      printf("policies:\n");
+      for (int i = 0; i < n->astExport.policyCount; i++) {
+        printIndent(level + 2);
+        printf("%s: %s\n",
+               n->astExport.policies[i].nameNode >= 0 ?
+                 (node->ast[n->astExport.policies[i].nameNode].type == NODE_LITERAL_ID ?
+                  node->ast[n->astExport.policies[i].nameNode].string.value : "?") : "?",
+               n->astExport.policies[i].policy ? n->astExport.policies[i].policy : "?");
+      }
+    }
+    break;
+  }
+
   case NODE_MODULE_IMPORT: {
     printIndent(level);
     printf("Module Import:\n");
@@ -417,6 +450,13 @@ static void printAst(Node *node, int index, int level) {
       if (!e->wildcard) { printIndent(level + 2); printf("Pattern:\n"); printAst(node, e->pattern, level + 3); }
       printIndent(level + 2); printf("Body:\n"); printAst(node, e->body, level + 3);
     }
+    break;
+
+  case NODE_STRING_INTERP:
+    printIndent(level);
+    printf("StringInterp:\n");
+    for (int i = 0; i < n->stringInterp.length; i++)
+      printAst(node, n->stringInterp.parts[i], level + 1);
     break;
   default:
     printIndent(level);

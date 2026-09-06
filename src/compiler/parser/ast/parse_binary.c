@@ -1,6 +1,27 @@
 #include <rupa.h>
 
 /**
+ * Returns true when `type` is a token that can appear on the right side of
+ * a binary operator (i.e. an operand).  Used to distinguish unary minus
+ * from binary minus: `-` after an operand is binary, otherwise unary. */
+static bool isOperand(TokenType type) {
+  switch (type) {
+  case IDENTIFIER:
+  case LITERAL_ID:
+  case NUMBER:
+  case DECIMAL:
+  case BOOLEAN:
+  case STRING:
+  case RPAREN:
+  case RBLOCK:
+  case RBRACE:
+    return true;
+  default:
+    return false;
+  }
+}
+
+/**
  * parseBinary: parser rekursif untuk binary expression.
  * - Menjaga precedence.
  * - Mengabaikan operator dalam tanda kurung.
@@ -70,6 +91,12 @@ int parseBinary(Request *req, int start, int end) {
 
     int prec = getPrecedence(&tokens->data[i]);
     if (prec >= 0 && prec <= minPrec) {
+      /* A MINUS that is NOT preceded by an operand is a unary minus
+       * (e.g. `-1`, `x * -1`).  Treat it as part of the operand, not
+       * a binary split point. */
+      if (tokens->data[i].type == MINUS &&
+          (i == start || !isOperand(tokens->data[i - 1].type)))
+        continue;
       minPrec = prec;
       minIndex = i;
     }
@@ -77,6 +104,15 @@ int parseBinary(Request *req, int start, int end) {
 
   // tidak ada operator di level atas
   if (minIndex == -1) {
+    /* Unary minus: `-expr` → `0 - expr` */
+    if (isToken(tokens, start, MINUS)) {
+      int operand = parseBinary(req, start + 1, end);
+      if (operand >= 0) {
+        int zero = createNumber(req->node, 0);
+        return createBinary(req->node, &tokens->data[start], zero, operand);
+      }
+    }
+
     if (isToken(tokens, start, LPAREN)) {
       int k = findParen(tokens, start, end);
       if (k == end - 1) {
@@ -95,6 +131,11 @@ int parseBinary(Request *req, int start, int end) {
     int postfix = grammarParsePostfixExpr(req, start, end);
     if (postfix != GRAMMAR_NO_MATCH)
       return postfix;
+
+    int call = grammarParseCallExpr(req, start, end);
+    if (call != GRAMMAR_NO_MATCH)
+      return call;
+
     return parseAtom(req, &tokens->data[start]);
   }
 

@@ -1,0 +1,5 @@
+import add, sub, mul from rupa.stark
+
+print(add(2, 3) + "\n")
+print(sub(10, 4) + "\n")
+print(mul(3, 7) + "\n")

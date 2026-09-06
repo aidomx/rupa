@@ -12,10 +12,26 @@ int grammarParseIf(Request *r, int a, int b, int limit, int *pos) {
     return GRAMMAR_NO_MATCH;
 
   const char *k = t->data[a].value;
-  bool conditional = !strcmp(k, "if") || !strcmp(k, "elseif");
+  bool conditional = !strcmp(k, "if") || !strcmp(k, "else if");
   bool otherwise = !strcmp(k, "else");
   if (!conditional && !otherwise)
     return GRAMMAR_NO_MATCH;
+
+  /* Smart lexer may tokenize 'else if' as two separate keywords:
+   * KEYWORD("else") KEYWORD("if"). Detect and merge them. */
+  if (otherwise) {
+    int q = a + 1;
+    while (q < b && grammarIsWhitespace(t, q))
+      q++;
+    if (q < b && t->data[q].type == KEYWORD &&
+        !strcmp(t->data[q].value, "if")) {
+      conditional = true;
+      otherwise = false;
+      /* Skip the 'if' token so the condition starts after it. */
+      a = q;
+      k = t->data[a].value;
+    }
+  }
 
   int sep = -1;
   for (int i = a + 1; i < b; i++) {
@@ -52,10 +68,16 @@ int grammarParseIf(Request *r, int a, int b, int limit, int *pos) {
 
   int elseBlock = -1;
   if (p < limit && t->data[p].type == KEYWORD &&
-      (!strcmp(t->data[p].value, "elseif") || !strcmp(t->data[p].value, "else"))) {
+      (!strcmp(t->data[p].value, "else if") ||
+       !strcmp(t->data[p].value, "else"))) {
+    /* For 'else if' tokenized as two keywords, extend armEnd to cover
+     * the condition that follows the 'if' token. */
     int armEnd = grammarLineEnd(t, p);
     if (armEnd > limit)
       armEnd = limit;
+    /* When 'else' is followed by 'if', the armEnd from grammarLineEnd
+     * already covers the full 'else if <cond>:' line, so no extra
+     * extension is needed — grammarParseIf handles the merge. */
     int chainPos = p;
     elseBlock = grammarParseIf(r, p, armEnd, limit, &chainPos);
     if (elseBlock < 0)

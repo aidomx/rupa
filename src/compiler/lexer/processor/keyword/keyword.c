@@ -5,7 +5,7 @@ static const char *keyword_name(KeywordType type) {
   case KEYWORD_IF:
     return "if";
   case KEYWORD_ELSEIF:
-    return "elseif";
+    return "else if";
   case KEYWORD_ELSE:
     return "else";
   case KEYWORD_FOR:
@@ -34,13 +34,15 @@ static const char *keyword_name(KeywordType type) {
     return "await";
   case KEYWORD_CASE:
     return "case";
+  case KEYWORD_DEFAULT:
+    return "default";
   default:
     return NULL;
   }
 }
 
-int processKeyword(State *state, KeywordType type, int start, int next,
-                   int end, bool *waiting) {
+int processKeyword(State *state, KeywordType type, int start, int next, int end,
+                   bool *waiting) {
   if (!state || !state->input || !state->tokens || !waiting)
     return -1;
 
@@ -93,6 +95,7 @@ int processKeyword(State *state, KeywordType type, int start, int next,
     state->input->flags->isAwait = true;
     break;
   case KEYWORD_CASE:
+    state->input->flags->isCase = true;
     break;
   case KEYWORD_BREAK:
   case KEYWORD_CONTINUE:

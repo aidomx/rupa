@@ -3,19 +3,19 @@ getStr() {
     return "hello"
 }
 s = getStr()
-print(s)
+print(s + "\n")
 
 # Function returning number
 getNum() {
     return 42
 }
 n = getNum()
-print(n)
+print(n + "\n")
 
 # Function returning object
 getObj() {
     return { name: "test", age: 10 }
 }
 o = getObj()
-print(o.name)
-print(o.age)
+print(o.name + "\n")
+print(o.age + "\n")

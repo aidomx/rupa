@@ -1,0 +1,25 @@
+# This module demonstrates namespace export
+# The entire module will be exported as 'math_utils'
+
+add(x, y) {
+    return x + y
+}
+
+subtract(x, y) {
+    return x - y
+}
+
+multiply(x, y) {
+    return x * y
+}
+
+divide(x, y) {
+    if y == 0 {
+        print("Error: division by zero")
+        return null
+    }
+    return x / y
+}
+
+# Namespace export: export the entire module as 'math_utils'
+export math_utils from ./namespace

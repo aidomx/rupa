@@ -2,6 +2,7 @@
 
 int loader(const char *args[], int length) {
   gcinit(100);
+  stdlibLoaderInit(); /* Scan ~/.rupa/stdlib/ and ./stdlib/ */
 
   if (length <= 1) {
     startRepl(true);
@@ -14,8 +15,27 @@ int loader(const char *args[], int length) {
   int index = 0;
 
   for (int i = 0; i < length; i++) {
-    if (strcmp(args[i], "--help") == 0) {
-      help(false);
+    if (strcmp(args[i], "help") == 0) {
+      if (i + 1 < length && strcmp(args[i + 1], "module") == 0) {
+        showModuleHelp();
+      } else if (i + 1 < length && strcmp(args[i + 1], "test") == 0) {
+        showTestHelp();
+      } else {
+        help(false);
+      }
+      handled = true;
+      autorun = false;
+      break;
+    }
+
+    else if (strcmp(args[i], "--help") == 0) {
+      if (i + 1 < length && strcmp(args[i + 1], "module") == 0) {
+        showModuleHelp();
+      } else if (i + 1 < length && strcmp(args[i + 1], "test") == 0) {
+        showTestHelp();
+      } else {
+        help(false);
+      }
       handled = true;
       autorun = false;
       break;
@@ -65,6 +85,19 @@ int loader(const char *args[], int length) {
       handled = true;
       autorun = false;
       break;
+    }
+
+    else if (strcmp(args[i], "add") == 0 ||
+             strcmp(args[i], "update") == 0 ||
+             strcmp(args[i], "delete") == 0 ||
+             strcmp(args[i], "remove") == 0 ||
+             strcmp(args[i], "list") == 0 ||
+             strcmp(args[i], "-g") == 0) {
+      int result = stdlibManage(args + i, length - i);
+      handled = true;
+      autorun = false;
+      gcclean();
+      return result;
     }
 
     index = length - i;

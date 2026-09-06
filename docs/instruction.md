@@ -46,12 +46,13 @@ DEV_MODE=1 ./build.sh --help
 - `bear` atau `intercept-build` untuk `compile_commands.json`
 - `clangd` untuk tooling editor
 - `gdb` untuk debugging
+- `make`
 
 Contoh pada Debian:
 
 ```bash
 sudo apt update
-sudo apt install build-essential ccache bear clangd gdb
+sudo apt install build-essential ccache bear clangd gdb make
 ```
 
 Sesuaikan nama paket dengan distribusi atau environment yang digunakan.
@@ -323,17 +324,17 @@ Kemudian pastikan:
 
 ## 9. Titik awal
 
-| Jenis pekerjaan | Mulai dari |
-|---|---|
-| Memahami project | `docs/structure.md` |
-| Memahami syntax | `docs/syntax/*.md` |
-| Memahami grammar dan sistem | `docs/grammar/*.md` |
-| Mengubah lexer | `src/compiler/lexer/` |
-| Mengubah parser atau AST | `src/compiler/parser/` |
-| Mengubah token | `src/compiler/token/` |
-| Mengubah runtime | `src/runtime/` |
-| Mengubah GC | `src/runtime/gc/` dan `lib/runtime/gc/` |
-| Mengubah build | `build.sh` dan `commands/` |
-| Menambah atau memperbarui test | `tests/` |
+| Jenis pekerjaan                | Mulai dari                              |
+| ------------------------------ | --------------------------------------- |
+| Memahami project               | `docs/structure.md`                     |
+| Memahami syntax                | `docs/syntax/*.md`                      |
+| Memahami grammar dan sistem    | `docs/grammar/*.md`                     |
+| Mengubah lexer                 | `src/compiler/lexer/`                   |
+| Mengubah parser atau AST       | `src/compiler/parser/`                  |
+| Mengubah token                 | `src/compiler/token/`                   |
+| Mengubah runtime               | `src/runtime/`                          |
+| Mengubah GC                    | `src/runtime/gc/` dan `lib/runtime/gc/` |
+| Mengubah build                 | `build.sh` dan `commands/`              |
+| Menambah atau memperbarui test | `tests/`                                |
 
 Jika tidak yakin harus mulai dari mana, mulai dari dokumentasi terlebih dahulu. Pahami apa yang seharusnya dilakukan sistem sebelum mengubah bagaimana sistem melakukannya.

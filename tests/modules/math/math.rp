@@ -1,0 +1,118 @@
+// math.rp — Math functions implemented in Rupa.
+
+abs(value) {
+  if value < 0: return 0 - value
+  return value
+}
+
+floor(value) {
+  whole = 0
+  if value >= 0 {
+    while whole + 1 <= value {
+      whole = whole + 1
+    }
+    return whole
+  }
+  while whole > value {
+    whole = whole - 1
+  }
+  return whole
+}
+
+ceil(value) {
+  if value < 0: return 0 - floor(0 - value)
+  whole = 0
+  while whole < value {
+    whole = whole + 1
+  }
+  return whole
+}
+
+round(value) {
+  if value >= 0: return floor(value + 0.5)
+  return ceil(value - 0.5)
+}
+
+pow(base, exponent) {
+  if exponent == 0: return 1
+  if exponent < 0: return 1 / pow(base, 0 - exponent)
+  result = 1
+  index = 0
+  while index < exponent {
+    result = result * base
+    index = index + 1
+  }
+  return result
+}
+
+sqrt(value) {
+  if value < 0: return null
+  if value == 0: return 0
+  guess = value / 2.0
+  index = 0
+  while index < 20 {
+    guess = (guess + value / guess) / 2.0
+    index = index + 1
+  }
+  return guess
+}
+
+sin(value) {
+  // Taylor series around zero; enough precision for normal library use.
+  term = value
+  result = value
+  index = 1
+  while index < 10 {
+    denominator = (2 * index) * (2 * index + 1)
+    term = 0 - term * value * value / denominator
+    result = result + term
+    index = index + 1
+  }
+  return result
+}
+
+cos(value) {
+  term = 1.0
+  result = 1.0
+  index = 1
+  while index < 10 {
+    denominator = (2 * index - 1) * (2 * index)
+    term = 0 - term * value * value / denominator
+    result = result + term
+    index = index + 1
+  }
+  return result
+}
+
+tan(value) {
+  return sin(value) / cos(value)
+}
+
+mod(value, divisor) {
+  if divisor == 0: return null
+  quotient = floor(value / divisor)
+  return value - quotient * divisor
+}
+
+clamp(value, minimum, maximum) {
+  if value < minimum: return minimum
+  if value > maximum: return maximum
+  return value
+}
+
+lerp(start, finish, amount) {
+  return start + (finish - start) * amount
+}
+
+isEven(value) {
+  return mod(value, 2) == 0
+}
+
+isOdd(value) {
+  return mod(value, 2) != 0
+}
+
+factorial(value) {
+  if value <= 1: return 1
+  return value * factorial(value - 1)
+}

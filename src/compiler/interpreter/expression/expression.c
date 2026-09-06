@@ -8,6 +8,7 @@ InterpreterResult interpretObject(Node *, AstNode *, RuntimeEnv *, Error *);
 InterpreterResult interpretMember(Node *, AstNode *, RuntimeEnv *, Error *);
 InterpreterResult interpretAsync(Node *, AstNode *, RuntimeEnv *, Error *);
 InterpreterResult interpretAwait(Node *, AstNode *, RuntimeEnv *, Error *);
+InterpreterResult interpretStringInterp(Node *, AstNode *, RuntimeEnv *, Error *);
 
 InterpreterResult interpretExpression(Node *node, int id, RuntimeEnv *env,
                                       Error *error) {
@@ -21,6 +22,8 @@ InterpreterResult interpretExpression(Node *node, int id, RuntimeEnv *env,
   case NODE_STRING:
   case NODE_NULLABLE:
     return interpretLiteral(node, ast);
+  case NODE_STRING_INTERP:
+    return interpretStringInterp(node, ast, env, error);
   case NODE_IDENTIFIER:
   case NODE_LITERAL_ID:
     return interpretIdentifier(node, ast, env);

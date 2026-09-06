@@ -5,8 +5,6 @@ extern InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env,
                                    Error *error);
 extern InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
                                    Error *error);
-extern InterpreterResult stdMathInit(Node *node, int id, RuntimeEnv *env,
-                                     Error *error);
 extern InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
                                        Error *error);
 extern InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env,
@@ -19,21 +17,16 @@ typedef struct {
 } StdModuleEntry;
 
 static StdModuleEntry stdlib_modules[] = {
-    {"os", stdOsInit},         {"io", stdIoInit},     {"math", stdMathInit},
-    {"string", stdStringInit}, {"json", stdJsonInit}, {NULL, NULL}};
+    {"os", stdOsInit},        {"io", stdIoInit},
+    {"stdstring", stdStringInit},
+    {"json", stdJsonInit},    {NULL, NULL}};
 
-/* Initialize all standard modules and register them in the environment */
+/* Initialize stdlib — do NOT register modules as globals.
+ * Modules (math, os, json, etc.) are only available via import.
+ * This function is kept for module loading, not global registration. */
 void stdlibInit(RuntimeEnv *env) {
-  if (!env)
-    return;
-
-  for (int i = 0; stdlib_modules[i].name != NULL; i++) {
-    /* Create the module object */
-    InterpreterResult result = stdlib_modules[i].init(NULL, -1, env, NULL);
-    if (result.flow == FLOW_NORMAL) {
-      semSet(env, stdlib_modules[i].name, result.value);
-    }
-  }
+  (void)env;
+  /* No-op: modules are loaded on-demand via import */
 }
 
 /* Get a standard module by name */

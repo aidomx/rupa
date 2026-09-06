@@ -1,0 +1,27 @@
+import json from rupa
+
+// Core functions
+obj = {name: "rupa", version: 2, active: true}
+str = json.stringify(obj)
+print(str + "\n")
+
+parsed = json.parse(str)
+print(parsed + "\n")
+
+// Utility functions
+print(json.valid('{"a": 1}') + "\n")
+print(json.valid('not json') + "\n")
+
+print(json.keys(parsed) + "\n")
+print(json.values(parsed) + "\n")
+
+// Merge
+a = {x: 1}
+b = {y: 2}
+merged = json.merge(a, b)
+print(merged + "\n")
+
+// Nested get
+nested = {user: {name: "aidomx", age: 25}}
+print(json.get(nested, "user.name") + "\n")
+print(json.get(nested, "user.age") + "\n")

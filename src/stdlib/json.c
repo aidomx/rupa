@@ -324,6 +324,180 @@ static InterpreterResult jsonParse(int argc, RuntimeValue *argv,
   return resultNormal(result);
 }
 
+/* ---- Utility functions ---- */
+
+/**
+ * json.valid(str) → boolean
+ * Check if a string is valid JSON.
+ */
+static InterpreterResult jsonValid(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error) {
+  (void)env;
+  if (argc < 1 || !argv || argv[0].type != VALUE_STRING || !argv[0].as.string)
+    return jsonTypeError(error, "json.valid() expects a string");
+
+  JsonParser parser = {.text = argv[0].as.string, .position = 0};
+  bool ok = true;
+  RuntimeValue result = parseJsonValue(&parser, &ok);
+  (void)result;
+  skipJsonWhitespace(&parser);
+  if (!ok || parser.text[parser.position] != '\0')
+    return resultNormal(valueBoolean(false));
+  return resultNormal(valueBoolean(true));
+}
+
+/**
+ * json.keys(obj) → array
+ * Get all keys from a Rupa object.
+ */
+static InterpreterResult jsonKeys(int argc, RuntimeValue *argv,
+                                  RuntimeEnv *env, Error *error) {
+  (void)env;
+  if (argc < 1 || !argv)
+    return jsonTypeError(error, "json.keys() expects an object");
+
+  RuntimeValue obj = argv[0];
+  if (obj.type != VALUE_OBJECT)
+    return jsonTypeError(error, "json.keys() expects an object");
+
+  /* Count entries */
+  int count = 0;
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+    count++;
+
+  RuntimeValue *items = calloc(count, sizeof(RuntimeValue));
+  int i = 0;
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+    items[i++] = valueString(e->key ? e->key : "");
+
+  return resultNormal(valueArray(items, count));
+}
+
+/**
+ * json.values(obj) → array
+ * Get all values from a Rupa object.
+ */
+static InterpreterResult jsonValues(int argc, RuntimeValue *argv,
+                                    RuntimeEnv *env, Error *error) {
+  (void)env;
+  if (argc < 1 || !argv)
+    return jsonTypeError(error, "json.values() expects an object");
+
+  RuntimeValue obj = argv[0];
+  if (obj.type != VALUE_OBJECT)
+    return jsonTypeError(error, "json.values() expects an object");
+
+  int count = 0;
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+    count++;
+
+  RuntimeValue *items = calloc(count, sizeof(RuntimeValue));
+  int i = 0;
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+    items[i++] = e->value;
+
+  return resultNormal(valueArray(items, count));
+}
+
+/**
+ * json.merge(a, b) → object
+ * Merge two objects. Keys from b override a.
+ */
+static InterpreterResult jsonMerge(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error) {
+  (void)env;
+  if (argc < 2 || !argv)
+    return jsonTypeError(error, "json.merge() expects two objects");
+
+  if (argv[0].type != VALUE_OBJECT || argv[1].type != VALUE_OBJECT)
+    return jsonTypeError(error, "json.merge() expects two objects");
+
+  /* Deep copy a */
+  struct RuntimeObjectEntry *entries = NULL, **tail = &entries;
+  for (struct RuntimeObjectEntry *e = argv[0].as.object.entries; e;
+       e = e->next) {
+    struct RuntimeObjectEntry *ne = calloc(1, sizeof(*ne));
+    ne->key = strdup(e->key ? e->key : "");
+    ne->value = e->value;
+    *tail = ne;
+    tail = &ne->next;
+  }
+
+  /* Override with b */
+  for (struct RuntimeObjectEntry *e = argv[1].as.object.entries; e;
+       e = e->next) {
+    bool found = false;
+    for (struct RuntimeObjectEntry *ne = entries; ne; ne = ne->next) {
+      if (ne->key && e->key && strcmp(ne->key, e->key) == 0) {
+        ne->value = e->value;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      struct RuntimeObjectEntry *ne = calloc(1, sizeof(*ne));
+      ne->key = strdup(e->key ? e->key : "");
+      ne->value = e->value;
+      *tail = ne;
+      tail = &ne->next;
+    }
+  }
+
+  return resultNormal(valueObject(entries));
+}
+
+/**
+ * json.get(obj, path) → any
+ * Get a nested value by dot-separated path.
+ * Example: json.get(obj, "user.name")
+ */
+static InterpreterResult jsonGet(int argc, RuntimeValue *argv,
+                                 RuntimeEnv *env, Error *error) {
+  (void)env;
+  if (argc < 2 || !argv)
+    return jsonTypeError(error, "json.get() expects (object, path)");
+
+  if (argv[0].type != VALUE_OBJECT)
+    return jsonTypeError(error, "json.get() expects an object as first argument");
+
+  if (argv[1].type != VALUE_STRING || !argv[1].as.string)
+    return jsonTypeError(error, "json.get() expects a string path");
+
+  const char *path = argv[1].as.string;
+  RuntimeValue current = argv[0];
+
+  /* Walk dot-separated path */
+  const char *p = path;
+  while (*p && current.type == VALUE_OBJECT) {
+    /* Extract segment */
+    const char *start = p;
+    while (*p && *p != '.')
+      p++;
+    size_t segLen = (size_t)(p - start);
+
+    /* Find key in object */
+    bool found = false;
+    for (struct RuntimeObjectEntry *e = current.as.object.entries; e;
+         e = e->next) {
+      if (e->key && strlen(e->key) == segLen &&
+          strncmp(e->key, start, segLen) == 0) {
+        current = e->value;
+        found = true;
+        break;
+      }
+    }
+    if (!found)
+      return resultNormal(valueNull());
+
+    if (*p == '.')
+      p++;
+  }
+
+  return resultNormal(current);
+}
+
+/* ---- Module registration ---- */
+
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
   struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
@@ -344,5 +518,10 @@ InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env,
   (void)error;
   addEntry(&entries, "stringify", jsonStringify, 1);
   addEntry(&entries, "parse", jsonParse, 1);
+  addEntry(&entries, "valid", jsonValid, 1);
+  addEntry(&entries, "keys", jsonKeys, 1);
+  addEntry(&entries, "values", jsonValues, 1);
+  addEntry(&entries, "merge", jsonMerge, 2);
+  addEntry(&entries, "get", jsonGet, 2);
   return resultNormal(valueObject(entries));
 }

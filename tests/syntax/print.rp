@@ -2,13 +2,20 @@ name = "rupa"
 x = 1
 y = 2
 
+user = {
+  name: "rupa"
+}
+
 add(x,y) {
   return x + y
 }
 
-print("hello world")
-print(name)
-print(name + " language")
-print("x =", x)
-print("result:", x + y, true)
-print(add(1, 2), [3, 4])
+print("hello world\n")
+print(name + "\n")
+print(name + " language\n")
+print("x =", x, "\n")
+print("result:" + x + y + " true\n")
+print(add(1, 2) + " " + [3, 4] + "\n")
+print("{{add(1,2)}}\n")
+print("{{user.name}}\n")
+

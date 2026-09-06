@@ -1,0 +1,25 @@
+# This module demonstrates policy export
+# 'multiply' and 'divide' are private, cannot be imported from outside
+
+add(x, y) {
+    return x + y
+}
+
+subtract(x, y) {
+    return x - y
+}
+
+multiply(x, y) {
+    return x * y
+}
+
+divide(x, y) {
+    if y == 0 {
+        print("Error: division by zero")
+        return null
+    }
+    return x / y
+}
+
+# Policy export: multiply and divide are private
+export calc from ./policy -> { multiply: private, divide: private }

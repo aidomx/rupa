@@ -6,6 +6,40 @@ static TokenType last_token_type(State *state) {
   return state->tokens->data[state->tokens->length - 1].type;
 }
 
+static bool skipComment(const char *s, int *p, int end) {
+  char c = s[*p];
+  char next = s[*p + 1];
+
+  // Single comment : # or //
+  if (c == '#' || (c == '/' && next == '/')) {
+    while (*p < end && s[*p] != '\n')
+      (*p)++;
+
+    if (s[*p] == '\n')
+      return true;
+  }
+
+  // Block comment : /**/
+  if (c == '/' && next == '*') {
+    /* Advance past opening block comment marker */
+    (*p) += 2;
+
+    /* Scan for closing block comment end marker */
+    while (*p < end - 1) {
+      if (s[*p] == '*' && s[*p + 1] == '/') {
+        (*p) += 2; /* advance past end marker */
+        return true;
+      }
+      (*p)++;
+    }
+    /* Unterminated block comment — consume to end of input */
+    *p = end;
+    return true;
+  }
+
+  return false;
+}
+
 int processConstruct(State *state, int start, int end, bool *waiting) {
   if (!state || !state->input || !state->tokens || !waiting)
     return -1;
@@ -22,6 +56,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
 
   while (p < end) {
     char c = s[p];
+
     if (c == ' ' || c == '\t' || c == '\r') {
       p++;
       continue;
@@ -29,11 +64,22 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
 
     /* Line comments are ignored by the lexer.  They must not invalidate
        tokens that were already accepted before '#'. */
-    if (c == '#') {
-      while (p < end && s[p] != '\n')
-        p++;
+    if (skipComment(s, &p, end)) {
+      p++;
       continue;
     }
+
+    /*if (c == '#') {*/
+    /*while (p < end && s[p] != '\n')*/
+    /*p++;*/
+    /*continue;*/
+    /*}*/
+
+    /*if (c == '/' && s[p + 1] == '/') {*/
+    /*while (p < end && s[p] != '\n')*/
+    /*p++;*/
+    /*continue;*/
+    /*}*/
 
     if (c == '\n') {
       /* `:` selalu membatasi body satu statement fisik, termasuk ketika
@@ -45,7 +91,8 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
          * NEWLINE to prevent the following statement being absorbed. */
         addDelim(state->tokens, '\n', NULL, state->input->line, p++);
         singleStatement = false;
-        if (ctx) ctx->colon = 0;
+        if (ctx)
+          ctx->colon = 0;
         continue;
       }
       /* NEWLINE tetap penting sebagai batas statement di dalam `{ ... }`.
@@ -86,15 +133,16 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
     KeywordType keywordType = KEYWORD_NONE;
     int keywordNext = p;
     if (scanKeyword(s, p, end, &keywordType, &keywordNext)) {
-      int next = processKeyword(state, keywordType, p, keywordNext, end, waiting);
+      int next =
+          processKeyword(state, keywordType, p, keywordNext, end, waiting);
       if (next < 0)
         return -1;
       p = next;
       /* Keywords that are followed by a value expression (return, async)
        * must leave expectValue true so that a subsequent '{' is recognised
        * as an object literal (objectDepth) rather than a block. */
-      expectValue = (keywordType == KEYWORD_RETURN ||
-                     keywordType == KEYWORD_ASYNC);
+      expectValue =
+          (keywordType == KEYWORD_RETURN || keywordType == KEYWORD_ASYNC);
       if (singleStatement)
         statementStarted = true;
       continue;
@@ -181,8 +229,8 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
                               ? 1
                               : ctx->inStruct;
           ctx->objectDepth = (previous == ASSIGN || wasExpectingValue)
-                                  ? brace
-                                  : ctx->objectDepth;
+                                 ? brace
+                                 : ctx->objectDepth;
           if (ctx->inStruct)
             state->input->flags->isStructDecl = true;
         } else if (c == ':') {

@@ -1,5 +1,5 @@
 add(name: string) {
-  print(name)
+  print(name + "\n")
 }
 
 export test_1

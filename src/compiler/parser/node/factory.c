@@ -319,6 +319,13 @@ int createMemberAssign(Node *root, int target, int value) {
   return createAst(root, node);
 }
 
+int createStringInterp(Node *root, int *parts, int length) {
+  AstNode n = {.type = NODE_STRING_INTERP};
+  n.stringInterp.parts = copyIds(parts, length);
+  n.stringInterp.length = length;
+  return createAst(root, n);
+}
+
 int createModuleImport(Node *root, int basePath,
                        struct AstModuleImportEntry *entries, int entryCount,
                        int alias) {
@@ -332,6 +339,28 @@ int createModuleImport(Node *root, int basePath,
     n.moduleImport.entries = gcmall(sizeof(struct AstModuleImportEntry) * entryCount);
     memcpy(n.moduleImport.entries, entries,
            sizeof(struct AstModuleImportEntry) * entryCount);
+  }
+  return createAst(root, n);
+}
+
+int createExportDecl(Node *root, int namespaceName, int sourcePath,
+                     int selectiveItems, struct AstExportPolicyEntry *policies,
+                     int policyCount) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_EXPORT_DECL};
+  n.astExport.namespaceName = namespaceName;
+  n.astExport.sourcePath = sourcePath;
+  n.astExport.selectiveItems = selectiveItems;
+  n.astExport.policies = NULL;
+  n.astExport.policyCount = policyCount;
+  if (policyCount > 0 && policies) {
+    n.astExport.policies = gcmall(sizeof(struct AstExportPolicyEntry) * policyCount);
+    if (n.astExport.policies) {
+      for (int i = 0; i < policyCount; i++) {
+        n.astExport.policies[i].nameNode = policies[i].nameNode;
+        n.astExport.policies[i].policy = policies[i].policy ? gcstrdup(policies[i].policy) : NULL;
+      }
+    }
   }
   return createAst(root, n);
 }

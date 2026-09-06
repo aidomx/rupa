@@ -1,9 +1,9 @@
 auth() {
-    print("d.auth called")
+    print("d.auth called\n")
 }
 
 users() {
-    print("d.users called")
+    print("d.users called\n")
 }
 
 export d

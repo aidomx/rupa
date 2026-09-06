@@ -1,0 +1,5 @@
+// test_lib.rp — Test importing from modules
+import greet, add from ./test
+
+print(greet("World") + "\n")
+print(add(1, 2) + "\n")

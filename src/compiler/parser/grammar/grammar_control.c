@@ -2,8 +2,8 @@
 
 /*
  * break/continue adalah control statement tanpa operand.
- * Jika keyword cocok tetapi ada token lain pada statement yang sama, parse gagal
- * agar `continue x` tidak diam-diam diterima sebagai continue biasa.
+ * Jika keyword cocok tetapi ada token lain pada statement yang sama, parse
+ * gagal agar `continue x` tidak diam-diam diterima sebagai continue biasa.
  */
 int grammarParseControl(Request *r, int a, int b, int *pos) {
   if (!r || !r->tokens || a < 0 || a >= b)

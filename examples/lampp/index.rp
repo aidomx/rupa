@@ -1,0 +1,4 @@
+import os from rupa
+
+print("Lampp Webserver")
+print("Detect your os: ")

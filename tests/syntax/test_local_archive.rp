@@ -1,0 +1,5 @@
+import testpkg from testpkg
+
+print(testpkg + "\n")
+print(testpkg.add(1,2) + "\n")
+print(testpkg.mul(2,3) + "\n")

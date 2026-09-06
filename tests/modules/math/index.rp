@@ -1,0 +1,4 @@
+// index.rp — Public entry point for the Rupa math package.
+// `import math from rupa` binds this package object directly.
+export abs, floor, ceil, round, pow, sqrt, sin, cos, tan, mod, clamp, lerp, isEven, isOdd, factorial from ./math
+export add, div, mod, mul, sub, sum from ./extra

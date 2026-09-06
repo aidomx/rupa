@@ -1,0 +1,5 @@
+import add, sub, mul from stark
+
+print(add(2, 3) + "\n")
+print(sub(10, 4) + "\n")
+print(mul(4, 5) + "\n")

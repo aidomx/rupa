@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+declare -gA UNUSED_FILES=()
+declare -gA ERROR_FILES=()
+
 build_clean() {
   rm -rf $BUILD_DIR $TARGET >/dev/null 2>&1 &
   PID=$!
@@ -7,30 +10,43 @@ build_clean() {
 }
 
 build_common() {
-  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local compact=false
-  ((width < 64)) && compact=true
+  local SKIPPED_FILES=0
+  local NEEDS_COMPILE=()
 
-  # The progress bar is always the last visible line, fixed at the bottom.
-  # Before printing a new source row, erase the progress bar and move the
-  # cursor up so the new row is inserted above it.
-  local progress_active=false
-
-  printf "# | source"
-  if ! $compact; then
-    printf " | time   | size | status"
-  else
-    printf " | status"
-  fi
-  printf "\n"
-
+  # Phase 1: determine which files need recompilation
   for file in "${SRC[@]}"; do
-    if $progress_active; then
-      # Erase the fixed bottom progress bar, then move cursor up
-      # so the new source row goes above it.
-      printf '\033[2K\r\033[1A'
-    fi
+    local obj_file
+    obj_file=$(echo "$file" | sed "s|^$SRC_DIR/|$BUILD_DIR/|" | sed 's|\.c$|.o|')
 
+    if [[ -f "$obj_file" ]] && [[ "$obj_file" -nt "$file" ]]; then
+      SKIPPED_FILES=$((SKIPPED_FILES + 1))
+    else
+      NEEDS_COMPILE+=("$file")
+    fi
+  done
+
+  local COMPILE_TOTAL=${#NEEDS_COMPILE[@]}
+  TOTAL_FILES=$COMPILE_TOTAL
+
+  if [ "$COMPILE_TOTAL" -eq 0 ]; then
+    echo -e "${CYAN}> All files up-to-date, nothing to compile.${NC}"
+    link_executable
+    local size=$(stat -c%s "$TARGET" 2>/dev/null | numfmt --to=iec 2>/dev/null || echo "unknown")
+    echo ""
+    echo -e "${CYAN}> Summary${NC}"
+    echo -e "Target   : ${YELLOW}$TARGET${NC}"
+    echo -e "Size     : ${YELLOW}$size${NC}"
+    echo -e "Skipped  : ${YELLOW}$SKIPPED_FILES${NC} (up-to-date)"
+    echo -e "Compiled : ${YELLOW}0${NC}"
+    echo -e "Status   : ${GREEN}Success${NC}"
+    echo -e "Errors   : 0"
+    echo -e "Warnings : ${UNUSED_TOTAL:-0}"
+    echo ""
+    return 0
+  fi
+
+  # Phase 2: compile only changed files
+  for file in "${NEEDS_COMPILE[@]}"; do
     COMPILED_FILES=$((COMPILED_FILES + 1))
     SOURCE="${file#"$APP_ROOT"/}"
     [[ "$SOURCE" == "$file" ]] && SOURCE="${file#"$SRC_DIR"/}"
@@ -59,37 +75,11 @@ build_common() {
       fi
     fi
 
-    # Width belongs to the whole row. Keep # and status fixed and give the
-    # remaining space to source. Long paths are shortened from the left.
-    if $compact; then
-      local fixed=$((4 + 8)) # index + separators/status
-      local max_source=$((width - fixed))
-      ((max_source < 10)) && max_source=10
-      if ((${#SOURCE} > max_source)); then
-        SOURCE="...${SOURCE: -$((max_source - 3))}"
-      fi
-      printf "%d | %-*s | %b\n" "$COMPILED_FILES" "$max_source" "$SOURCE" "$STATUS"
-    else
-      local max_source=$((width - 31))
-      ((max_source < 12)) && max_source=12
-      if ((${#SOURCE} > max_source)); then
-        SOURCE="...${SOURCE: -$((max_source - 3))}"
-      fi
-      printf "%d | %-*s | %-6s | %-4s | %b\n" \
-        "$COMPILED_FILES" "$max_source" "$SOURCE" "$TIME" "$SIZE" "$STATUS"
-    fi
-
-    # Render progress bar at the bottom
-    PERCENT=$((COMPILED_FILES * 100 / TOTAL_FILES))
-    _render_build_progress "$COMPILED_FILES" "$TOTAL_FILES" "$PERCENT" "$SOURCE"
-    progress_active=true
+    _render_build_progress "$COMPILED_FILES" "$COMPILE_TOTAL" "$STATUS" "$SOURCE" "$SIZE" "$TIME"
+    report_compile "$file"
   done
 
-  if $progress_active; then
-    # Remove the final progress bar before linking/summary output.
-    printf '\033[2K\r'
-    printf '\n'
-  fi
+  scan_results
 
   if [ "$ERROR_TOTAL" -eq 0 ]; then
     link_executable
@@ -103,7 +93,8 @@ build_common() {
   echo -e "${CYAN}> Summary${NC}"
   echo -e "Target   : ${YELLOW}$TARGET${NC}"
   echo -e "Size     : ${YELLOW}$size${NC}"
-  echo -e "Files    : ${YELLOW}$TOTAL_FILES${NC}"
+  echo -e "Skipped  : ${YELLOW}${SKIPPED_FILES:-0}${NC} (up-to-date)"
+  echo -e "Compiled : ${YELLOW}$COMPILE_TOTAL${NC}"
   echo -e "Status   : ${GREEN}Success${NC}"
   echo -e "Errors   : ${ERROR_TOTAL:-0}"
   echo -e "Warnings : ${UNUSED_TOTAL:-0}"
@@ -113,44 +104,44 @@ build_common() {
   rm -rf "$LOG_DIR"
 }
 
-_render_build_progress() {
-  local current=$1 total=$2 percent=$3 file=$4
-  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local bar_width=30
-  local filled=$((percent * bar_width / 100))
-  local empty=$((bar_width - filled))
+report_compile() {
+  local file="$1"
 
-  local bar="${CYAN}"
-  for ((i = 0; i < filled; i++)); do bar+="█"; done
-  bar+="${GRAY}"
-  for ((i = 0; i < empty; i++)); do bar+="░"; done
-  bar+="${NC}"
+  if [[ -d "$LOG_DIR" ]]; then
+    file="$(basename "$file").log"
 
-  # Shorten file path for the progress line
-  local short_file="${file#"$SRC_DIR"/}"
-  local max_file=$((width - bar_width - 30))
-  ((max_file < 10)) && max_file=10
-  if ((${#short_file} > max_file)); then
-    short_file="...${short_file: -$((max_file - 3))}"
+    if [[ -f "$LOG_DIR/$file" ]]; then
+      log=$(cat "$LOG_DIR/$file")
+      [[ -n "$log" ]] && echo "$log"
+    fi
   fi
+  return 0
+}
 
-  printf "\r%b %b %s %b" \
-    "${CYAN}▸${NC}" \
-    "$bar" \
-    "${WHITE}${percent}%${NC}" \
-    "${GRAY}(${current}/${total})${NC} ${WHITE}${short_file}${NC}"
+_render_build_progress() {
+  local current=$1 total=$2 status_str=$3 file=$4 size=$5 time=$6
+
+  echo -e "Index    : $current dari $total"
+  echo -e "Source   : $file"
+  echo -e "Size     : $size"
+  echo -e "Time     : $time"
+  echo -e "Status   : $status_str"
+  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+  printf '%*s\n' "$width" '' | tr ' ' '-'
 }
 
 compile_file() {
   local src_file=$1
+  local obj_file
+  local log_file
 
   if ! [ -f "$src_file" ]; then
     echo -e "${RED}No such file${NC}" >&2
     return 1
   fi
 
-  local obj_file=$(echo "$src_file" | sed "s|^$SRC_DIR/|$BUILD_DIR/|" | sed 's|\.c$|.o|')
-  local log_file="$LOG_DIR/$(basename "$src_file").log"
+  obj_file=$(echo "$src_file" | sed "s|^$SRC_DIR/|$BUILD_DIR/|" | sed 's|\.c$|.o|')
+  log_file="$LOG_DIR/$(basename "$src_file").log"
 
   mkdir -p "$(dirname "$obj_file")"
   [[ ! -d "$LOG_DIR" ]] && mkdir -p "$LOG_DIR"
@@ -159,10 +150,8 @@ compile_file() {
   output=$($CC $CFLAGS -c "$src_file" -o "$obj_file" 2>&1)
   local status=$?
 
-  # Simpan log hanya kalau debug
-  if $DEBUGGING; then
-    echo "$output" >"$log_file"
-  fi
+  # Always save log for scan_results
+  echo "$output" >"$log_file"
 
   if [ $status -ne 0 ]; then
     echo "$output" >&2
@@ -173,32 +162,41 @@ compile_file() {
 }
 
 scan_results() {
-  declare -gA UNUSED_FILES
-  declare -gA ERROR_FILES
+  [[ ! -d "$LOG_DIR" ]] && return 0
 
   for log in "$LOG_DIR"/*.log; do
     [ -f "$log" ] || continue
 
-    local file=$(basename "$log" .log)
+    file=$(basename "$log" .log)
 
     local unused
-    unused=$(grep -c "unused" "$log")
+    unused=$(grep -c "unused" "$log" 2>/dev/null) || unused=0
 
-    local errors
-    errors=$(grep -c "error:" "$log")
-
-    ((UNUSED_TOTAL += unused))
-    ((ERROR_TOTAL += errors))
-
-    ((unused > 0)) && UNUSED_FILES["$file"]=$unused
-    ((errors > 0)) && ERROR_FILES["$file"]=$errors
+    UNUSED_TOTAL=$((UNUSED_TOTAL + unused))
+    if [ "$unused" -gt 0 ]; then
+      UNUSED_FILES["$file"]=$unused
+    fi
   done
+  return 0
+}
+
+prepare_module_archive() {
+  local archive="$APP_ROOT/modules/rupa_modules.tar.gz"
+  local module_object="$BUILD_DIR/rupa_modules.o"
+
+  [[ ! -d "$APP_ROOT/tests/modules" ]] && return 0
+  mkdir -p "$APP_ROOT/modules" "$BUILD_DIR"
+  tar czf "$archive" -C "$APP_ROOT/tests/modules" .
+  (cd "$APP_ROOT" && ld -r -b binary -o "$module_object" "modules/rupa_modules.tar.gz")
 }
 
 link_executable() {
   [[ ! -d "$BINARY_DIR" ]] && mkdir -p "$BINARY_DIR"
-  echo -e "[$TOTAL_FILES/$TOTAL_FILES] ${YELLOW}Linking $TARGET...${NC}"
-  $CC $(find $BUILD_DIR -name "*.o") $LDFLAGS -o $TARGET 2>&1
+  prepare_module_archive || return 1
+  echo -e "${CYAN}> Linked${NC}"
+  $CC find $BUILD_DIR -name "*.o" $LDFLAGS -o $TARGET >/dev/null 2>&1 &
+  pid=$!
+  progress "percent" $pid "[$TOTAL_FILES/$TOTAL_FILES] ${YELLOW}$TARGET...${NC}"
 }
 
 show_detail() {

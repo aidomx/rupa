@@ -42,6 +42,8 @@ Flags *createFlags(size_t size) {
   flags->isBlockElse = false;
   // block start program : {
   flags->isBlockProgram = false;
+  // case program
+  flags->isCase = false;
   // loop for
   flags->isFor = false;
   // loop reverse

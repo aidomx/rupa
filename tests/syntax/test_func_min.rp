@@ -2,4 +2,4 @@ getStr() {
     return "hello"
 }
 s = getStr()
-print(s)
+print(s + "\n")

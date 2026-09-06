@@ -1,5 +1,24 @@
 #include <rupa.h>
 
+/* Check if a name is private in any namespace object in the env chain */
+static bool isPrivateName(RuntimeEnv *env, const char *name) {
+  if (!env || !name) return false;
+  for (RuntimeEnv *e = env; e; e = e->parent) {
+    for (RuntimeBinding *b = e->bindings; b; b = b->next) {
+      if (b->value.type != VALUE_OBJECT) continue;
+      /* Check if this object has a _private entry */
+      RuntimeValue priv_val;
+      if (valueObjectGet(b->value, "_private", &priv_val) &&
+          priv_val.type == VALUE_OBJECT) {
+        RuntimeValue found;
+        if (valueObjectGet(priv_val, name, &found))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 static const char *paramName(Node *node, int id) {
   if (!node || id < 0 || id >= node->length) return NULL;
   AstNode *ast = &node->ast[id];
@@ -18,6 +37,15 @@ static const char *calleeName(Node *node, int id) {
   AstNode *ast = &node->ast[id];
   if (ast->type == NODE_IDENTIFIER) return ast->identifier.name;
   if (ast->type == NODE_LITERAL_ID) return ast->string.value;
+  /* math.add → return "add" (the member name) */
+  if (ast->type == NODE_MEMBER) {
+    int mid = ast->member.member;
+    if (mid >= 0 && mid < node->length) {
+      AstNode *m = &node->ast[mid];
+      if (m->type == NODE_IDENTIFIER) return m->identifier.name;
+      if (m->type == NODE_LITERAL_ID) return m->string.value;
+    }
+  }
   return NULL;
 }
 
@@ -59,16 +87,23 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
     if (error) {
       const char *name = calleeName(node, ast->call.callee);
       static char message[256];
-      if (name)
+      if (name && isPrivateName(env, name)) {
+        snprintf(message, sizeof(message),
+                 "'%s' is private and cannot be called from outside", name);
+        addError(error, (ErrorInfo){.code = "PrivateError", .message = message,
+                                     .line = 0, .row = 0,
+                                     .type = ERR_INVALID_CALL});
+      } else if (name)
         snprintf(message, sizeof(message),
                  "'%s' is not a function and cannot be called", name);
       else
         snprintf(message, sizeof(message),
                  "value of type '%s' is not a function and cannot be called",
                  valueTypeName(callee.value.type));
-      addError(error, (ErrorInfo){.code = "TypeError", .message = message,
-                                   .line = 0, .row = 0,
-                                   .type = ERR_INVALID_CALL});
+      if (!name || !isPrivateName(env, name))
+        addError(error, (ErrorInfo){.code = "TypeError", .message = message,
+                                     .line = 0, .row = 0,
+                                     .type = ERR_INVALID_CALL});
     }
     return resultFlow(FLOW_ERROR, valueNull());
   }

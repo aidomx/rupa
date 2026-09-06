@@ -21,10 +21,10 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
 
   /* case may be emitted as a keyword by the processor; keep the grammar
    * check value-based as a defensive path while keyword tables evolve. */
-  if (!strcmp(t->data[a].value, "case")) {
-    int id = grammarParseCase(r, a, b, limit, pos);
-    if (id != GRAMMAR_NO_MATCH) return id;
-  }
+  /*if (!strcmp(t->data[a].value, "case")) {*/
+  /*int id = grammarParseCase(r, a, b, limit, pos);*/
+  /*if (id != GRAMMAR_NO_MATCH) return id;*/
+  /*}*/
 
   if (t->data[a].type == KEYWORD) {
     int id;
@@ -60,7 +60,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
     return id;
   if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;
-  if ((id = grammarParseConditionalAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
+  if ((id = grammarParseConditionalAssignment(r, a, b, pos)) !=
+      GRAMMAR_NO_MATCH)
     return id;
   if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
     return id;

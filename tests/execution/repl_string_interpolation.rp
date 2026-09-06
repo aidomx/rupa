@@ -2,10 +2,10 @@
 greeting = "Hello"
 name = "Rupa"
 msg = "{greeting}, {name}!"
-print(msg)
+print(msg + "\n")
 assertEq(msg, "Hello, Rupa!")
 # Update and re-interpolate
 name = "World"
 msg2 = "{greeting}, {name}!"
-print(msg2)
+print(msg2 + "\n")
 assertEq(msg2, "Hello, World!")
