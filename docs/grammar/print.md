@@ -8,7 +8,7 @@ Setiap expression menjadi child langsung dari node `Print`. Koma tidak menghasil
 
 Source:
 
-```js
+```rupa
 print('hello world\n');
 ```
 
@@ -26,7 +26,7 @@ Satu argument menghasilkan satu child pada node `Print`.
 
 Source:
 
-```js
+```rupa
 print('x =', x, '\n');
 ```
 
@@ -44,7 +44,7 @@ Setiap argument dipertahankan sebagai node terpisah di dalam `Print`.
 
 Dengan demikian, bentuk:
 
-```js
+```rupa
 print(a, b, c);
 ```
 
@@ -63,7 +63,7 @@ Argument `print` tidak terbatas pada literal. Sebuah argument dapat berupa expre
 
 Source:
 
-```js
+```rupa
 print(name + '\n');
 ```
 
@@ -85,7 +85,7 @@ Expression tersebut tetap menjadi satu argument `Print`, sedangkan struktur oper
 
 Source:
 
-```js
+```rupa
 print('result:', x + y, true);
 ```
 
@@ -115,7 +115,7 @@ Operator `+` hanya berlaku di dalam argument kedua dan menghasilkan `Binary` nod
 
 Source:
 
-```js
+```rupa
 print(add(1, 2));
 ```
 
@@ -141,7 +141,7 @@ Argument dapat berupa expression yang terdiri dari beberapa operasi.
 
 Source:
 
-```js
+```rupa
 print('result:' + x + y + ' true\n');
 ```
 
@@ -173,7 +173,7 @@ Function call juga dapat digunakan sebagai bagian dari expression argument.
 
 Source:
 
-```js
+```rupa
 print(add(1, 2) + ' ' + [3, 4] + '\n');
 ```
 
@@ -213,7 +213,7 @@ String literal dapat berisi interpolation untuk menampilkan nilai variabel atau 
 
 Source:
 
-```js
+```rupa
 print('Hello {name}\n');
 ```
 
@@ -232,7 +232,7 @@ Program:
 
 Source:
 
-```js
+```rupa
 print('{{add(1,2)}}\n');
 print('{{user.name}}');
 print('{{x + y}}');
@@ -269,7 +269,7 @@ Program:
 
 Source:
 
-```js
+```rupa
 print('Hello {name}, you have {{count}} items\n');
 ```
 
@@ -312,7 +312,7 @@ Jumlah child `Print` mengikuti jumlah argument yang diberikan.
 
 Source:
 
-```js
+```rupa
 print(a, b + c, add(1, 2));
 ```
 

@@ -2,7 +2,7 @@
 
 ## Apa yang bisa ditulis?
 
-```js
+```rupa
 case status => {
     200: print("success")
     404: print("not found")
@@ -21,7 +21,7 @@ Case mengevaluasi subject dan menjalankan body yang sesuai dengan pattern. Jika 
 
 ### Contoh execution
 
-```js
+```rupa
 status = 404
 
 case status => {
@@ -34,7 +34,7 @@ case status => {
 
 Output: `not found`
 
-```js
+```rupa
 status = 999
 
 case status => {

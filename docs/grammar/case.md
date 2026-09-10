@@ -6,7 +6,7 @@ Grammar case membentuk node case dari subject dan entries.
 
 Source:
 
-```js
+```rupa
 case status => {
     200: print("success")
     404: print("not found")

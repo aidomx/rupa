@@ -4,13 +4,13 @@
 
 Mencetak teks, variabel, atau hasil ekspresi ke terminal.
 
-```js
+```rupa
 print('hello world');
 ```
 
 ## Dengan multiple arguments (dipisahkan koma):
 
-```js
+```rupa
 name = 'rupa';
 x = 1;
 y = 2;
@@ -23,7 +23,7 @@ print('result:', x + y, true);
 
 ## Function call dan array:
 
-```js
+```rupa
 add(x, y) {
     return x + y
 }
@@ -39,7 +39,7 @@ print() mendukung interpolasi di dalam string literal. Ada dua bentuk:
 
 Single curly braces untuk menampilkan nilai variabel langsung:
 
-```js
+```rupa
 x = 10;
 print('x = {x}'); // output: x = 10
 print('{name}\n'); // output: nama + newline
@@ -49,7 +49,7 @@ print('{name}\n'); // output: nama + newline
 
 Double curly braces untuk mengevaluasi ekspresi, termasuk function call dan member access:
 
-```js
+```rupa
 add(a, b) { return a + b }
 print('{{add(1, 2)}}\n'); // output: 3 + newline
 
@@ -61,9 +61,9 @@ print('{{x + y}}\n'); // output: hasil penjumlahan + newline
 
 ### Perbedaan `{ }` dan `{{ }}`
 
-| Syntax | Keterangan | Contoh |
-|--------|-----------|--------|
-| `{x}` | Variable lookup langsung | `"{x}"` → `10` |
+| Syntax     | Keterangan                                 | Contoh               |
+| ---------- | ------------------------------------------ | -------------------- |
+| `{x}`      | Variable lookup langsung                   | `"{x}"` → `10`       |
 | `{{expr}}` | Ekspresi penuh (binary, call, member, dll) | `"{{x + y}}"` → `30` |
 
 ### AST Representation
@@ -103,7 +103,7 @@ Gunakan print() untuk menampilkan output ke terminal.
 · Tipe data ditampilkan sesuai representasinya (string, angka, boolean, array, objek, dll.).
 · Ekspresi dalam `{ }` atau `{{ }}` dievaluasi dan hasilnya dikonversi ke string.
 
-```js
+```rupa
 print('hello'); // output: hello (tanpa newline)
 print('hello\n'); // output: hello (dengan newline)
 print('{x}'); // output: nilai x
@@ -114,7 +114,7 @@ print('{{x + y}}\n'); // output: hasil penjumlahan x+y + newline
 
 ## Contoh lengkap
 
-```js
+```rupa
 name = 'rupa';
 x = 1;
 y = 2;
