@@ -1,11 +1,12 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
+  base: '/rupa/',
   title: 'Rupa',
   description: 'One Language, Many Ways to Speak',
   
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/rupa/logo.svg' }]
   ],
 
   themeConfig: {

@@ -1,0 +1,54 @@
+import{_ as s,o as n,c as e,a0 as p}from"./chunks/framework.BpJS36ta.js";const h=JSON.parse('{"title":"Import (Grammar)","description":"","frontmatter":{},"headers":[],"relativePath":"grammar/import.md","filePath":"grammar/import.md"}'),l={name:"grammar/import.md"};function i(t,a,o,d,r,c){return n(),e("div",null,[...a[0]||(a[0]=[p(`<h1 id="import-grammar" tabindex="-1">Import (Grammar) <a class="header-anchor" href="#import-grammar" aria-label="Permalink to &quot;Import (Grammar)&quot;">​</a></h1><h2 id="node-import" tabindex="-1">NODE_IMPORT <a class="header-anchor" href="#node-import" aria-label="Permalink to &quot;NODE_IMPORT&quot;">​</a></h2><p>Old-style import — <code>import X from path</code></p><h3 id="specific-functions" tabindex="-1">Specific functions <a class="header-anchor" href="#specific-functions" aria-label="Permalink to &quot;Specific functions&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import create, update from ./modules.a</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Import:</span></span>
+<span class="line"><span>    Value: Array</span></span>
+<span class="line"><span>      Literal ID: create</span></span>
+<span class="line"><span>      Literal ID: update</span></span>
+<span class="line"><span>    Name: Literal ID: modules.a</span></span></code></pre></div><p>Interpreter:</p><ol><li>Load <code>modules/a.rp</code></li><li>Extract <code>create</code> dan <code>update</code></li><li>Bind di top-level</li></ol><h3 id="full-module-import" tabindex="-1">Full module import <a class="header-anchor" href="#full-module-import" aria-label="Permalink to &quot;Full module import&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import d from ./modules</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Import:</span></span>
+<span class="line"><span>    Value: Literal ID: d</span></span>
+<span class="line"><span>    Name: Literal ID: modules</span></span></code></pre></div><p>Interpreter flow:</p><ol><li>Coba <code>loadModuleFile(&quot;modules&quot;)</code> → <code>modules.rp</code></li><li>Jika gagal, coba <code>loadModuleFile(&quot;modules.d&quot;)</code> → <code>modules/d.rp</code></li><li>Bind seluruh module sebagai <code>d</code></li></ol><h3 id="stdlib-import" tabindex="-1">Stdlib import <a class="header-anchor" href="#stdlib-import" aria-label="Permalink to &quot;Stdlib import&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import os from rupa</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Import:</span></span>
+<span class="line"><span>    Value: Literal ID: os</span></span>
+<span class="line"><span>    Name: Literal ID: rupa</span></span></code></pre></div><p>Interpreter:</p><ol><li>Cari di stdlib modules → <code>os</code></li><li>Bind di top-level</li></ol><h2 id="node-module-import" tabindex="-1">NODE_MODULE_IMPORT <a class="header-anchor" href="#node-module-import" aria-label="Permalink to &quot;NODE_MODULE_IMPORT&quot;">​</a></h2><p>Flat import — <code>import entries from path as alias</code></p><h3 id="wildcard-dengan-namespace" tabindex="-1">Wildcard dengan namespace <a class="header-anchor" href="#wildcard-dengan-namespace" aria-label="Permalink to &quot;Wildcard dengan namespace&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import b.*, c.*, d.* from ./modules as m</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Module Import:</span></span>
+<span class="line"><span>    Base Path: Literal ID: modules</span></span>
+<span class="line"><span>    Alias: Literal ID: m</span></span>
+<span class="line"><span>    Entry 0:</span></span>
+<span class="line"><span>      Path: Literal ID: b</span></span>
+<span class="line"><span>      Wildcard: true</span></span>
+<span class="line"><span>      Alias: -</span></span>
+<span class="line"><span>    Entry 1:</span></span>
+<span class="line"><span>      Path: Literal ID: c</span></span>
+<span class="line"><span>      Wildcard: true</span></span>
+<span class="line"><span>      Alias: -</span></span>
+<span class="line"><span>    Entry 2:</span></span>
+<span class="line"><span>      Path: Literal ID: d</span></span>
+<span class="line"><span>      Wildcard: true</span></span>
+<span class="line"><span>      Alias: -</span></span></code></pre></div><p>Interpreter — flatten ke namespace:</p><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>m.login = b.login</span></span>
+<span class="line"><span>m.register = b.register</span></span>
+<span class="line"><span>m.services = c.services</span></span>
+<span class="line"><span>m.auth = d.auth</span></span>
+<span class="line"><span>m.users = d.users</span></span></code></pre></div><h3 id="wildcard-dengan-per-entry-alias" tabindex="-1">Wildcard dengan per-entry alias <a class="header-anchor" href="#wildcard-dengan-per-entry-alias" aria-label="Permalink to &quot;Wildcard dengan per-entry alias&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import a.* as form from ./modules</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Module Import:</span></span>
+<span class="line"><span>    Base Path: Literal ID: modules</span></span>
+<span class="line"><span>    Alias: - (no namespace)</span></span>
+<span class="line"><span>    Entry 0:</span></span>
+<span class="line"><span>      Path: Literal ID: a</span></span>
+<span class="line"><span>      Wildcard: true</span></span>
+<span class="line"><span>      Alias: Literal ID: form</span></span></code></pre></div><p>Interpreter — <code>form</code> = module object:</p><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>form = { create: &lt;fn&gt;, update: &lt;fn&gt;, delete: &lt;fn&gt; }</span></span></code></pre></div><h3 id="mixed-import" tabindex="-1">Mixed import <a class="header-anchor" href="#mixed-import" aria-label="Permalink to &quot;Mixed import&quot;">​</a></h3><div class="language-rupa vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">rupa</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>import a.* as form, b.login, b.register from ./modules</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>Module statement:</span></span>
+<span class="line"><span>  Module Import:</span></span>
+<span class="line"><span>    Base Path: Literal ID: modules</span></span>
+<span class="line"><span>    Alias: - (no namespace)</span></span>
+<span class="line"><span>    Entry 0:</span></span>
+<span class="line"><span>      Path: Literal ID: a</span></span>
+<span class="line"><span>      Wildcard: true</span></span>
+<span class="line"><span>      Alias: Literal ID: form</span></span>
+<span class="line"><span>    Entry 1:</span></span>
+<span class="line"><span>      Path: Literal ID: b.login</span></span>
+<span class="line"><span>      Wildcard: false</span></span>
+<span class="line"><span>      Alias: -</span></span>
+<span class="line"><span>    Entry 2:</span></span>
+<span class="line"><span>      Path: Literal ID: b.register</span></span>
+<span class="line"><span>      Wildcard: false</span></span>
+<span class="line"><span>      Alias: -</span></span></code></pre></div><p>Interpreter:</p><ul><li>Wildcard + alias → <code>form</code> = module object</li><li>Specific function → extract dari module, bind top-level</li></ul><h2 id="path-resolution" tabindex="-1">Path Resolution <a class="header-anchor" href="#path-resolution" aria-label="Permalink to &quot;Path Resolution&quot;">​</a></h2><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>resolveModulePath(&quot;./modules.a&quot;) → &quot;modules/a.rp&quot;</span></span>
+<span class="line"><span>resolveModulePath(&quot;modules.d&quot;)  → &quot;modules/d.rp&quot;</span></span></code></pre></div><p><code>./</code> prefix di-strip oleh <code>resolveModulePath</code>.</p>`,38)])])}const m=s(l,[["render",i]]);export{h as __pageData,m as default};
