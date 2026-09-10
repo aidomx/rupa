@@ -69,3 +69,31 @@ Program:
     Type: Identifier: boolean
     Value: Boolean: true
 ```
+
+
+## Array type annotation
+
+Array type menggunakan `[]` setelah type dasar.
+
+Source:
+
+```rupa
+x: number[] = [1, 2, 3]
+```
+
+AST:
+
+```text
+Program:
+  Annotation:
+    Name:
+      Identifier: x
+    Type:
+      ArrayType:
+        Identifier: number
+    Value:
+      ArrayLiteral:
+        Number: 1
+        Number: 2
+        Number: 3
+```

@@ -1,0 +1,8 @@
+getUser() {
+  return [
+    { id: 1, name: "admin" },
+    { id: 2, name: "user" }
+  ]
+}
+
+export dbtest -> { getUser }

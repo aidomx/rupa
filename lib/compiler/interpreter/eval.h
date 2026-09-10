@@ -23,7 +23,7 @@ InterpreterResult interpretObject(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error);
 InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error);
-InterpreterResult interpretAsync(Node *node, AstNode *ast, RuntimeEnv *env,
+InterpreterResult interpretAsync(Node *node, int id, AstNode *ast, RuntimeEnv *env,
                                   Error *error);
 InterpreterResult interpretAwait(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error);

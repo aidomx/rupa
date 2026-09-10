@@ -1,24 +1,21 @@
 #include <rupa.h>
 
 static int findNewStart(History *h, int start, int end) {
-  if (!h)
-    return 0;
+  if (!h) return 0;
 
   int currentStart = start;
   for (int i = start; i < end; i++) {
-    if (i < h->size - 1 && h->entries[i + 1])
-      currentStart = i + 1;
+    if (i < h->size - 1 && h->entries[i + 1]) currentStart = i + 1;
   }
 
   return currentStart;
 }
 
 Input *addToInput(State *state) {
-  if (!state)
-    return NULL;
+  if (!state) return NULL;
 
   ReplState *repl = state->repl;
-  History *h = repl->history;
+  History *h = state->history;
   Input *input = state->input;
 
   // re-start by newline
@@ -41,23 +38,20 @@ Input *addToInput(State *state) {
   }
 
   // endof string
-  if (input->length == 0)
-    return NULL;
+  if (input->length == 0) return NULL;
   input->content[input->length] = '\0';
 
   return input;
 }
 
 void processInput(State *state) {
-  if (!state)
-    return;
+  if (!state) return;
 
-  printf("\n");
+  if (state->isRepl) printf("\n");
   ReplState *repl = state->repl;
   Buffer *buffer = repl->buffer;
 
-  if (buffer->length == 0 || isblank(*buffer->value))
-    return;
+  if (buffer->length == 0 || isblank(*buffer->value)) return;
 
   if (strcmp(buffer->value, ".help") == 0) {
     help(true);
@@ -82,25 +76,28 @@ void processInput(State *state) {
     return;
   }
 
-  if (buffer->value[0] == '.')
-    return;
+  if (buffer->value[0] == '.') return;
 
   setIndent(repl);
   // Jika gagal menyimpan pada history hentikan
-  if (!addToHistory(state))
-    return;
+  if (!addToHistory(state)) return;
   // Hentikan jika transfer history pada input besar
   // mengalami kegagalan saat proses transmisi
-  if (!addToInput(state))
-    return;
+  if (!addToInput(state)) return;
 
   lexer(state);
 
   Flags *flags = state->input->flags;
   Token *tokens = state->tokens;
 
-  if (!flags->isWaiting && (tokens && tokens->length > 0))
+  if (!flags->isWaiting && (tokens && tokens->length > 0)) {
     generateAst(tokens);
+    /* Statement complete — clear tokens so next line starts fresh.
+     * Safe for both REPL multiline and file mode: file calls
+     * processInput once with the whole program, REPL calls it
+     * per-line. */
+    clearStateToken(state->tokens);
+  }
 
   resetFlags(flags);
 }

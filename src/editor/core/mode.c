@@ -1,8 +1,7 @@
 #include <rupa.h>
 
 void handleCommandMode(ReplState *repl, int key) {
-  if (!repl || !repl->buffer || !repl->editor)
-    return;
+  if (!repl || !repl->buffer || !repl->editor) return;
 
   switch (key) {}
 }

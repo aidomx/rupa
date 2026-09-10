@@ -1,51 +1,125 @@
 #include <rupa.h>
+#include <time.h>
 
 extern struct EventLoop *getEventLoop(void);
 
-/*
- * Async expression: push the request to the event loop and return
- * a handle object with status=AWAIT.
- *
- * The event loop processes all pending requests after top-level execution
- * completes (see interpreter.c). At that point, the handle's data field
- * is updated with the result.
- */
-InterpreterResult interpretAsync(Node *node, AstNode *ast, RuntimeEnv *env,
-                                 Error *error) {
-  if (!node || !ast || ast->type != NODE_ASYNC)
-    return resultNormal(valueNull());
+static long currentTimeMs(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (long)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
 
-  /* Register this async handle with the event loop. */
-  struct EventLoop *loop = getEventLoop();
-  if (loop) {
-    /* The handle node id will be assigned after createAsync returns.
-     * We push a placeholder — the real handle id is the id of the
-     * NODE_ASYNC node itself, which we can determine from the AST index.
-     * However, we don't have the index here. Instead, let's evaluate
-     * the request eagerly (as before) and store the result in the
-     * event loop for await to retrieve. */
-  }
-
-  /* Evaluate the request expression now (simulated non-blocking). */
-  InterpreterResult req = interpretNode(node, ast->async.request, env, error);
-  if (req.flow != FLOW_NORMAL) return req;
-
-  /* Build handle: { status: SUCCESS, data: <result>, error: null } */
+static RuntimeValue makeAsyncHandle(const char *status, RuntimeValue data,
+                                    RuntimeValue errVal) {
   struct RuntimeObjectEntry *head = NULL;
   struct RuntimeObjectEntry *tail = NULL;
 
   const char *keys[] = {"status", "data", "error"};
-  RuntimeValue vals[] = {valueString("SUCCESS"), req.value, valueNull()};
+  RuntimeValue vals[] = {valueString(status), data, errVal};
 
   for (int i = 0; i < 3; i++) {
-    struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
+    struct RuntimeObjectEntry *e = gcmall(sizeof(*e));
     if (!e) continue;
-    e->key = strdup(keys[i]);
+    e->key = gcstrdup(keys[i]);
     e->value = vals[i];
     e->next = NULL;
-    if (tail) { tail->next = e; tail = e; }
-    else { head = tail = e; }
+    if (tail) {
+      tail->next = e;
+      tail = e;
+    } else {
+      head = tail = e;
+    }
   }
 
-  return resultNormal(valueObject(head));
+  return valueObject(head);
+}
+
+static void callLoader(Node *node, int loaderId, RuntimeEnv *env,
+                       Error *error, RuntimeValue thisVal) {
+  if (loaderId < 0) return;
+  semSet(env, "this", thisVal);
+  int callId = createCall(node, loaderId, NULL, 0);
+  if (callId >= 0) interpretNode(node, callId, env, error);
+}
+
+static void callHandler(Node *node, int handlerId, RuntimeEnv *env,
+                        Error *error, RuntimeValue thisVal) {
+  if (handlerId < 0 || handlerId >= node->length) return;
+  semSet(env, "this", thisVal);
+  interpretNode(node, handlerId, env, error);
+}
+
+/*
+ * Async expression: call loader(AWAIT), evaluate request, call loader(SUCCESS).
+ *
+ * Flow:
+ *   1. Call loader(AWAIT) → "loading..." appears
+ *   2. Evaluate request synchronously
+ *   3. Check timeout — if exceeded, call loader(ERROR)
+ *   4. Call loader(SUCCESS) → data replaces "loading..."
+ */
+InterpreterResult interpretAsync(Node *node, int id, AstNode *ast,
+                                 RuntimeEnv *env, Error *error) {
+  if (!node || !ast || ast->type != NODE_ASYNC)
+    return resultNormal(valueNull());
+
+  /* Evaluate timeout if present */
+  int timeoutMs = -1;
+  if (ast->async.timeout >= 0) {
+    InterpreterResult tv = interpretNode(node, ast->async.timeout, env, error);
+    if (tv.flow != FLOW_NORMAL) return tv;
+    if (tv.value.type == VALUE_NUMBER)
+      timeoutMs = tv.value.as.number;
+    else if (tv.value.type == VALUE_DECIMAL)
+      timeoutMs = (int)tv.value.as.decimal;
+  } else if (ast->async.timeoutId >= 0) {
+    InterpreterResult tv = interpretNode(node, ast->async.timeoutId, env, error);
+    if (tv.flow != FLOW_NORMAL) return tv;
+    if (tv.value.type == VALUE_NUMBER)
+      timeoutMs = tv.value.as.number;
+    else if (tv.value.type == VALUE_DECIMAL)
+      timeoutMs = (int)tv.value.as.decimal;
+  }
+
+  /* Step 1: Call loader with AWAIT → "loading..." */
+  RuntimeValue awaitHandle = makeAsyncHandle("AWAIT", valueNull(), valueNull());
+  if (ast->async.loaderId >= 0) {
+    callLoader(node, ast->async.loaderId, env, error, awaitHandle);
+  } else if (ast->async.handler >= 0) {
+    callHandler(node, ast->async.handler, env, error, awaitHandle);
+  }
+
+  /* Step 2: Record start time, evaluate request */
+  long startTime = currentTimeMs();
+  InterpreterResult req = interpretNode(node, ast->async.request, env, error);
+  long elapsed = currentTimeMs() - startTime;
+
+  /* Step 3: Check timeout */
+  if (timeoutMs > 0 && elapsed >= timeoutMs) {
+    RuntimeValue timeoutErr = valueString("Request timed out");
+    RuntimeValue errHandle = makeAsyncHandle("ERROR", valueNull(), timeoutErr);
+    if (ast->async.loaderId >= 0)
+      callLoader(node, ast->async.loaderId, env, error, errHandle);
+    else if (ast->async.handler >= 0)
+      callHandler(node, ast->async.handler, env, error, errHandle);
+    return resultNormal(errHandle);
+  }
+
+  /* Step 4: Call loader with SUCCESS or ERROR */
+  if (req.flow != FLOW_ERROR) {
+    RuntimeValue handle = makeAsyncHandle("SUCCESS", req.value, valueNull());
+    if (ast->async.loaderId >= 0) {
+      callLoader(node, ast->async.loaderId, env, error, handle);
+    } else if (ast->async.handler >= 0) {
+      callHandler(node, ast->async.handler, env, error, handle);
+    }
+    return resultNormal(handle);
+  }
+
+  RuntimeValue errHandle = makeAsyncHandle("ERROR", valueNull(), req.value);
+  if (ast->async.loaderId >= 0)
+    callLoader(node, ast->async.loaderId, env, error, errHandle);
+  else if (ast->async.handler >= 0)
+    callHandler(node, ast->async.handler, env, error, errHandle);
+  return resultNormal(errHandle);
 }

@@ -70,6 +70,30 @@ import os from rupa
 print(os.info().user)
 ```
 
+## 7. Stdlib specific function
+
+Import fungsi tertentu dari stdlib module.
+
+```rupa
+import info from rupa.os
+print(info())
+
+import server, stop from rupa.http
+s = server(8080)
+stop(s)
+```
+
+## 8. Stdlib wildcard
+
+Import semua fungsi dari stdlib module dengan namespace.
+
+```rupa
+import http.*, thread.* from rupa as r
+
+r.http.server(8080)
+r.thread.sleep(100)
+```
+
 ## Ringkasan
 
 | Syntax | Hasil |
@@ -79,4 +103,7 @@ print(os.info().user)
 | `import X.* as alias from ./path` | `alias.func()` |
 | `import X.a, X.b from ./path` | `a()`, `b()` top-level |
 | `import X from ./path` | `X.func()` |
-| `import X from rupa.Y` | stdlib |
+| `import X from rupa` | Seluruh module |
+| `import X from rupa.Y` | Fungsi dari module |
+| `import X, Y from rupa.Y` | Beberapa fungsi |
+| `import X.*, Y.* from rupa as ns` | Wildcard + alias |

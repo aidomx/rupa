@@ -2,8 +2,7 @@
 
 RuntimeEnv *semCreateEnv(RuntimeEnv *parent) {
   RuntimeEnv *env = calloc(1, sizeof(*env));
-  if (env)
-    env->parent = parent;
+  if (env) env->parent = parent;
   return env;
 }
 
@@ -38,6 +37,7 @@ bool semDeclare(RuntimeEnv *env, const char *name, const char *type) {
   b->value = valueNull();
   b->next = env->bindings;
   env->bindings = b;
+  env->isRepl = false;
   return true;
 }
 

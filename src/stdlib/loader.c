@@ -33,7 +33,7 @@ extern const unsigned char _binary_modules_rupa_modules_tar_gz_end[]
  */
 static char *getSystemExtractDir(void) {
   static char dir[1024];
-  snprintf(dir, sizeof(dir), "/tmp/rupa-system-%ld", (long)getpid());
+  snprintf(dir, sizeof(dir), "/tmp/rupa-system");
   return dir;
 }
 

@@ -1,5 +1,5 @@
 CC = gcc
-WALL_FLAGS = -Wall -Wextra -xc
+WALL_FLAGS = -Wall -Wextra
 HEADER_FLAGS = -Iinclude -I.
 STD_FLAGS = -std=gnu11
 CFLAGS = $(HEADER_FLAGS) $(WALL_FLAGS) $(STD_FLAGS)
@@ -15,7 +15,7 @@ OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 $(TARGET): $(OBJ) $(MODULE_OBJ)
 	@mkdir -p $(dir $@)
-	$(CC) $(OBJ) $(MODULE_OBJ) -o $@ -lm
+	$(CC) $(OBJ) $(MODULE_OBJ) -o $@ -lm -lpthread
 
 $(MODULE_ARCHIVE): $(MODULE_SOURCES)
 	@mkdir -p $(dir $@)

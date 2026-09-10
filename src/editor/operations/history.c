@@ -21,9 +21,8 @@ History *addToHistory(State *state) {
   if (!state || !state->repl)
     return NULL;
 
-  ReplState *repl = state->repl;
-  Buffer *buf = repl->buffer;
-  History *h = repl->history;
+  Buffer *buf = state->buffer;
+  History *h = state->history;
 
   if (h->size >= h->capacity) {
     if (h->entries[0] != NULL) {
@@ -50,12 +49,13 @@ History *addToHistory(State *state) {
 }
 
 void navigateHistory(ReplState *repl, int direction) {
-  if (!repl || !repl->history)
+  if (!repl || !repl->state || !repl->state->history)
     return;
 
-  Buffer *buf = repl->buffer;
+  State *state = repl->state;
+  Buffer *buf = state->buffer;
   Editor *ed = repl->editor;
-  History *history = repl->history;
+  History *history = state->history;
 
   int idx = history->currentIndex + direction;
 

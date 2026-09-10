@@ -8,9 +8,9 @@ compile() {
 
   [[ -f $COMPDB_FILE ]] && export compdb=true
 
-  if command -v intercept-build >/dev/null 2>&1; then
+  if command -v intercept-build > /dev/null 2>&1; then
     intercept-build $build "$message"
-  elif command -v bear >/dev/null 2>&1; then
+  elif command -v bear > /dev/null 2>&1; then
     bear -- $build "$message"
   else
     . $build $message
@@ -32,24 +32,24 @@ rebuild_binary() {
   fi
 
   case "$answer" in
-  y | Y | yes | YES)
-    compile "> Rebuild rupa" || return 0
+    y | Y | yes | YES)
+      compile "> Rebuild rupa" || return 0
 
-    [[ -f "$TARGET" ]] || {
-      print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+      [[ -f "$TARGET" ]] || {
+        print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+        return 1
+      }
+      ;;
+    *)
       return 1
-    }
-    ;;
-  *)
-    return 1
-    ;;
+      ;;
   esac
 }
 
 # Fungsi pembantu untuk mengecek apakah perlu rebuild
 needs_rebuild() {
   # Cari file sumber terbaru di src (sesuaikan ekstensi sesuai kebutuhan, misal .c .cpp .h)
-  local latest_src=$(find src -type f \( -name '*.c' \) -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+  local latest_src=$(find src -type f \( -name '*.c' \) -printf '%T@ %p\n' 2> /dev/null | sort -nr | head -1 | cut -d' ' -f2-)
   if [[ -z "$latest_src" ]]; then
     # Tidak ada file sumber -> anggap perlu rebuild (atau bisa return 1)
     return 0
@@ -61,9 +61,9 @@ needs_rebuild() {
 check_binary_runs() {
   local target="$1"
 
-  if ! "$target" --version &>/dev/null; then
+  if ! "$target" --version &> /dev/null; then
     local err_msg=$("$target" --version 2>&1)
-    if [[ "$err_msg" == *"cannot execute"* ]] || [[ "$err_msg" == *"not found"* ]] &>/dev/null; then
+    if [[ "$err_msg" == *"cannot execute"* ]] || [[ "$err_msg" == *"not found"* ]] &> /dev/null; then
       rebuild_binary "Source may be is corrupted"
       return 1
     fi
@@ -78,8 +78,8 @@ verify_binary() {
     return 1
   fi
   # Cek dependensi (gunakan ldd jika ada)
-  if command -v ldd &>/dev/null; then
-    local missing=$(ldd "$TARGET" 2>/dev/null | grep -i "not found")
+  if command -v ldd &> /dev/null; then
+    local missing=$(ldd "$TARGET" 2> /dev/null | grep -i "not found")
     if [[ -n "$missing" ]]; then
       print_error "Binary $TARGET membutuhkan library yang tidak ditemukan:"
       echo "$missing" | while read -r line; do
@@ -127,17 +127,17 @@ ensure_test_binary() {
   fi
 
   case "$answer" in
-  y | Y | yes | YES)
-    compile "> Building rupa" || return 0
-    [[ -f "$TARGET" ]] || {
-      print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+    y | Y | yes | YES)
+      compile "> Building rupa" || return 0
+      [[ -f "$TARGET" ]] || {
+        print_error "Error: $TARGET tetap tidak ditemukan setelah build."
+        return 1
+      }
+      ;;
+    *)
+      print_warning "Test dibatalkan"
       return 1
-    }
-    ;;
-  *)
-    print_warning "Test dibatalkan"
-    return 1
-    ;;
+      ;;
   esac
 }
 
@@ -146,20 +146,21 @@ get_file_tests() {
 
   tests_ref=()
 
-  while IFS= read -r -d '' file; do
+  while IFS='' read -r -d '' file; do
     tests_ref+=("$file")
   done < <(
     find "$APP_ROOT/tests/syntax" \
       -type f \
       -name '*.rp' \
-      -print0 2>/dev/null |
-      sort -z
+      -print0 2> /dev/null \
+      | sort -z
   )
 
   if [[ ${#tests_ref[@]} -eq 0 ]]; then
     print_warning "No .rp files found in tests/syntax/"
     return 1
   fi
+  return 0
 }
 
 get_file_exec_tests() {
@@ -174,8 +175,8 @@ get_file_exec_tests() {
       -type f \
       -name '*.rp' \
       ! -name 'repl_*' \
-      -print0 2>/dev/null |
-      sort -z
+      -print0 2> /dev/null \
+      | sort -z
   )
 
   if [[ ${#tests_ref[@]} -eq 0 ]]; then
@@ -195,8 +196,8 @@ get_file_repl_tests() {
     find "$APP_ROOT/tests/execution" \
       -type f \
       -name 'repl_*.rp' \
-      -print0 2>/dev/null |
-      sort -z
+      -print0 2> /dev/null \
+      | sort -z
   )
 
   if [[ ${#tests_ref[@]} -eq 0 ]]; then
@@ -206,7 +207,7 @@ get_file_repl_tests() {
 }
 
 test_help() {
-  cat <<EOF
+  cat << EOF
 Usage:
   DEV_MODE=1 ./build.sh test [options]
 
@@ -233,9 +234,9 @@ test_lists() {
   local files=() exec_files=() repl_files=()
   local file total width=1 i=0
 
-  get_file_tests files 2>/dev/null
-  get_file_exec_tests exec_files 2>/dev/null
-  get_file_repl_tests repl_files 2>/dev/null
+  get_file_tests files 2> /dev/null
+  get_file_exec_tests exec_files 2> /dev/null
+  get_file_repl_tests repl_files 2> /dev/null
 
   local all_total=$((${#files[@]} + ${#exec_files[@]} + ${#repl_files[@]}))
   if [[ "$all_total" -eq 0 ]]; then
@@ -308,7 +309,7 @@ select_file_test() {
 
   get_file_tests files || return $?
 
-  IFS=',' read -ra indexes <<<"$selection"
+  IFS=',' read -ra indexes <<< "$selection"
 
   for index in "${indexes[@]}"; do
     # Pastikan hanya angka
@@ -347,47 +348,47 @@ run_test() {
 
   for ((i = 0; i < ${#arguments[@]}; i++)); do
     case "${arguments[$i]}" in
-    test) ;;
+      test) ;;
 
-    --help | -h)
-      test_help
-      return 0
-      ;;
+      --help | -h)
+        test_help
+        return 0
+        ;;
 
-    --list)
-      test_lists
-      return 0
-      ;;
+      --list)
+        test_lists
+        return 0
+        ;;
 
-    --select)
-      ((i++))
+      --select)
+        ((i++))
 
-      if [[ -z "${arguments[$i]:-}" ]]; then
-        print_error "Missing test selection"
-        return 1
-      fi
+        if [[ -z "${arguments[$i]:-}" ]]; then
+          print_error "Missing test selection"
+          return 1
+        fi
 
-      select_file_test "${arguments[$i]}"
-      return 0
-      ;;
+        select_file_test "${arguments[$i]}"
+        return 0
+        ;;
 
-    --ast)
-      get_file_tests tests || return $?
-      "$TARGET" --test-ast "${tests[@]}"
-      return $?
-      ;;
+      --ast)
+        get_file_tests tests || return $?
+        "$TARGET" --test-ast "${tests[@]}"
+        return $?
+        ;;
 
-    --exec)
-      get_file_exec_tests tests || return $?
-      "$TARGET" --test-exec "${tests[@]}"
-      return $?
-      ;;
+      --exec)
+        get_file_exec_tests tests || return $?
+        "$TARGET" --test-exec "${tests[@]}"
+        return $?
+        ;;
 
-    --repl)
-      get_file_repl_tests tests || return $?
-      "$TARGET" --test-repl "${tests[@]}"
-      return $?
-      ;;
+      --repl)
+        get_file_repl_tests tests || return $?
+        "$TARGET" --test-repl "${tests[@]}"
+        return $?
+        ;;
     esac
   done
 

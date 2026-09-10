@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <sys/stat.h>
 
 static int isDirectory(const char *path) {
   struct stat st;
@@ -7,21 +6,19 @@ static int isDirectory(const char *path) {
   return S_ISDIR(st.st_mode);
 }
 
-void run(const char *paths[], int length) {
+int run(const char *paths[], int length) {
   if (!paths || length <= 0) {
     printf("No such file for execute.\n");
-    return;
+    return 1;
   }
 
   State *state = createGlobalState(length, true);
-  if (!state || !state->repl || !state->repl->buffer) {
+  if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create state.\n");
-    return;
+    return 1;
   }
 
   const char *index = paths[length];
-
-  /* If path is a directory, try <dir>/index.rp */
   if (isDirectory(index)) {
     static char indexBuf[1024];
     snprintf(indexBuf, sizeof(indexBuf), "%s/index.rp", index);
@@ -33,38 +30,26 @@ void run(const char *paths[], int length) {
   clearStateContext(state->context);
   state->size = 0;
 
-  Buffer *buffer = state->repl->buffer;
-
+  Buffer *buffer = state->buffer;
   if (!readfile(index, buffer)) {
     fprintf(stderr, "Cannot read file: %s\n", index);
-    return;
+    return 1;
   }
 
-  /* Set source file path for resolving relative imports */
   setSourceFilePath(index);
-
-  /* Lex */
   addToHistory(state);
   addToInput(state);
   lexer(state);
 
   Flags *flags = state->input->flags;
   Token *tokens = state->tokens;
+  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) return 1;
 
-  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
-    return;
-  }
-
-  /* Parse */
   Request request = createRequest(tokens, 10);
   Node *node = processGenerate(&request);
   Error *error = createError(10);
+  if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) return 1;
 
-  if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
-    return;
-  }
-
-  /* Find program root */
   int root = -1;
   for (int j = 0; j < node->length; j++) {
     if (node->ast[j].type == NODE_PROGRAM) {
@@ -72,16 +57,27 @@ void run(const char *paths[], int length) {
       break;
     }
   }
-  if (root < 0) return;
+  if (root < 0) return 1;
 
-  /* Interpret — clean output, no debug */
   RuntimeEnv *env = semCreateEnv(NULL);
-  if (!env) return;
+  if (!env) return 1;
   stdlibInit(env);
 
+  extern struct EventLoop *g_event_loop;
+  g_event_loop = eventLoopCreate();
+
   InterpreterResult result = interpretNode(node, root, env, error);
+
+  /* Run event loop until all pending events are done */
+  for (int i = 0; i < 1000 && eventLoopHasPending(g_event_loop); i++) {
+    eventLoopRun(node, g_event_loop, env, error);
+  }
+
   if (error && error->size > 0) printErrors(error);
-  (void)result;
+
+  eventLoopDestroy(g_event_loop);
+  g_event_loop = NULL;
+  return result.flow == FLOW_ERROR || (error && error->size > 0) ? 1 : 0;
 }
 
 void execute(const char *code) {
@@ -91,18 +87,19 @@ void execute(const char *code) {
   }
 
   State *state = createGlobalState(10, true);
-  if (!state || !state->repl || !state->repl->buffer) {
+  if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create state.\n");
     return;
   }
 
+  state->isRepl = false;
   clearReplState(state->repl);
   clearInput(state->input);
   clearStateToken(state->tokens);
   clearStateContext(state->context);
   state->size = 0;
 
-  Buffer *buffer = state->repl->buffer;
+  Buffer *buffer = state->buffer;
   size_t len = strlen(code);
   if ((int)len >= buffer->capacity) {
     fprintf(stderr, "Code is too long.\n");
@@ -114,10 +111,4 @@ void execute(const char *code) {
   buffer->length = (int)len;
 
   processInput(state);
-
-  Flags *flags = state->input->flags;
-  if (!state->tokens || state->tokens->length == 0 ||
-      !hasAstDeclarations(state->tokens) || (flags && flags->isWaiting)) {
-    fprintf(stderr, "Execution failed.\n");
-  }
 }

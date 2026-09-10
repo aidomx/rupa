@@ -22,4 +22,4 @@ divide(x, y) {
 }
 
 # Selective export: only add and subtract
-export add, subtract from ./selective
+export add, subtract

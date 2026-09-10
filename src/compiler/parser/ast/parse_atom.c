@@ -10,7 +10,7 @@ static int parseInterpExpr(const char *exprSrc, Request *req) {
     return -1;
 
   State *state = createGlobalState(8, false);
-  if (!state || !state->repl || !state->repl->buffer)
+  if (!state || !state->buffer)
     return -1;
 
   clearReplState(state->repl);
@@ -19,7 +19,7 @@ static int parseInterpExpr(const char *exprSrc, Request *req) {
   clearStateContext(state->context);
   state->size = 0;
 
-  Buffer *buffer = state->repl->buffer;
+  Buffer *buffer = state->buffer;
   size_t len = strlen(exprSrc);
   if ((int)len >= buffer->capacity)
     return -1;

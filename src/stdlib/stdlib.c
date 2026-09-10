@@ -8,7 +8,10 @@ extern InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
 extern InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
                                        Error *error);
 extern InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env,
-                                     Error *error);
+                                     Error *error);extern InterpreterResult stdThreadInit(Node *node, int id, RuntimeEnv *env,
+                                   Error *error);
+extern InterpreterResult stdHttpInit(Node *node, int id, RuntimeEnv *env,
+                                   Error *error);
 
 /* Module registry */
 typedef struct {
@@ -16,17 +19,20 @@ typedef struct {
   InterpreterResult (*init)(Node *node, int id, RuntimeEnv *env, Error *error);
 } StdModuleEntry;
 
-static StdModuleEntry stdlib_modules[] = {
-    {"os", stdOsInit},        {"io", stdIoInit},
-    {"stdstring", stdStringInit},
-    {"json", stdJsonInit},    {NULL, NULL}};
+static StdModuleEntry stdlib_modules[] = {    {"os", stdOsInit},        {"io", stdIoInit},
+    {"stdstring", stdStringInit}, {"json", stdJsonInit},
+    {"thread", stdThreadInit}, {"http", stdHttpInit},
+    {NULL, NULL}};
 
 /* Initialize stdlib — do NOT register modules as globals.
  * Modules (math, os, json, etc.) are only available via import.
  * This function is kept for module loading, not global registration. */
 void stdlibInit(RuntimeEnv *env) {
-  (void)env;
-  /* No-op: modules are loaded on-demand via import */
+  if (!env) return;
+  /* Register async status constants */
+  semSet(env, "AWAIT", valueString("AWAIT"));
+  semSet(env, "SUCCESS", valueString("SUCCESS"));
+  semSet(env, "ERROR", valueString("ERROR"));
 }
 
 /* Get a standard module by name */

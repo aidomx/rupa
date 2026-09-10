@@ -17,5 +17,8 @@
 
 extern Editor *createEditor(void);
 extern void handleKeyPress(ReplState *repl, int key);
+extern void editorPushLine(ReplState *repl);
+extern bool editorPopLine(ReplState *repl);
+extern void editorClearLineStack(Editor *ed);
 
 #endif

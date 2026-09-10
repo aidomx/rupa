@@ -1,7 +1,7 @@
 #pragma once
 
 #include "annotation.h"
-#include "debug/debug.h"
+#include "debug/debug_ast.h"
 #include "error/error.h"
 #include "eval.h"
 #include "runtime.h"

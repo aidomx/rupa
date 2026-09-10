@@ -19,9 +19,11 @@ typedef enum ValueType ValueType;
 typedef enum InterpreterFlow InterpreterFlow;
 
 // forward declarations struct
+typedef struct Analyzer Analyzer;
 typedef struct Array Array;
 typedef struct AstNode AstNode;
 typedef struct Atom Atom;
+typedef struct Autocomplete Autocomplete;
 typedef struct Buffer Buffer;
 typedef struct Context Context;
 typedef struct DataToken DataToken;
@@ -29,13 +31,16 @@ typedef struct Debug Debug;
 typedef struct Editor Editor;
 typedef struct Error Error;
 typedef struct Flags Flags;
+typedef struct Formatter Formatter;
 typedef struct GarbageCollector GarbageCollector;
+typedef struct Highlight Highlight;
 typedef struct History History;
 typedef struct Input Input;
 typedef struct Keyword Keyword;
 typedef struct LexerState LexerState;
 typedef struct Node Node;
 typedef struct ReplState ReplState;
+typedef struct ReplContext ReplContext;
 typedef struct Request Request;
 typedef struct Response Response;
 typedef struct SystemConfig SystemConfig;
@@ -51,9 +56,11 @@ typedef struct RuntimeFunction RuntimeFunction;
 typedef struct RuntimeBinding RuntimeBinding;
 typedef struct RuntimeEnv RuntimeEnv;
 typedef struct InterpreterResult InterpreterResult;
+typedef struct SavedLine SavedLine;
 
 // forward struct Ast*
 typedef struct AstArray AstArray;
+typedef struct AstArrayType AstArrayType;
 typedef struct AstAssignment AstAssignment;
 typedef struct AstBinary AstBinary;
 typedef struct AstBinaryExpression AstBinaryExpression;

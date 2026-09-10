@@ -8,6 +8,10 @@ struct AstArray {
   int length;
 };
 
+struct AstArrayType {
+  int elementType;
+};
+
 /**
  * @brief Representasi AST untuk assignment statement.
  *
@@ -42,8 +46,10 @@ struct AstFallback {
 
 struct AstAsync {
   int request;
-  int handler;   // -1 jika tidak ada handler
-  int timeout;   // -1 jika tidak ada timeout
+  int handler;     // -1 jika tidak ada handler (legacy block)
+  int timeout;     // -1 jika tidak ada timeout value node (legacy)
+  int loaderId;    // -1 jika tidak ada loader (identifier reference)
+  int timeoutId;   // -1 jika tidak ada timeout (identifier reference)
 };
 
 struct AstAwait {
@@ -324,6 +330,7 @@ struct AstNode {
   enum NodeType type;
   union {
     struct AstArray array;
+    struct AstArrayType arrayType;
     struct AstAssignment assign;                 ///< Assignment operation
     struct AstConditionalAssignment conditionalAssign;
     struct AstThen then;

@@ -36,6 +36,12 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
         if (sep >= 0) {
           int pn = grammarParseExpr(r, start, sep);
           int pt = grammarParseExpr(r, sep + 1, j);
+          /* Explicit colon-form parameters may also use array types. */
+          if (sep + 2 < j && t->data[sep + 2].type == IDENTIFIER) {
+            int candidate = sep + 2;
+            if (candidate + 1 == j || t->data[candidate + 1].type == LBLOCK)
+              pt = createTypeNode(r->node, t->data[candidate].value);
+          }
           pid = createAnnotation(r->node, pn, pt, -1);
         } else {
           pid = grammarParseExpr(r, start, j);

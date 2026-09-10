@@ -6,20 +6,33 @@ static const char *nameOf(Node *n, int id) {
              : NULL;
 }
 
-static const char *typeOf(Node *n, int id) {
-  if (!n || id < 0 || id >= n->length)
-    return NULL;
+static bool formatType(Node *n, int id, char *buffer, size_t capacity) {
+  if (!n || id < 0 || id >= n->length || !buffer || capacity == 0) return false;
+
   AstNode *a = &n->ast[id];
-  if (a->type == NODE_IDENTIFIER)
-    return a->identifier.name;
-  if (a->type == NODE_LITERAL_ID)
-    return a->string.value;
-  return NULL;
+  if (a->type == NODE_IDENTIFIER) {
+    int written = snprintf(buffer, capacity, "%s", a->identifier.name);
+    return written > 0 && (size_t)written < capacity;
+  }
+  if (a->type == NODE_LITERAL_ID) {
+    int written = snprintf(buffer, capacity, "%s", a->string.value);
+    return written > 0 && (size_t)written < capacity;
+  }
+  if (a->type != NODE_ARRAY_TYPE) return false;
+
+  char element[256];
+  if (!formatType(n, a->arrayType.elementType, element, sizeof(element))) return false;
+  int written = snprintf(buffer, capacity, "%s[]", element);
+  return written > 0 && (size_t)written < capacity;
+}
+
+static const char *typeOf(Node *n, int id) {
+  static char typeName[256];
+  return formatType(n, id, typeName, sizeof(typeName)) ? typeName : NULL;
 }
 
 InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
-  if (!n || id < 0 || id >= n->length)
-    return resultNormal(valueNull());
+  if (!n || id < 0 || id >= n->length) return resultNormal(valueNull());
 
   AstNode *a = &n->ast[id];
 
@@ -29,15 +42,17 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_ASSIGN: {
     const char *k = nameOf(n, a->assign.target);
     InterpreterResult r = interpretNode(n, a->assign.value, e, x);
-    if (r.flow != FLOW_NORMAL)
-      return r;
-    if (a->assign.type >= 0 &&
-        !validateAnnotation(n, a->assign.type, r.value, x))
+    if (r.flow != FLOW_NORMAL) return r;
+    if (a->assign.type >= 0 && !validateAnnotation(n, a->assign.type, r.value, x))
       return resultFlow(FLOW_ERROR, valueNull());
     if (k) {
+      /* Preserve the explicit type on the binding so later assignments are
+       * checked too (`x: number[] = []; x = [1]`). */
+      const char *declaredType = a->assign.type >= 0 ? typeOf(n, a->assign.type) : NULL;
+      if (declaredType) semDeclare(e, k, declaredType);
+
       const char *type = semType(e, k);
-      if (type && !validateTypeName(type, r.value, x))
-        return resultFlow(FLOW_ERROR, valueNull());
+      if (type && !validateTypeName(type, r.value, x)) return resultFlow(FLOW_ERROR, valueNull());
       semSet(e, k, r.value);
     }
     return r;
@@ -45,11 +60,9 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_CONDITIONAL_ASSIGN: {
     const char *k = nameOf(n, a->conditionalAssign.target);
     RuntimeValue old;
-    if (k && semGet(e, k, &old) && valueTruthy(old))
-      return resultNormal(old);
+    if (k && semGet(e, k, &old) && valueTruthy(old)) return resultNormal(old);
     InterpreterResult r = interpretNode(n, a->conditionalAssign.value, e, x);
-    if (k)
-      semSet(e, k, r.value);
+    if (k) semSet(e, k, r.value);
     return r;
   }
   case NODE_ANNOTATION: {
@@ -57,14 +70,12 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     const char *type = typeOf(n, a->annotation.type);
 
     if (a->annotation.value < 0) {
-      if (k)
-        semDeclare(e, k, type);
+      if (k) semDeclare(e, k, type);
       return resultNormal(valueNull());
     }
 
     InterpreterResult r = interpretNode(n, a->annotation.value, e, x);
-    if (r.flow != FLOW_NORMAL)
-      return r;
+    if (r.flow != FLOW_NORMAL) return r;
     if (!validateAnnotation(n, a->annotation.type, r.value, x))
       return resultFlow(FLOW_ERROR, valueNull());
     if (k) {
@@ -80,38 +91,36 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       InterpreterResult result = interpretNode(n, a->print.args[i], e, x);
       last = result.value;
 
-      if (result.flow != FLOW_NORMAL)
-        return result;
+      if (result.flow != FLOW_NORMAL) return result;
 
       valuePrintInterp(last, e, x);
 
-      if (i + 1 < a->print.length)
-        putchar(' ');
+      if (i + 1 < a->print.length) putchar(' ');
+    }
+
+    if (e->isRepl) {
+      putchar('\n');
+      fflush(stdout);
     }
 
     return resultNormal(last);
   }
   case NODE_RETURN:
-    return resultFlow(FLOW_RETURN,
-                      interpretNode(n, a->asReturn.expression, e, x).value);
+    return resultFlow(FLOW_RETURN, interpretNode(n, a->asReturn.expression, e, x).value);
   case NODE_BLOCK: {
     RuntimeValue last = valueNull();
     for (int i = 0; i < a->block.length; i++) {
       InterpreterResult r = interpretNode(n, a->block.statements[i], e, x);
       last = r.value;
-      if (r.flow != FLOW_NORMAL)
-        return r;
+      if (r.flow != FLOW_NORMAL) return r;
     }
     return resultNormal(last);
   }
   case NODE_IF: {
     InterpreterResult c = interpretNode(n, a->asIf.condition, e, x);
-    if (c.flow != FLOW_NORMAL)
-      return c;
-    if (valueTruthy(c.value))
-      return interpretNode(n, a->asIf.thenBlock, e, x);
-    if (a->asIf.elseBlock >= 0)
-      return interpretNode(n, a->asIf.elseBlock, e, x);
+    if (c.flow != FLOW_NORMAL) return c;
+    if (valueTruthy(c.value)) return interpretNode(n, a->asIf.thenBlock, e, x);
+    if (a->asIf.elseBlock >= 0) return interpretNode(n, a->asIf.elseBlock, e, x);
     return resultNormal(valueNull());
   }
   case NODE_BREAK:

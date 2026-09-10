@@ -2,11 +2,6 @@
 
 struct GarbageCollector *gc = NULL;
 
-/**
- * @brief Inisialisasi garbage collector
- *
- * @param capacity Kapasitas awal
- */
 void gcinit(int capacity) {
   if (capacity <= 0 || gc)
     return;
@@ -24,48 +19,37 @@ void gcinit(int capacity) {
 
   gc->capacity = capacity;
   gc->count = 0;
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&gc->lock, &attr);
+  pthread_mutexattr_destroy(&attr);
 }
 
-/**
- * @brief Reallocate memory dengan GC tracking
- */
 void *gcrealloc(void *ptr, size_t new_size) {
   if (!gc)
     return realloc(ptr, new_size);
 
-  // Cari index pointer lama
+  pthread_mutex_lock(&gc->lock);
   int index = gcfind(ptr);
-
-  // Reallocate memory
   void *new_ptr = realloc(ptr, new_size);
-  if (!new_ptr)
-    return NULL;
-
-  // Update pointer di GC jika found
-  if (index != -1) {
-    gc->items[index] = new_ptr;
-  } else {
-    // Register new pointer jika tidak ditemukan
-    gcreg(new_ptr);
+  if (new_ptr) {
+    if (index != -1)
+      gc->items[index] = new_ptr;
+    else
+      gcreg(new_ptr);
   }
-
+  pthread_mutex_unlock(&gc->lock);
   return new_ptr;
 }
 
-/**
- * @brief Allocate dan zero-initialize memory
- */
 void *gccalloc(size_t num, size_t size) {
   void *ptr = gcmall(num * size);
-  if (ptr) {
+  if (ptr)
     memset(ptr, 0, num * size);
-  }
   return ptr;
 }
 
-/**
- * @brief Allocate memory dengan GC tracking
- */
 void *gcmall(size_t size) {
   void *ptr = malloc(size);
   if (!ptr)
@@ -75,75 +59,68 @@ void *gcmall(size_t size) {
   return ptr;
 }
 
-/**
- * @brief Register pointer ke GC
- */
 void gcreg(void *ptr) {
   if (!gc || !ptr)
     return;
 
-  // Check jika perlu resize
+  pthread_mutex_lock(&gc->lock);
   if (gc->count >= gc->capacity) {
     int new_capacity = gc->capacity * 2;
     void **new_items = realloc(gc->items, new_capacity * sizeof(void *));
-    if (!new_items)
+    if (!new_items) {
+      pthread_mutex_unlock(&gc->lock);
       return;
-
+    }
     gc->items = new_items;
     gc->capacity = new_capacity;
   }
-
   gc->items[gc->count++] = ptr;
+  pthread_mutex_unlock(&gc->lock);
 }
 
-/**
- * @brief Free memory dan remove dari GC
- */
 void gcfree(void *ptr) {
   if (!gc || !ptr) {
     free(ptr);
     return;
   }
 
+  pthread_mutex_lock(&gc->lock);
   for (int i = 0; i < gc->count; i++) {
     if (gc->items[i] == ptr) {
       free(ptr);
-      // Remove dari array
       memmove(&gc->items[i], &gc->items[i + 1],
               (gc->count - i - 1) * sizeof(void *));
       gc->count--;
+      pthread_mutex_unlock(&gc->lock);
       return;
     }
   }
-
-  // Jika tidak ditemukan di GC, free biasa
+  pthread_mutex_unlock(&gc->lock);
   free(ptr);
 }
 
-/**
- * @brief Remove pointer dari GC tanpa free memory
- */
 void gcremove(void *ptr) {
   if (!gc || !ptr)
     return;
 
+  pthread_mutex_lock(&gc->lock);
   for (int i = 0; i < gc->count; i++) {
     if (gc->items[i] == ptr) {
       memmove(&gc->items[i], &gc->items[i + 1],
               (gc->count - i - 1) * sizeof(void *));
       gc->count--;
+      pthread_mutex_unlock(&gc->lock);
       return;
     }
   }
+  pthread_mutex_unlock(&gc->lock);
 }
 
-/**
- * @brief Clean semua memory yang terdaftar
- */
 void gcclean(void) {
   if (!gc)
     return;
 
+  pthread_mutex_lock(&gc->lock);
   if (gc->count > 0 && gc->items) {
     for (int i = 0; i < gc->count; i++) {
       if (gc->items[i]) {
@@ -151,48 +128,40 @@ void gcclean(void) {
         gc->items[i] = NULL;
       }
     }
-
     free(gc->items);
     gc->items = NULL;
   }
+  pthread_mutex_unlock(&gc->lock);
 
+  pthread_mutex_destroy(&gc->lock);
   free(gc);
   gc = NULL;
 }
 
-/**
- * @brief Find index pointer dalam GC
- */
 int gcfind(void *ptr) {
   if (!gc || !ptr)
     return -1;
 
-  for (int i = 0; i < gc->count; i++) {
-    if (gc->items[i] == ptr) {
+  /* Called both with and without lock held — use atomic read for count */
+  int n = gc->count;
+  for (int i = 0; i < n; i++) {
+    if (gc->items[i] == ptr)
       return i;
-    }
   }
   return -1;
 }
 
-/**
- * @brief Duplicate string dengan GC
- */
 char *gcstrdup(const char *str) {
   if (!str)
     return NULL;
 
   size_t len = strlen(str) + 1;
   char *dup = gcmall(len);
-  if (dup) {
+  if (dup)
     memcpy(dup, str, len);
-  }
   return dup;
 }
 
-/**
- * @brief Duplicate string dengan length tertentu
- */
 char *gcstrndup(const char *str, size_t n) {
   if (!str)
     return NULL;
@@ -205,21 +174,13 @@ char *gcstrndup(const char *str, size_t n) {
   return dup;
 }
 
-/**
- * @brief Allocate array of pointers dengan GC
- */
 void **gcarray(size_t count, size_t element_size) {
   return gccalloc(count, element_size);
 }
 
-/**
- * @brief Resize array dengan GC
- */
 void *gcresize(void *ptr, size_t old_size, size_t new_size) {
   void *new_ptr = gcrealloc(ptr, new_size);
-  if (new_ptr && new_size > old_size) {
-    // Zero-initialize new portion
+  if (new_ptr && new_size > old_size)
     memset((char *)new_ptr + old_size, 0, new_size - old_size);
-  }
   return new_ptr;
 }

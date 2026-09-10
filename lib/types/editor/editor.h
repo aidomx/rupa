@@ -2,6 +2,8 @@
 
 #if defined(RUPA_PACKAGE_H)
 
+#define MAX_LINE_STACK 32
+
 /**
  * Representasi buffer dinamis berbasis karakter.
  *
@@ -13,6 +15,15 @@ struct Buffer {
   char *value;  // Pointer ke data karakter
   int length;   // Panjang data yang sedang digunakan
   int capacity; // Kapasitas maksimum buffer
+};
+
+/**
+ * Saved line for multiline rollback.
+ */
+struct SavedLine {
+  char *text;     // Content of the line
+  int indent;     // indentLevel at time of save
+  int cursorPos;  // cursorPos at time of save
 };
 
 /**
@@ -30,6 +41,9 @@ struct Editor {
   int lineNumber;   // Nomor baris aktif
   EditorMode mode;  // Mode editor
   EditorAttr attr;  // Atribut editor
+  /* Multiline rollback stack */
+  struct SavedLine lineStack[MAX_LINE_STACK];
+  int lineStackTop; // Index top of stack (-1 = empty)
 };
 
 /**

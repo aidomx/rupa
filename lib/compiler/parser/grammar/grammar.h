@@ -1,5 +1,7 @@
 #pragma once
 
+#include "array/array.h"
+
 #if defined(RUPA_PACKAGE_H)
 
 /*
@@ -19,10 +21,14 @@
  *   grammar_print.c         - grammar print
  *   grammar_return.c        - grammar return
  *   grammar_control.c       - grammar break/continue
- *   grammar_module.c        - grammar import/export/extends
+ *   grammar_module.c        - grammar import/export/extends (thin dispatcher)
+ *   grammar_module_utils.c  - shared module path helpers
+ *   grammar_module_import.c - import grammar (flat + old style)
+ *   grammar_module_export.c - export grammar
  *   grammar_function.c      - grammar deklarasi & pemanggilan function
  *   grammar_struct.c        - grammar deklarasi struct/blueprint
  *   grammar_annotation.c    - grammar type annotation (`name: Type [=v]`)
+ *                              including postfix array types (`number[]`)
  *   grammar_assignment.c    - grammar assignment & fallback expression
  *
  * processor.c hanya memanggil grammarParseStatement() dan
@@ -70,8 +76,7 @@ int grammarLineEnd(struct Token *t, int i);
  * @brief Cari index token penutup yang berpasangan dengan token pembuka di
  *        index `open` (menghitung depth bersarang).
  */
-int grammarMatchClose(struct Token *t, int open, int end, TokenType l,
-                      TokenType r);
+int grammarMatchClose(struct Token *t, int open, int end, TokenType l, TokenType r);
 
 /**
  * @brief Tambahkan satu node id ke array dinamis (dipakai untuk daftar
@@ -98,13 +103,6 @@ int grammarParsePostfixExpr(struct Request *r, int a, int b);
  * @return Jumlah elemen.
  */
 int grammarParseArgs(struct Request *r, int a, int b, int **out);
-
-/**
- * @brief Grammar array literal `[ elemen, elemen, ... ]`.
- * @return Id node array, atau GRAMMAR_NO_MATCH jika token[a] bukan awal
- *         array literal yang menutup tepat di b-1.
- */
-int grammarParseArrayLiteral(struct Request *r, int a, int b);
 
 /**
  * @brief Grammar object literal `{ key: value, ... }`.
@@ -135,8 +133,7 @@ int grammarParseBlock(struct Request *r, int open, int close);
  *
  * @param next Diisi dengan posisi token setelah body selesai.
  */
-int grammarParseKeywordBody(struct Request *r, int bodyStart, int limit,
-                            int *next);
+int grammarParseKeywordBody(struct Request *r, int bodyStart, int limit, int *next);
 
 /* ====================== Grammar statement per keyword ==================== */
 
@@ -174,6 +171,28 @@ int grammarParseControl(struct Request *r, int a, int b, int *pos);
  */
 int grammarParseModule(struct Request *r, int a, int b, int *pos);
 
+/* ====================== Module sub-grammars ============================== */
+
+/**
+ * @brief Shared module path detection helpers (grammar_module_utils.c).
+ */
+int grammarModuleDetectFromRupaRoot(struct Token *t, int from_pos, int limit);
+int grammarModuleDetectFromRupa(struct Token *t, int from_pos, int limit);
+int grammarModuleDetectFrom(struct Token *t, int from_pos, int limit, int *end);
+char *grammarModuleBuildPath(struct Token *t, int start, int end);
+int grammarModuleDetectFlatImport(struct Token *t, int a, int b, int *fromPos);
+
+/**
+ * @brief Import grammar (grammar_module_import.c).
+ */
+int grammarParseFlatImport(struct Request *r, struct Token *t, int a, int b, int *pos);
+int grammarParseOldImport(struct Request *r, struct Token *t, int a, int b, int *pos);
+
+/**
+ * @brief Export grammar (grammar_module_export.c).
+ */
+int grammarParseExport(struct Request *r, struct Token *t, int a, int b, int *pos);
+
 /* ====================== Grammar deklarasi ================================= */
 
 /**
@@ -181,8 +200,7 @@ int grammarParseModule(struct Request *r, int a, int b, int *pos);
  *        `nama(...)` sebagai call statement.
  * @return GRAMMAR_NO_MATCH jika token[a] bukan awal pola ini.
  */
-int grammarParseFunction(struct Request *r, int a, int b, int limit,
-                         int *pos);
+int grammarParseFunction(struct Request *r, int a, int b, int limit, int *pos);
 
 /**
  * @brief Grammar deklarasi struct/blueprint: `Nama { ... }`.
@@ -224,7 +242,6 @@ int grammarParseConditionalAssignment(struct Request *r, int a, int b, int *pos)
  * @brief Fallback akhir: ekspresi berdiri sendiri dibungkus sebagai Return
  *        node (dipakai REPL untuk echo hasil ekspresi).
  */
-int grammarParseExpressionStatement(struct Request *r, int a, int b,
-                                    int *pos);
+int grammarParseExpressionStatement(struct Request *r, int a, int b, int *pos);
 
 #endif

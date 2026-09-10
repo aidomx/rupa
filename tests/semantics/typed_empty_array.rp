@@ -1,0 +1,11 @@
+# Typed empty array initialization
+x: number[] = []
+assertType(x, "array")
+assertEq(x.length, 0)
+
+numbers: number[] = [1, 2, 3]
+assertEq(numbers[1], 2)
+
+# A typed empty array remains an array on ordinary reassignment.
+x = []
+assertEq(x.length, 0)

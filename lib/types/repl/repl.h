@@ -10,9 +10,9 @@
 struct ReplState {
   int capacity;            // Kapasitas internal REPL
   int size;                // Ukuran data aktif
-  struct Buffer *buffer;   // Buffer input
-  struct Editor *editor;   // State editor
-  struct History *history; // Riwayat input
+  struct State *state;      // Back-pointer ke state induk
+  struct Buffer *buffer;    // Pointer ke state->buffer (convenience)
+  struct Editor *editor;    // State editor
 };
 
 #endif

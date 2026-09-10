@@ -1,1 +1,0 @@
-import{_ as n,o as s,c as e,a2 as l}from"./chunks/framework.sLcf0Hl0.js";const b=JSON.parse('{"title":"Vision","description":"","frontmatter":{},"headers":[],"relativePath":"vision.md","filePath":"vision.md"}'),p={name:"vision.md"};function i(t,a,o,r,c,d){return s(),e("div",null,[...a[0]||(a[0]=[l("",11)])])}const k=n(p,[["render",i]]);export{b as __pageData,k as default};

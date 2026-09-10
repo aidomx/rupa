@@ -1,4 +1,39 @@
-[]
-[1, 2, 3]
-[1 + 2, 3 * 4]
-[1, [2, 3], 4]
+x = []
+y = [1, 2, 3]
+x1 = [1 + 2, 3 * 4]
+y1 = [1, [2, 3], 4]
+
+print("x length = {{x.length}}\n")
+print("y length = {{y.length}}\n")
+print("x1 length = {{x1.length}}\n")
+print("y1 length = {{y1.length}}\n")
+
+for i < x.length {
+  print("x: {x[i]}")
+}
+
+// reset i
+i = 0
+for i < x1.length {
+  print("x1: {{x1[i]}}\n")
+}
+
+// reset i
+i = 0
+for i < y.length {
+  print("y: {{y[i]}}\n")
+}
+
+// reset i
+i = 0
+for i < y1.length {
+  if i == 1 {
+    for j < y1[i].length {
+      print("y1: {{y1[i][j]}}\n")
+    }
+    continue
+  }
+  print("y1: {{y1[i]}}\n")
+}
+
+x: number[] = [1, "Hello"]

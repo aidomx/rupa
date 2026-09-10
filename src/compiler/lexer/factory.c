@@ -40,7 +40,7 @@ int setSafetyType(State *state, int start, int end) {
   if (!state || start >= end)
     return -1;
 
-  Buffer *buf = state->repl->buffer;
+  Buffer *buf = state->buffer;
   char *input = buf->value;
 
   for (int i = start; i < end; i++) {
@@ -56,7 +56,7 @@ int createTokenId(State *state, int start, int end) {
   if (!state)
     return -1;
 
-  Buffer *buf = state->repl->buffer;
+  Buffer *buf = state->buffer;
   Editor *ed = state->repl->editor;
   Token *tokens = state->tokens;
 

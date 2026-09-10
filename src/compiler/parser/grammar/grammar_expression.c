@@ -26,14 +26,10 @@ int grammarParseExpr(Request *r, int a, int b) {
     if (id != GRAMMAR_NO_MATCH)
       return id;
   }
-  if (t->data[a].type == IDENTIFIER || t->data[a].type == LITERAL_ID) {
-    int id = grammarParsePostfixExpr(r, a, b);
-    if (id != GRAMMAR_NO_MATCH)
-      return id;
-    id = grammarParseCallExpr(r, a, b);
-    if (id != GRAMMAR_NO_MATCH)
-      return id;
-  }
+  /* IDENTIFIER / LITERAL_ID: let parseBinary handle everything.
+   * parseBinary already calls grammarParsePostfixExpr and
+   * grammarParseCallExpr internally, and correctly splits at binary
+   * operators so that `obj.field + value` is not truncated. */
   return parseBinary(r, a, b);
 }
 

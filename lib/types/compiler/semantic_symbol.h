@@ -20,6 +20,7 @@ struct RuntimeBinding {
 struct RuntimeEnv {
   struct RuntimeEnv *parent;
   struct RuntimeBinding *bindings;
+  bool isRepl;
 };
 
 #endif

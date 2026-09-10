@@ -26,6 +26,19 @@ Error *createError(int capacity) {
 void addError(Error *error, ErrorInfo info) {
   if (!error || !error->info || error->size >= error->capacity)
     return;
+
+  /* ErrorInfo hanya di-shallow-copy di sini; kalau caller mengirim
+   * `.message` dari buffer yang dipakai ulang (mis. `static char
+   * message[256]` seperti di interpretIdentifier()/addRuntimeError()),
+   * SEMUA entry yang pernah menyimpan pointer ke buffer itu akan ikut
+   * berubah begitu buffer ditulis ulang oleh panggilan berikutnya -
+   * simtomnya: error pertama ("first is not defined") ikut berubah jadi
+   * isi error kedua ("second is not defined") saat keduanya baru benar-
+   * benar dibaca/dicetak belakangan. Duplikasi di sini supaya setiap
+   * entry punya salinannya sendiri yang tidak berubah lagi setelahnya. */
+  if (info.message)
+    info.message = gcstrdup(info.message);
+
   error->info[error->size++] = info;
 }
 

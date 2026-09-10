@@ -14,6 +14,22 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
   }
   if (assignPos < 0) return GRAMMAR_NO_MATCH;
 
+  /* If the expression after '=' starts with {, (, or [, it may span
+   * multiple lines. Extend b to the matching close token. */
+  int firstExpr = assignPos + 1;
+  while (firstExpr < r->tokens->length && grammarIsWhitespace(t, firstExpr))
+    firstExpr++;
+  if (firstExpr < r->tokens->length) {
+    TokenType ft = t->data[firstExpr].type;
+    if (ft == LBRACE || ft == LPAREN || ft == LBLOCK) {
+      TokenType close = (ft == LBRACE) ? RBRACE
+                      : (ft == LPAREN) ? RPAREN : RBLOCK;
+      int end = grammarMatchClose(t, firstExpr, r->tokens->length, ft, close);
+      if (end >= 0 && end + 1 > b)
+        b = end + 1;
+    }
+  }
+
   int rr = grammarParseExpr(r, assignPos + 1, b);
   if (rr < 0) return -1;
 
@@ -23,7 +39,7 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
     int l = createId(r->node, t->data[a].value);
     int type = -1;
     if (t->data[a].type == IDENTIFIER && t->data[a].safetyType)
-      type = createId(r->node, t->data[a].safetyType);
+      type = createTypeNode(r->node, t->data[a].safetyType);
     *pos = b;
     if (l >= 0)
       return createAssignment(r->node, l, type, rr);

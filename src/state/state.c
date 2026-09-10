@@ -1,8 +1,7 @@
 #include <rupa.h>
 
 bool check_state(State *state) {
-  return (!state || state->size == 0 || !state->input ||
-          state->input->length == 0);
+  return (!state || state->size == 0 || !state->input || state->input->length == 0);
 }
 
 /**
@@ -16,9 +15,7 @@ bool check_state(State *state) {
  */
 ReplState *createReplState(int capacity) {
   ReplState *repl = gcmall(sizeof(ReplState));
-  repl->buffer = createBuffer(MAX_BUFFER_SIZE);
   repl->editor = createEditor();
-  repl->history = createHistory(capacity);
   repl->capacity = capacity;
   repl->size = 0;
   return repl;
@@ -28,7 +25,12 @@ State *createGlobalState(int capacity, bool actived) {
   State *state = gcmall(sizeof(State));
   state->tokens = createToken(capacity);
   state->error = createError(capacity);
+  state->buffer = createBuffer(MAX_BUFFER_SIZE);
+  state->history = createHistory(capacity);
   state->repl = createReplState(capacity);
+  state->repl->state = state;
+  state->repl->buffer = state->buffer;
+
   state->context = createStateContext(capacity);
   state->input = createInput(capacity);
   state->isRepl = actived;
@@ -37,23 +39,7 @@ State *createGlobalState(int capacity, bool actived) {
 }
 
 void clearReplState(ReplState *repl) {
-  if (!repl)
-    return;
-
-  if (repl->history) {
-    for (int i = 0; i < repl->history->size; i++) {
-      if (repl->history->entries[i]) {
-        gcfree(repl->history->entries[i]);
-        repl->history->entries[i] = NULL;
-      }
-    }
-    repl->history->size = 0;
-    repl->history->currentIndex = -1;
-  }
-
-  if (repl->buffer->value) {
-    repl->buffer->value[0] = '\0';
-  }
+  if (!repl) return;
 
   if (repl->editor) {
     repl->editor->attr = EDITOR_ATTR_NONE;
@@ -67,8 +53,7 @@ void clearReplState(ReplState *repl) {
 }
 
 void clearStateContext(StateContext *ctx) {
-  if (!ctx)
-    return;
+  if (!ctx) return;
 
   /* Every field must be reset, not just line/multiline/row. This function
    * is what test()/prompt.c calls between independent syntax test files
@@ -98,8 +83,7 @@ void clearStateContext(StateContext *ctx) {
 }
 
 void clearStateInput(Input *input) {
-  if (!input)
-    return;
+  if (!input) return;
 
   if (input->content) {
     // free(input->value);
@@ -113,8 +97,7 @@ void clearStateInput(Input *input) {
   input->capacity = 0;
   input->length = 0;
 
-  if (!input->next)
-    return;
+  if (!input->next) return;
 
   clearStateInput(input->next);
   input->next = NULL;
@@ -122,15 +105,13 @@ void clearStateInput(Input *input) {
 }
 
 void clearStateToken(Token *token) {
-  if (!token)
-    return;
+  if (!token) return;
 
   clearToken(token, token->capacity);
 }
 
 void clearGlobalState(State *state, int capacity) {
-  if (!state)
-    return;
+  if (!state) return;
 
   if (state->tokens) {
     clearToken(state->tokens, capacity);
@@ -140,28 +121,29 @@ void clearGlobalState(State *state, int capacity) {
     state->tokens = NULL;
   }
 
-  if (state->repl) {
-    /* ReplState and its children are GC-owned allocations. */
-    if (state->repl->history) {
-      History *history = state->repl->history;
-      for (int i = 0; i < history->capacity; i++) {
-        if (history->entries && history->entries[i]) {
-          gcfree(history->entries[i]);
-          history->entries[i] = NULL;
-        }
-      }
-      gcfree(history->entries);
-      history->entries = NULL;
-      gcfree(history);
-      state->repl->history = NULL;
-    }
+  if (state->buffer) {
+    gcfree(state->buffer->value);
+    state->buffer->value = NULL;
+    gcfree(state->buffer);
+    state->buffer = NULL;
+  }
 
-    if (state->repl->buffer) {
-      gcfree(state->repl->buffer->value);
-      state->repl->buffer->value = NULL;
-      gcfree(state->repl->buffer);
-      state->repl->buffer = NULL;
+  if (state->history) {
+    for (int i = 0; i < state->history->capacity; i++) {
+      if (state->history->entries && state->history->entries[i]) {
+        gcfree(state->history->entries[i]);
+        state->history->entries[i] = NULL;
+      }
     }
+    gcfree(state->history->entries);
+    state->history->entries = NULL;
+    gcfree(state->history);
+    state->history = NULL;
+  }
+
+  if (state->repl) {
+    state->repl->buffer = NULL; // shared with state->buffer
+    state->repl->state = NULL;  // back-pointer
 
     if (state->repl->editor) {
       gcfree(state->repl->editor);

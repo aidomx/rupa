@@ -1,0 +1,3 @@
+import db from ./database
+
+async db.getUser() => print(this.status) -> 5000

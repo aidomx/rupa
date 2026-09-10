@@ -6,6 +6,7 @@
 name: string
 age: number
 price: float
+values: number[]
 ```
 
 Dengan value:
@@ -13,6 +14,8 @@ Dengan value:
 ```rupa
 x: number = 1
 name: string = "Rupa"
+values: number[] = [1, 2, 3]
+empty: number[] = []
 ```
 
 ## Kapan digunakan?
@@ -61,3 +64,32 @@ y: string
 ```
 
 Ini hanya mendeklarasikan type tanpa value.
+
+
+### Array type annotation
+
+Gunakan `[]` setelah type untuk menyatakan array dengan element bertype tersebut.
+
+```rupa
+numbers: number[] = [1, 2, 3]
+names: string[] = ["Rupa", "C"]
+empty: number[] = []
+```
+
+Nested array menggunakan lebih dari satu `[]`:
+
+```rupa
+matrix: number[][] = [[1, 2], [3, 4]]
+```
+
+Array kosong tetap dapat diberi tipe; karena tidak memiliki element, validasi element tidak menghasilkan error:
+
+```rupa
+empty: number[] = []
+```
+
+Element yang tidak sesuai type akan menghasilkan error:
+
+```rupa
+numbers: number[] = [1, "a"] // error
+```

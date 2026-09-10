@@ -1,0 +1,10 @@
+import db from ./database
+
+handler() {
+  print("status: ")
+  print(this.status)
+  print("\n")
+}
+
+timeout = 5000
+async db.getUser() -> {handler, timeout}

@@ -73,11 +73,16 @@ RuntimeBinding *semFind(RuntimeEnv *env, const char *name);
 /* ====================== Async Event Loop ==================== */
 
 struct EventLoop *eventLoopCreate(void);
-void eventLoopPush(struct EventLoop *loop, int handleId);
+void eventLoopPush(struct EventLoop *loop, int handleId, int requestId,
+                   int handlerId, int timeoutMs, int loaderId, int timeoutId);
 void eventLoopRun(Node *node, struct EventLoop *loop, RuntimeEnv *env,
                   Error *error);
+void eventLoopRunUntil(struct EventLoop *loop, int handleId, Node *node,
+                       RuntimeEnv *env, Error *error);
 bool eventLoopGetResult(struct EventLoop *loop, int handleId,
                         RuntimeValue *out);
 void eventLoopDestroy(struct EventLoop *loop);
+void eventLoopCleanDone(struct EventLoop *loop);
+bool eventLoopHasPending(struct EventLoop *loop);
 
 #endif

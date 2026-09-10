@@ -21,6 +21,45 @@ static bool isOperand(TokenType type) {
   }
 }
 
+/* Chain postfix operations (.member, (), []) after an inner expression. */
+static int chainPostfix(Request *req, int current, int i, int end) {
+  Token *tokens = req->tokens;
+  while (i < end) {
+    while (i < end && grammarIsWhitespace(tokens, i))
+      i++;
+    if (i >= end)
+      break;
+    if (isToken(tokens, i, DOT)) {
+      i++;
+      while (i < end && grammarIsWhitespace(tokens, i))
+        i++;
+      if (i >= end || (tokens->data[i].type != IDENTIFIER &&
+                       tokens->data[i].type != LITERAL_ID))
+        break;
+      int member = createId(req->node, tokens->data[i].value);
+      current = createMember(req->node, current, member);
+      i++;
+    } else if (isToken(tokens, i, LPAREN)) {
+      int close = grammarMatchClose(tokens, i, end, LPAREN, RPAREN);
+      if (close < 0)
+        break;
+      int *args = NULL, n = grammarParseArgs(req, i + 1, close, &args);
+      current = createCall(req->node, current, args, n);
+      i = close + 1;
+    } else if (isToken(tokens, i, LBLOCK)) {
+      int close = grammarMatchClose(tokens, i, end, LBLOCK, RBLOCK);
+      if (close < 0)
+        break;
+      int idx = close == i + 1 ? -1 : grammarParseExpr(req, i + 1, close);
+      current = createSubscript(req->node, current, idx);
+      i = close + 1;
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
 /**
  * parseBinary: parser rekursif untuk binary expression.
  * - Menjaga precedence.
@@ -35,24 +74,19 @@ int parseBinary(Request *req, int start, int end) {
   int minIndex = -1;
   int depth = 0;
 
-  // Skip whitespace at beginning
   while (start < end &&
          (isToken(tokens, start, NEWLINE) || isToken(tokens, start, TAB))) {
     start++;
   }
 
-  // Skip whitespace at end
   while (end > start &&
          (isToken(tokens, end - 1, NEWLINE) || isToken(tokens, end - 1, TAB))) {
     end--;
   }
 
   if (start >= end)
-    return -1; // Empty after trimming
+    return -1;
 
-  /* Prefix expression grammar must also be visible to recursive binary parsing.
-   * Without this, the right side of `i < await users.data.length` reaches
-   * parseAtom() and `await` is treated as a plain identifier. */
   if (tokens->data[start].type == KEYWORD) {
     int id = grammarParseAsyncExpr(req, start, end);
     if (id != GRAMMAR_NO_MATCH)
@@ -62,7 +96,6 @@ int parseBinary(Request *req, int start, int end) {
       return id;
   }
 
-  // cari operator top-level (depth == 0)
   for (int i = start; i < end; i++) {
     if (isToken(tokens, i, LPAREN)) {
       depth++;
@@ -91,9 +124,6 @@ int parseBinary(Request *req, int start, int end) {
 
     int prec = getPrecedence(&tokens->data[i]);
     if (prec >= 0 && prec <= minPrec) {
-      /* A MINUS that is NOT preceded by an operand is a unary minus
-       * (e.g. `-1`, `x * -1`).  Treat it as part of the operand, not
-       * a binary split point. */
       if (tokens->data[i].type == MINUS &&
           (i == start || !isOperand(tokens->data[i - 1].type)))
         continue;
@@ -102,9 +132,7 @@ int parseBinary(Request *req, int start, int end) {
     }
   }
 
-  // tidak ada operator di level atas
   if (minIndex == -1) {
-    /* Unary minus: `-expr` → `0 - expr` */
     if (isToken(tokens, start, MINUS)) {
       int operand = parseBinary(req, start + 1, end);
       if (operand >= 0) {
@@ -116,8 +144,13 @@ int parseBinary(Request *req, int start, int end) {
     if (isToken(tokens, start, LPAREN)) {
       int k = findParen(tokens, start, end);
       if (k == end - 1) {
-        // kupas kurung luar
         return parseBinary(req, start + 1, k);
+      }
+      /* (expr).field or (expr)() — parse inner, then chain postfixes */
+      if (k > start && k + 1 < end) {
+        int current = parseBinary(req, start + 1, k);
+        if (current >= 0)
+          return chainPostfix(req, current, k + 1, end);
       }
     }
 
@@ -139,7 +172,6 @@ int parseBinary(Request *req, int start, int end) {
     return parseAtom(req, &tokens->data[start]);
   }
 
-  // pecah kiri dan kanan
   int left = parseBinary(req, start, minIndex);
   int right = parseBinary(req, minIndex + 1, end);
 

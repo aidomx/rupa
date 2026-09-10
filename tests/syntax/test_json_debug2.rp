@@ -1,6 +1,9 @@
-import json from rupa
+obj = {
+  a: 1,
+  b: {
+    c: 2
+  },
+  d: 3
+}
 
-// Test what's in json
-obj = {a: 1}
-print(stringify(obj) + "\n")
-print(parse('{"x": 1}') + "\n")
+print(obj)

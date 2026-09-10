@@ -1,8 +1,7 @@
 #include <rupa.h>
 
 void moveCursor(ReplState *repl, int direction) {
-  if (!repl)
-    return;
+  if (!repl) return;
 
   Buffer *buf = repl->buffer;
   Editor *ed = repl->editor;
@@ -35,8 +34,7 @@ void moveCursor(ReplState *repl, int direction) {
 }
 
 void moveCursorToEnd(ReplState *repl) {
-  if (!repl || !repl->editor || !repl->buffer)
-    return;
+  if (!repl || !repl->editor || !repl->buffer) return;
 
   repl->editor->cursorCol = repl->buffer->length;
   repl->editor->cursorPos = repl->buffer->length;
@@ -44,8 +42,7 @@ void moveCursorToEnd(ReplState *repl) {
 }
 
 void moveCursorToStart(ReplState *repl) {
-  if (!repl || !repl->editor || !repl->buffer)
-    return;
+  if (!repl || !repl->editor || !repl->buffer) return;
 
   repl->editor->cursorCol = 0;
   repl->editor->cursorPos = 0;
@@ -53,9 +50,7 @@ void moveCursorToStart(ReplState *repl) {
 }
 
 void moveCursorToWordStart(ReplState *state) {
-  if (!state || !state->editor || !state->buffer ||
-      state->editor->cursorPos == 0)
-    return;
+  if (!state || !state->editor || !state->buffer || state->editor->cursorPos == 0) return;
 
   int pos = state->editor->cursorPos;
   char *buffer = state->buffer->value;
@@ -76,16 +71,14 @@ void moveCursorToWordStart(ReplState *state) {
 }
 
 void moveCursorToWordEnd(ReplState *state) {
-  if (!state || !state->editor || !state->buffer)
-    return;
+  if (!state || !state->editor || !state->buffer) return;
 
   int pos = state->editor->cursorPos;
   int length = state->buffer->length;
   char *buffer = state->buffer->value;
 
   // If at end, do nothing
-  if (pos >= length)
-    return;
+  if (pos >= length) return;
 
   // Move forwards until we find whitespace or end
   while (pos < length && !isspace(buffer[pos])) {
@@ -103,8 +96,7 @@ void moveCursorToWordEnd(ReplState *state) {
 }
 
 void setCursorPosition(ReplState *state, int newPos) {
-  if (!state || !state->editor || !state->buffer)
-    return;
+  if (!state || !state->editor || !state->buffer) return;
 
   if (newPos >= 0 && newPos <= state->buffer->length) {
     state->editor->cursorPos = newPos;
@@ -114,8 +106,7 @@ void setCursorPosition(ReplState *state, int newPos) {
 }
 
 int getCursorScreenColumn(ReplState *state) {
-  if (!state || !state->editor)
-    return 0;
+  if (!state || !state->editor) return 0;
 
   // Calculate screen column considering tabs and other special characters
   int screenCol = 0;
@@ -131,8 +122,7 @@ int getCursorScreenColumn(ReplState *state) {
 }
 
 void updateCursorLineInfo(ReplState *repl) {
-  if (!repl || !repl->editor || !repl->buffer)
-    return;
+  if (!repl || !repl->editor || !repl->buffer) return;
 
   Buffer *buf = repl->buffer;
   Editor *ed = repl->editor;
@@ -154,8 +144,7 @@ void updateCursorLineInfo(ReplState *repl) {
 }
 
 void updateEditorCursor(Editor *editor, int newPos) {
-  if (!editor)
-    return;
+  if (!editor) return;
   editor->cursorPos = newPos;
   // Update line and col based on buffer content if needed
 }

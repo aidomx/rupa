@@ -56,7 +56,7 @@
 // #include <gc.h>           /* Boehm GC (third-party) */
 
 /* --- Signals --- */
-// #include <signal.h>       /* Signal handling */
+#include <signal.h>       /* Signal handling */
 // #include <setjmp.h>       /* Non-local jumps (setjmp/longjmp) */
 // #include <stdatomic.h>    /* Atomic operations (C11) */
 // #include <threads.h>      /* Thread support (C11) */
@@ -88,9 +88,9 @@
 // #include <sys/ipc.h>      /* IPC */
 // #include <sys/shm.h>      /* Shared memory */
 // #include <sys/mman.h>     /* Memory-mapped files */
-// #include <sys/socket.h>   /* Socket programming */
-// #include <netinet/in.h>   /* Internet address family */
-// #include <arpa/inet.h>    /* Internet operations */
+#include <sys/socket.h>   /* Socket programming */
+#include <netinet/in.h>   /* Internet address family */
+#include <arpa/inet.h>    /* Internet operations */
 // #include <netdb.h>        /* Network database operations */
 
 /* --- Terminal I/O (POSIX) --- */
@@ -98,7 +98,7 @@
 // #include <sys/ioctl.h>    /* Terminal I/O control (moved to platform.h) */
 
 /* --- Thread Support (POSIX) --- */
-// #include <pthread.h>      /* POSIX threads */
+#include <pthread.h>      /* POSIX threads */
 // #include <semaphore.h>    /* Semaphores */
 
 /* --- Regex --- */

@@ -1,0 +1,20 @@
+// test_http.rp — Test HTTP module
+
+import http from rupa
+import thread from rupa
+
+print("Starting HTTP server on port 8000...\n")
+handler(req, res) {
+  print(req)
+}
+
+// Test server start and stop
+server = http.server(8000, handler)
+
+// Wait a bit for server to start
+thread.sleep(100)
+
+// Stop server
+http.stop(server)
+print("Server stopped")
+print("HTTP module test passed!")

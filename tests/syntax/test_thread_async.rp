@@ -1,0 +1,15 @@
+import db from ./database
+
+async db.getUser() => {
+    if this.status == AWAIT {
+        print("loading...\n")
+    } else if this.status == SUCCESS {
+        print("data: ")
+        print(this.data)
+        print("\n")
+    } else {
+        print("error: ")
+        print(this.error)
+        print("\n")
+    }
+} -> 5000

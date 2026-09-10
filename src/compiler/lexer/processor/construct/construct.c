@@ -242,7 +242,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
           }
         } else if (c == '}') {
           if (ctx->objectDepth > 0 && brace < ctx->objectDepth)
-            ctx->objectDepth = 0;
+            ctx->objectDepth = brace > 0 ? brace : 0;
           if (ctx->inStruct && brace == 0)
             ctx->inStruct = 0;
           if (brace == 0) {

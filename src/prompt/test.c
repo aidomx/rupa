@@ -19,15 +19,21 @@ static void printSource(const char *src) {
 /* ================================================================
  * Shared helper: run lex+parse on a file, return true if valid.
  * ================================================================ */
-static bool lexParse(State *state, const char *path, Buffer **outBuf,
-                     Token **outTokens, Node **outNode) {
+static bool lexParse(State *state, const char *path, Buffer **outBuf, Token **outTokens,
+                     Node **outNode) {
   clearReplState(state->repl);
   clearInput(state->input);
   clearStateToken(state->tokens);
   clearStateContext(state->context);
   state->size = 0;
 
-  Buffer *buffer = state->repl->buffer;
+  /* Reset history so addToInput doesn't skip stale entries. */
+  if (state->history) {
+    state->history->size = 0;
+    state->history->currentIndex = -1;
+  }
+
+  Buffer *buffer = state->buffer;
   if (!readfile(path, buffer)) {
     *outBuf = buffer;
     *outTokens = NULL;
@@ -40,8 +46,7 @@ static bool lexParse(State *state, const char *path, Buffer **outBuf,
   lexer(state);
 
   Token *tokens = state->tokens;
-  if (!tokens || tokens->length == 0 ||
-      (state->input->flags && state->input->flags->isWaiting)) {
+  if (!tokens || tokens->length == 0 || (state->input->flags && state->input->flags->isWaiting)) {
     *outBuf = buffer;
     *outTokens = tokens;
     *outNode = NULL;
@@ -74,28 +79,35 @@ void test(const char *paths[], int length) {
     return;
   }
 
-  State *state = createGlobalState(length, true);
-  if (!state || !state->repl || !state->repl->buffer) {
+  State *state = createGlobalState(length, false);
+  if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create test state.\n");
     return;
   }
 
-  int passed = 0;
-  int failed = 0;
-
-  printf("> Testing Rupa syntax\n");
+  int passed = 0, failed = 0;
 
   for (int i = 0; i < length; i++) {
-    clearReplState(state->repl);
+    if (state->repl) clearReplState(state->repl);
+
     clearInput(state->input);
     clearStateToken(state->tokens);
     clearStateContext(state->context);
     state->size = 0;
 
-    Buffer *buffer = state->repl->buffer;
+    /* Reset history so addToInput doesn't skip stale entries.
+     * Without this, h->size stays from the previous test and
+     * findNewStart() in addToInput() skips the newly added entry,
+     * leaving input empty and causing cascading failures. */
+    if (state->history) {
+      state->history->size = 0;
+      state->history->currentIndex = -1;
+    }
+
+    Buffer *buffer = state->buffer;
 
     if (!readfile(paths[i], buffer)) {
-      printf("FAIL | %s\n", paths[i]);
+      printf("FAIL | Read file %s\n", paths[i]);
       failed++;
       continue;
     }
@@ -108,7 +120,14 @@ void test(const char *paths[], int length) {
     Token *tokens = state->tokens;
 
     if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
-      printf("FAIL | %s\n", paths[i]);
+      printf("FAIL | %s (lex failed)", paths[i]);
+      if (!tokens)
+        printf(" — tokens is NULL");
+      else if (tokens->length == 0)
+        printf(" — no tokens produced");
+      else if (flags && flags->isWaiting)
+        printf(" — incomplete input (isWaiting)");
+      printf("\n");
       failed++;
       continue;
     }
@@ -118,7 +137,14 @@ void test(const char *paths[], int length) {
     Error *error = createError(10);
 
     if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
-      printf("FAIL | %s\n", paths[i]);
+      printf("FAIL | %s (parse failed)", paths[i]);
+      if (!node)
+        printf(" — AST node is NULL");
+      else if (node->length <= 0)
+        printf(" — AST is empty");
+      else
+        printf(" — no declarations found");
+      printf("\n");
       failed++;
       continue;
     }
@@ -132,7 +158,7 @@ void test(const char *paths[], int length) {
       }
     }
     if (root < 0) {
-      printf("FAIL | %s\n", paths[i]);
+      printf("FAIL | %s (no program root)\n", paths[i]);
       failed++;
       continue;
     }
@@ -141,7 +167,7 @@ void test(const char *paths[], int length) {
     setSourceFilePath(paths[i]);
     RuntimeEnv *env = semCreateEnv(NULL);
     if (!env) {
-      printf("FAIL | %s\n", paths[i]);
+      printf("FAIL | %s (env alloc failed)\n", paths[i]);
       failed++;
       continue;
     }
@@ -179,8 +205,8 @@ void testAst(const char *paths[], int length) {
     return;
   }
 
-  State *state = createGlobalState(length, true);
-  if (!state || !state->repl || !state->repl->buffer) {
+  State *state = createGlobalState(length, false);
+  if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create test state.\n");
     return;
   }
@@ -226,8 +252,8 @@ void testExec(const char *paths[], int length) {
     return;
   }
 
-  State *state = createGlobalState(length, true);
-  if (!state || !state->repl || !state->repl->buffer) {
+  State *state = createGlobalState(length, false);
+  if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create test state.\n");
     return;
   }
@@ -249,13 +275,19 @@ void testExec(const char *paths[], int length) {
       }
     }
 
-    clearReplState(state->repl);
+    if (state->repl) clearReplState(state->repl);
     clearInput(state->input);
     clearStateToken(state->tokens);
     clearStateContext(state->context);
     state->size = 0;
 
-    Buffer *buffer = state->repl->buffer;
+    /* Reset history between tests to prevent cascading failures. */
+    if (state->history) {
+      state->history->size = 0;
+      state->history->currentIndex = -1;
+    }
+
+    Buffer *buffer = state->buffer;
 
     if (!readfile(paths[i], buffer)) {
       printf("FAIL | %s (file not found)\n", paths[i]);
@@ -277,7 +309,14 @@ void testExec(const char *paths[], int length) {
     Token *tokens = state->tokens;
 
     if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
-      printf("FAIL | %s (lex failed)\n", paths[i]);
+      printf("FAIL | %s (lex failed)", paths[i]);
+      if (!tokens)
+        printf(" — tokens is NULL");
+      else if (tokens->length == 0)
+        printf(" — no tokens produced");
+      else if (flags && flags->isWaiting)
+        printf(" — incomplete input (isWaiting)");
+      printf("\n");
       failed++;
       continue;
     }
@@ -287,7 +326,14 @@ void testExec(const char *paths[], int length) {
     Error *error = createError(10);
 
     if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
-      printf("FAIL | %s (parse failed)\n", paths[i]);
+      printf("FAIL | %s (parse failed)", paths[i]);
+      if (!node)
+        printf(" — AST node is NULL");
+      else if (node->length <= 0)
+        printf(" — AST is empty");
+      else
+        printf(" — no declarations found");
+      printf("\n");
       failed++;
       continue;
     }
@@ -314,12 +360,9 @@ void testExec(const char *paths[], int length) {
       passed++;
     } else {
       printf("FAIL | %s\n", paths[i]);
-      if (!exec_ok)
-        printf("       execution error\n");
-      if (!assert_ok)
-        printf("       %d assertion(s) failed\n", testHelperFailures());
-      if (!no_errors)
-        printErrors(error);
+      if (!exec_ok) printf("       execution error\n");
+      if (!assert_ok) printf("       %d assertion(s) failed\n", testHelperFailures());
+      if (!no_errors) printErrors(error);
       failed++;
     }
   }
@@ -371,7 +414,7 @@ void testRepl(const char *paths[], int length) {
     fclose(fp);
 
     State *state = createGlobalState(10, true);
-    if (!state || !state->repl || !state->repl->buffer) {
+    if (!state || !state->buffer) {
       free(content);
       printf("FAIL | %s (state alloc failed)\n", paths[i]);
       failed++;
@@ -410,22 +453,21 @@ void testRepl(const char *paths[], int length) {
         continue;
       }
 
-      if (state->repl->buffer->value)
-        state->repl->buffer->value[0] = '\0';
-      state->repl->buffer->length = 0;
+      if (state->buffer->value) state->buffer->value[0] = '\0';
+      state->buffer->length = 0;
       state->repl->size = 0;
       clearStateContext(state->context);
       state->size = 0;
 
       size_t len = strlen(line);
-      if ((int)len >= state->repl->buffer->capacity) {
+      if ((int)len >= state->buffer->capacity) {
         test_failed = true;
         line = strtok_r(NULL, "\n", &saveptr);
         continue;
       }
-      memcpy(state->repl->buffer->value, line, len);
-      state->repl->buffer->value[len] = '\0';
-      state->repl->buffer->length = (int)len;
+      memcpy(state->buffer->value, line, len);
+      state->buffer->value[len] = '\0';
+      state->buffer->length = (int)len;
 
       printf("  %2d> %s\n", line_num, line);
 
@@ -485,8 +527,7 @@ void testRepl(const char *paths[], int length) {
     }
 
     if (!test_failed && testHelperFailures() > 0) {
-      printf("FAIL | %s (%d assertion(s) failed)\n", paths[i],
-             testHelperFailures());
+      printf("FAIL | %s (%d assertion(s) failed)\n", paths[i], testHelperFailures());
       test_failed = true;
     }
 

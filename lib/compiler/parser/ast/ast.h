@@ -13,10 +13,8 @@
 void generateAst(struct Token *tokens);
 bool hasAstDeclarations(struct Token *tokens);
 
-extern struct Response generateHandler(struct Request *req, struct Token *t,
-                                       int init);
+extern struct Response generateHandler(struct Request *req, struct Token *t, int init);
 
-extern void handleUnexpectedToken(struct Request *req, struct DataToken *data,
-                                  int init);
+extern void handleUnexpectedToken(struct Request *req, struct DataToken *data, int init);
 
 #endif

@@ -1,4 +1,5 @@
 #pragma once
+#include <pthread.h>
 /**
  * @struct GarbageCollector
  * @brief Representasi konteks pengelolaan memori pada runtime.
@@ -25,4 +26,5 @@ struct GarbageCollector {
   void **items; // Daftar referensi alokasi yang berada dalam konteks runtime
   int capacity; // Batas maksimum referensi yang dapat ditampung
   int count;    // Jumlah referensi aktif dalam konteks ini
+  pthread_mutex_t lock; // Mutex for thread-safe allocation
 };

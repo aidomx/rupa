@@ -10,7 +10,7 @@ extern void showTestHelp(void);
 extern void version(void);
 
 /* runner.c — file & code execution */
-extern void run(const char *paths[], int length);
+extern int run(const char *paths[], int length);
 extern void execute(const char *code);
 
 /* test.c — syntax, exec, and REPL tests */

@@ -13,6 +13,15 @@ void addToProgram(struct Node *node, int programId, int declId);
 struct Node *createNode(int capacity);
 
 int createArray(struct Node *root, int *elements, int length);
+/**
+ * @brief Membuat node untuk tipe array postfix, misalnya `number[]`.
+ */
+int createArrayType(struct Node *root, int elementType);
+
+/**
+ * @brief Membuat node tipe dari nama scalar atau postfix array berulang.
+ */
+int createTypeNode(struct Node *root, const char *typeName);
 
 /**
  * @brief Membuat object literal node dalam AST (mis. `{ key: value, ... }`).
@@ -87,7 +96,8 @@ int createAssignment(struct Node *root, int left, int type, int right);
 int createConditionalAssignment(struct Node *root, int target, int value);
 int createThen(struct Node *root, int condition, int result);
 int createFallback(struct Node *root, int primary, int fallback);
-int createAsync(struct Node *root, int request, int handler, int timeout);
+int createAsync(struct Node *root, int request, int handler, int timeout,
+                 int loaderId, int timeoutId);
 int createAwait(struct Node *root, int expression);
 int createMember(struct Node *root, int object, int member);
 int createCase(struct Node *root, int subject, struct AstCaseEntry *entries, int length);

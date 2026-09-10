@@ -137,7 +137,7 @@ void setContextInput(State *state) {
   /*if (state->debug->context) {*/
   /*}*/
 
-  /*Buffer *buf = state->repl->buffer;*/
+  /*Buffer *buf = state->buffer;*/
   /*Error *error = state->error;*/
   /*Editor *ed = state->repl->editor;*/
   /*int line = ed->lineNumber;*/

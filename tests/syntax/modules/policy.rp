@@ -22,4 +22,4 @@ divide(x, y) {
 }
 
 # Policy export: multiply and divide are private
-export calc from ./policy -> { multiply: private, divide: private }
+export calc -> { multiply: private, divide: private }

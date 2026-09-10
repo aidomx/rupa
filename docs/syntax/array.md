@@ -9,6 +9,28 @@
 [1, [2, 3], 4]
 ```
 
+## Typed array
+
+Array dapat diberi type annotation dengan menambahkan `[]` setelah type element:
+
+```rupa
+x: number[] = [1, 2, 3]
+names: string[] = ["rupa", "language"]
+empty: number[] = []
+```
+
+Array kosong boleh digunakan sebagai nilai awal typed array karena tidak memiliki element yang perlu diperiksa. Untuk array berisi, semua element harus sesuai dengan type yang dideklarasikan. Contoh berikut menghasilkan error:
+
+```rupa
+x: number[] = [1, "a"]
+```
+
+Array bertingkat dapat ditulis dengan beberapa `[]`:
+
+```rupa
+matrix: number[][] = [[1, 2], [3, 4]]
+```
+
 ## Kapan digunakan?
 
 Gunakan array untuk menyimpan koleksi data urutan. Akses element menggunakan subscript notation `[index]`.

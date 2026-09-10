@@ -67,11 +67,18 @@ void insertChar(ReplState *repl, char c) {
 }
 
 void deleteChar(ReplState *repl) {
-  if (!repl || !repl->buffer || repl->editor->cursorPos == 0)
-    return;
+  if (!repl || !repl->buffer) return;
 
   Buffer *buf = repl->buffer;
   Editor *ed = repl->editor;
+
+  /* Backspace at position 0 — try to restore previous line from stack */
+  if (ed->cursorPos == 0) {
+    if (editorPopLine(repl)) {
+      refreshDisplay(repl);
+    }
+    return;
+  }
 
   char deletedChar = buf->value[ed->cursorPos - 1];
 

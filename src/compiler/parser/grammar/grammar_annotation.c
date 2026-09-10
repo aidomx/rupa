@@ -9,8 +9,7 @@
  * same way instead of re-deriving it independently. */
 int grammarAnnotationFromSafetyType(Request *r, int idx, int valueId) {
   Token *t = r->tokens;
-  if (idx < 0 || idx >= t->length)
-    return -1;
+  if (idx < 0 || idx >= t->length) return -1;
   if ((t->data[idx].type != IDENTIFIER && t->data[idx].type != LITERAL_ID) ||
       !t->data[idx].safetyType)
     return -1;
@@ -20,7 +19,9 @@ int grammarAnnotationFromSafetyType(Request *r, int idx, int valueId) {
    * Do not feed it through parseAtom(), because a lexer token may be
    * LITERAL_ID when the same spelling occurs in a value context. */
   int name = createId(r->node, t->data[idx].value);
-  int type = createId(r->node, t->data[idx].safetyType);
+  int type = createTypeNode(r->node, t->data[idx].safetyType);
+  if (name < 0 || type < 0)
+    return -1;
   return createAnnotation(r->node, name, type, valueId);
 }
 
@@ -32,14 +33,14 @@ int grammarParseAnnotation(Request *r, int a, int b, int *pos) {
    * single .safetyType-carrying token before this is ever reached (see the
    * branch below), so this mainly covers edge cases the normalizer doesn't
    * collapse (kept for fidelity/robustness with the original grammar). */
-  if (t->data[a].type == IDENTIFIER && a + 1 < b &&
-      t->data[a + 1].type == COLON) {
+  if (t->data[a].type == IDENTIFIER && a + 1 < b && t->data[a + 1].type == COLON) {
     int eq = -1;
-    for (int i = a + 2; i < b; i++)
+    for (int i = a + 2; i < b; i++) {
       if (t->data[i].type == ASSIGN) {
         eq = i;
         break;
       }
+    }
     int name = parseAtom(r, &t->data[a]);
     int type = grammarParseExpr(r, a + 2, eq >= 0 ? eq : b);
     int value = eq >= 0 ? grammarParseExpr(r, eq + 1, b) : -1;

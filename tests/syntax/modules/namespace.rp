@@ -22,4 +22,4 @@ divide(x, y) {
 }
 
 # Namespace export: export the entire module as 'math_utils'
-export math_utils from ./namespace
+export math_utils

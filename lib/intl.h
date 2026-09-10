@@ -11,6 +11,7 @@
 #include "core/keys.h"
 #include "core/limit.h"
 #include "core/macros.h"
+#include "core/manifest.h"
 #include "core/platform.h"
 
 // types
@@ -41,7 +42,7 @@
 #include "runtime/runtime.h"
 #include "state/state.h"
 // Standard library rupa language
-#include "stdlib/rupa_stdlib.h"
+#include "modules/rupa_modules.h"
 #include "stdlib/test_helper.h"
 // support
 /*#include "utils/atom.h"*/

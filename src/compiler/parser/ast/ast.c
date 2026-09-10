@@ -18,8 +18,7 @@
  * perubahan.
  */
 void addToProgram(Node *node, int programId, int declId) {
-  if (!node || programId < 0 || programId >= node->length || declId < 0 ||
-      declId >= node->length) {
+  if (!node || programId < 0 || programId >= node->length || declId < 0 || declId >= node->length) {
     return;
   }
 
@@ -74,45 +73,30 @@ Request createRequest(Token *tokens, int capacity) {
  * @param tokens Pointer ke daftar token hasil tokenizer.
  *
  * @details
- * - Mengecek apakah token kosong → jika kosong, print "--- EMPTY ---".
+ * - Mengecek apakah token kosong → return jika kosong.
  * - Membuat Request via createRequest().
  * - Memanggil processGenerate() untuk membangun AST.
- * - Menampilkan jumlah node hasil parsing.
- * - Memanggil startDebug() (opsional) untuk debugging AST.
- * - Membersihkan memori AST dengan clearNode().
+ * - Menjalankan interpreter pada AST.
  *
  * @note Ini adalah fungsi tingkat atas (top-level) untuk parsing.
  */
 void generateAst(Token *tokens) {
-  if (!tokens || tokens->length == 0) {
-    printf("--- EMPTY ---\n");
-    return;
-  }
-
-  printf("Total token: %d\n", tokens->length);
+  if (!tokens || tokens->length == 0) return;
 
   Request request = createRequest(tokens, 10);
   Node *node = processGenerate(&request);
   Error *error = createError(10);
-
-  if (node && node->length > 0) {
-    printf("Total node: %d\n", node->length);
-    // src/interpreter/debug/printAst.c
-    startDebug(node); // debug print AST
-    // src/interpreter/interpreter.c
-    (void)interpreter(node, error);
-  }
+  if (node && node->length > 0) (void)interpreter(node, error);
 
   (void)node; // GC owns AST lifetime.
 }
 
 bool hasAstDeclarations(Token *tokens) {
-  if (!tokens || tokens->length == 0)
-    return false;
+  if (!tokens || tokens->length == 0) return false;
   Request request = createRequest(tokens, 10);
   Node *node = processGenerate(&request);
-  bool ok = node && request.programId >= 0 &&
-            node->ast[request.programId].program.declarations != NULL;
+  bool ok =
+      node && request.programId >= 0 && node->ast[request.programId].program.declarations != NULL;
   (void)node;
   return ok;
 }

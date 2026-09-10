@@ -90,7 +90,7 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env,
     return false;
 
   State *state = createGlobalState(8, false);
-  if (!state || !state->repl || !state->repl->buffer)
+  if (!state || !state->buffer)
     return false;
 
   clearReplState(state->repl);
@@ -99,7 +99,7 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env,
   clearStateContext(state->context);
   state->size = 0;
 
-  Buffer *buffer = state->repl->buffer;
+  Buffer *buffer = state->buffer;
   size_t len = strlen(exprSrc);
   if ((int)len >= buffer->capacity)
     return false;

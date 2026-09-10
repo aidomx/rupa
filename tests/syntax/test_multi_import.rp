@@ -1,0 +1,18 @@
+// test_multi_import.rp — Test import http, thread, os from rupa
+
+import http, thread, os from rupa
+
+print("HTTP server test:")
+server = http.server(8080)
+print("Server handle: " + server)
+thread.sleep(100)
+http.stop(server)
+print("Server stopped")
+
+print("\nThread test:")
+print("Thread ID: " + thread.id())
+
+print("\nOS test:")
+print("Platform: " + os.info().sysname)
+
+print("\nMulti-import test passed!")

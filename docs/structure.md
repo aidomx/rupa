@@ -1,410 +1,419 @@
 # Project Structure
 
-Dokumen ini menjelaskan struktur project Rupa dan tanggung jawab setiap bagian utamanya.
-
-Tujuannya bukan menjelaskan detail implementasi setiap file, tetapi membantu memahami di mana sebuah perubahan seharusnya dilakukan.
-
-## Gambaran umum
-
-```text
-rupa/
-├── bin/        # Binary hasil build
-├── build/      # Object dan hasil sementara build
-├── commands/   # Library command untuk build.sh
-├── docs/       # Dokumentasi project dan bahasa
-├── include/    # Public headers
-├── lib/        # Internal headers dan deklarasi modul
-├── shared/     # Source yang digunakan bersama
-├── src/        # Implementasi utama
-├── stdlib/     # Standard library Rupa
-├── tests/      # Test
-├── build.sh    # Sistem build utama
-├── Makefile    # Jalur build tambahan
-└── README.md   # Informasi awal project
+```
+rupa-v22/
+├── bin/                          # Binary output
+│   └── rupa                      # Compiled interpreter
+│
+├── include/                      # Public API header
+│   └── rupa.h                    # #include <rupa> — main entry point
+│
+├── lib/                          # Headers & type definitions
+│   ├── intl.h                    # Central include hub (includes all lib/)
+│   ├── forward.h                 # Forward declarations
+│   ├── stdlib.h                  # Standard library C headers
+│   │
+│   ├── core/                     # Enums, constants, macros
+│   │   ├── enum.h                # Master enum include
+│   │   ├── enum_binary.h         # Binary operator types
+│   │   ├── enum_command.h        # REPL command types
+│   │   ├── enum_context.h        # Runtime context types
+│   │   ├── enum_debug.h          # Debug mode flags
+│   │   ├── enum_editor.h         # Editor mode types
+│   │   ├── enum_error.h          # Error code types
+│   │   ├── enum_except.h         # Exception types
+│   │   ├── enum_flag.h           # Runtime flag types
+│   │   ├── enum_interpreter.h    # Interpreter state types
+│   │   ├── enum_keyword.h        # Keyword token types
+│   │   ├── enum_node.h           # AST node types
+│   │   ├── enum_program.h        # Program phase types
+│   │   ├── enum_token.h          # Token types
+│   │   ├── enum_value.h          # Runtime value types
+│   │   ├── enum_variable.h       # Variable scope types
+│   │   ├── keys.h                # Keyboard key definitions
+│   │   ├── limit.h               # System limits
+│   │   ├── macros.h              # Utility macros
+│   │   ├── manifest.h            # Version & build info
+│   │   └── platform.h            # Platform detection
+│   │
+│   ├── types/                    # Type struct definitions
+│   │   ├── compiler/             # Compiler types
+│   │   │   ├── compiler.h
+│   │   │   ├── interpreter_error.h
+│   │   │   ├── interpreter_function.h
+│   │   │   ├── interpreter_result.h
+│   │   │   ├── interpreter_value.h
+│   │   │   ├── lexer.h
+│   │   │   ├── parse_ast.h
+│   │   │   ├── parse_node.h
+│   │   │   ├── semantic_eventloop.h
+│   │   │   ├── semantic_symbol.h
+│   │   │   └── semantic_value.h
+│   │   ├── debug/debug.h
+│   │   ├── editor/editor.h
+│   │   ├── repl/repl.h
+│   │   ├── runtime/
+│   │   │   ├── context.h
+│   │   │   ├── flags.h
+│   │   │   ├── function.h
+│   │   │   ├── gc.h
+│   │   │   ├── input.h
+│   │   │   ├── io.h
+│   │   │   ├── keyword.h
+│   │   │   └── validation.h
+│   │   ├── state/state.h
+│   │   └── support/
+│   │       ├── atom.h
+│   │       ├── posix.h
+│   │       ├── symbol.h
+│   │       └── system.h
+│   │
+│   ├── compiler/                 # Compiler header interfaces
+│   │   ├── compiler.h
+│   │   ├── formatter/formatter.h
+│   │   ├── interpreter/
+│   │   │   ├── annotation.h
+│   │   │   ├── eval.h
+│   │   │   ├── interpreter.h
+│   │   │   ├── runtime.h
+│   │   │   ├── debug/debug_ast.h, print_ast.h, print_ast_shared.h
+│   │   │   ├── error/error.h
+│   │   │   └── statement/loop.h
+│   │   ├── lexer/lexer.h
+│   │   │   └── processor/processor.h
+│   │   ├── parser/
+│   │   │   ├── ast/ast.h, assignment.h, expression.h, operator.h, processor.h
+│   │   │   ├── grammar/grammar.h, array/array.h
+│   │   │   ├── node.h
+│   │   │   ├── parser.h
+│   │   │   └── token/token.h
+│   │   └── semantic/symbol.h
+│   │
+│   ├── runtime/                  # Runtime header interfaces
+│   │   ├── runtime.h
+│   │   ├── context/context.h
+│   │   ├── gc/gc.h
+│   │   ├── input/flags.h, input.h
+│   │   ├── keyword/keyword.h
+│   │   └── validation/validation.h
+│   │
+│   ├── editor/                   # Editor header interfaces
+│   │   ├── editor.h
+│   │   ├── core/buffer.h, cursor.h, mode.h
+│   │   ├── display/drawer.h, refresh.h, terminal.h
+│   │   └── operations/editorState.h, history.h, indent.h, reset.h
+│   │
+│   ├── stdlib/                   # Stdlib header interfaces
+│   │   ├── io.h, os.h, string.h, test_helper.h
+│   │
+│   ├── modules/rupa_modules.h    # Module system header
+│   ├── prompt/prompt.h           # Prompt header
+│   ├── repl/repl.h               # REPL header
+│   ├── debug/debug.h             # Debug header
+│   ├── state/state.h             # State header
+│   └── utils/                    # Utility headers
+│       ├── atom.h, identifier.h, numbers.h, strings.h
+│
+├── src/                          # Implementation (C source)
+│   ├── main.c                    # Entry point
+│   │
+│   ├── bootstrap/                # File loading & bootstrapping
+│   │   └── loader.c
+│   │
+│   ├── compiler/                 # Compiler pipeline
+│   │   ├── formatter/formatter.c         # Code formatter
+│   │   │
+│   │   ├── lexer/                # Tokenizer
+│   │   │   ├── lexer.c, factory.c, operations.c, support.c
+│   │   │   └── processor/
+│   │   │       ├── processor.c
+│   │   │       ├── construct/            # Token construction
+│   │   │       │   ├── construct.c       # Main construct processor
+│   │   │       │   ├── delimiter.c       # Delimiters (, ; :)
+│   │   │       │   ├── identifier.c      # Identifiers
+│   │   │       │   ├── literal.c         # Literals (number, string, bool)
+│   │   │       │   └── operator.c        # Operators (+, -, =, etc.)
+│   │   │       └── keyword/              # Keyword detection
+│   │   │           ├── check.c, keyword.c, lists.c
+│   │   │
+│   │   ├── parser/               # Parser (tokens → AST)
+│   │   │   ├── ast/              # AST node creation
+│   │   │   │   ├── ast.c, processor.c
+│   │   │   │   ├── parse_array.c, parse_atom.c, parse_binary.c
+│   │   │   │   ├── parse_expression.c, parse_factor.c
+│   │   │   │   ├── parse_statement.c, parse_subscript.c
+│   │   │   │
+│   │   │   ├── grammar/          # Grammar rules (tokens → AST nodes)
+│   │   │   │   ├── grammar.c               # Main dispatcher
+│   │   │   │   ├── grammar_shared.c        # Shared utilities
+│   │   │   │   ├── grammar_annotation.c    # x: type
+│   │   │   │   ├── grammar_assignment.c    # x = expr
+│   │   │   │   ├── grammar_async.c         # async handler
+│   │   │   │   ├── grammar_block.c         # { ... }
+│   │   │   │   ├── grammar_call.c          # fn()
+│   │   │   │   ├── grammar_case.c          # case/when
+│   │   │   │   ├── grammar_control.c       # break, continue
+│   │   │   │   ├── grammar_expression.c    # Expression parser
+│   │   │   │   ├── grammar_function.c      # fn() {}
+│   │   │   │   ├── grammar_if.c            # if/else
+│   │   │   │   ├── grammar_loop.c          # while
+│   │   │   │   ├── grammar_module.c        # Module dispatcher
+│   │   │   │   ├── grammar_module_export.c # export
+│   │   │   │   ├── grammar_module_import.c # import
+│   │   │   │   ├── grammar_module_utils.c  # Module utilities
+│   │   │   │   ├── grammar_object.c        # { key: value }
+│   │   │   │   ├── grammar_postfix.c       # postfix ops
+│   │   │   │   ├── grammar_print.c         # print()
+│   │   │   │   ├── grammar_return.c        # return
+│   │   │   │   ├── grammar_struct.c        # struct
+│   │   │   │   ├── grammar_update.c        # ++, --
+│   │   │   │   └── array/array.c           # Array grammar
+│   │   │   │
+│   │   │   ├── node/             # AST node utilities
+│   │   │   │   ├── cleaner.c, create.c, factory.c, factory_nodes.c
+│   │   │   │
+│   │   │   ├── token/            # Token utilities
+│   │   │   │   ├── check.c, error.c, lookup.c, posix.c
+│   │   │   │   ├── save.c, symbol.c, type.c
+│   │   │   │
+│   │   │   └── parser.h          # Parser entry
+│   │   │
+│   │   ├── interpreter/          # AST interpreter
+│   │   │   ├── interpreter.c             # Main dispatch
+│   │   │   ├── annotation/annotation.c   # Type annotation check
+│   │   │   ├── control/result.c          # Flow control (return, break)
+│   │   │   ├── debug/                    # AST debug printing
+│   │   │   │   ├── debug_ast.c, print_ast.c, print_ast_basic.c
+│   │   │   │   ├── print_ast_control.c, print_ast_shared.c
+│   │   │   │   └── print_ast_structural.c
+│   │   │   ├── environment/              # Variable environment
+│   │   │   ├── error/create.c            # Error creation
+│   │   │   ├── expression/               # Expression evaluation
+│   │   │   │   ├── expression.c          # Main expression dispatch
+│   │   │   │   ├── array.c, async.c, await.c
+│   │   │   │   ├── binary.c              # Binary operators (+, -, etc.)
+│   │   │   │   ├── identifier.c          # Variable lookup
+│   │   │   │   ├── literal.c             # Literal values
+│   │   │   │   ├── member.c              # obj.prop
+│   │   │   │   ├── object.c              # Object literal
+│   │   │   │   ├── string_interp.c       # String interpolation
+│   │   │   │   ├── subscript.c           # arr[i]
+│   │   │   │   └── update.c              # ++, --
+│   │   │   ├── function/                 # Function handling
+│   │   │   │   ├── call.c                # Function call
+│   │   │   │   └── declaration.c         # Function declaration
+│   │   │   ├── modules/                  # Module system
+│   │   │   │   ├── dispatch.c, loader.c, module.h
+│   │   │   ├── statement/                # Statement execution
+│   │   │   │   ├── statement.c           # Main statement dispatch
+│   │   │   │   ├── case.c, struct.c
+│   │   │   │   ├── loop.c, loop_for.c, loop_helper.c, loop_rev.c
+│   │   │   └── value/value.c             # Value operations
+│   │   │
+│   │   └── semantic/             # Semantic analysis
+│   │       ├── eventloop.c       # Async event loop
+│   │       └── symbol.c          # Symbol table
+│   │
+│   ├── editor/                   # TUI editor
+│   │   ├── editor.c
+│   │   ├── core/
+│   │   │   ├── buffer.c          # Text buffer management
+│   │   │   ├── cursor.c          # Cursor positioning
+│   │   │   └── mode.c            # Editor modes
+│   │   ├── display/
+│   │   │   ├── drawer.c          # Screen drawing
+│   │   │   ├── refresh.c         # Display refresh
+│   │   │   └── terminal.c        # Terminal handling
+│   │   └── operations/
+│   │       ├── history.c         # Undo/redo
+│   │       ├── indent.c          # Auto-indentation
+│   │       ├── reset.c           # Reset state
+│   │       └── state.c           # State management
+│   │
+│   ├── prompt/                   # Command prompt
+│   │   ├── prompt.c, runner.c, test.c
+│   │
+│   ├── repl/                     # REPL mode
+│   │   ├── repl.c, repl_command.c, repl_input.c
+│   │
+│   ├── runtime/                  # Runtime system
+│   │   ├── context/
+│   │   │   ├── context.c, create.c
+│   │   ├── gc/gc.c              # Garbage collector
+│   │   ├── input/
+│   │   │   ├── cleaner.c, create.c, flags.c, input.c
+│   │   ├── io/readfile.c         # File I/O
+│   │   ├── keyword/create.c      # Keyword registration
+│   │   └── validation/           # Runtime validation
+│   │
+│   ├── state/state.c             # Global state
+│   │
+│   ├── stdlib/                   # Standard library (C functions)
+│   │   ├── stdlib.c              # Module registration
+│   │   ├── http_client.c         # HTTP client (curl)
+│   │   ├── http_server.c         # HTTP server (POSIX sockets)
+│   │   ├── io.c                  # input(), toNumber()
+│   │   ├── json.c                # JSON stringify/parse
+│   │   ├── json_parser.c         # JSON parser
+│   │   ├── math.c                # Math functions
+│   │   ├── os.c                  # OS functions
+│   │   ├── string.c              # String functions
+│   │   ├── thread.c              # Thread functions
+│   │   ├── loader.c              # Stdlib loader
+│   │   ├── manifest.c            # Module manifest
+│   │   ├── package.c             # Package management
+│   │   ├── install.c             # Package installer
+│   │   └── test_helper.c         # Test utilities
+│   │
+│   ├── debug/debug.c             # Debug utilities
+│   └── utils/strings.c           # String utilities
+│
+├── tests/                        # Test files
+│   ├── syntax/                   # Syntax tests (53 files)
+│   │   ├── annotation.rp, array.rp, assignment.rp, async.rp, ...
+│   │   ├── database/             # DB test modules
+│   │   └── modules/              # Test module files (a.rp, b.rp, ...)
+│   │
+│   ├── ast/                      # AST structure tests (8 files)
+│   │   ├── async.rp, binary_chain.rp, complex_array.rp, ...
+│   │
+│   ├── execution/                # Execution tests (26 files)
+│   │   ├── array_ops.rp, basic_arithmetic.rp, ...
+│   │   └── repl_*.rp             # REPL-specific tests
+│   │
+│   ├── semantics/                # Semantic analysis tests (6 files)
+│   │   ├── function_param_types.rp, type_annotation_basic.rp, ...
+│   │
+│   ├── modules/                  # Module tests
+│   │   ├── math/, json/, collections/, strings/, thread/
+│   │   ├── dbtest/, crypto/, datetime/, net/, regex/
+│   │
+│   └── stress/stress tests
+│
+├── modules/                      # Rupa standard modules (packaged)
+│   └── rupa_modules.tar.gz       # Archive of stdlib modules
+│
+├── docs/                         # Documentation
+│   ├── index.md                  # Docs index
+│   ├── README.md                 # Docs readme
+│   ├── structure.md              # This file
+│   ├── TODO.md                   # Project status & roadmap
+│   ├── about.md, mission.md, vision.md
+│   ├── instruction.md
+│   │
+│   ├── syntax/                   # Language syntax docs (28 files)
+│   │   ├── module.md             # → modules/syntax/
+│   │   ├── annotation.md, array.md, assignment.md, async.md, ...
+│   │
+│   ├── grammar/                  # Grammar/AST docs (28 files)
+│   │   ├── module.md             # → modules/grammar/
+│   │   ├── annotation.md, array.md, assignment.md, async.md, ...
+│   │
+│   └── modules/                  # Module documentation
+│       ├── syntax/               # Module syntax docs
+│       │   ├── math.md, os.md, io.md, json.md
+│       │   ├── string.md, thread.md, http.md
+│       └── grammar/              # Module grammar docs
+│           ├── math.md, os.md, io.md, json.md
+│           ├── string.md, thread.md, http.md
+│
+├── commands/                     # Build & dev scripts
+│   ├── main.sh                   # Script dispatcher
+│   ├── build.sh, build_test.sh   # Build scripts
+│   ├── run.sh                    # Run script
+│   ├── test.sh                   # Test runner
+│   ├── debug.sh                  # Debug build
+│   ├── release.sh                # Release build
+│   ├── bootstrap.sh              # Module bootstrap
+│   └── lib/                      # Script utilities
+│       ├── colors.sh, compiler.sh, fs.sh
+│       ├── logging.sh, os.sh, paths.sh
+│       ├── progress.sh, table.sh
+│
+├── examples/                     # Example projects
+│   └── calculator/
+│       ├── index.rp
+│       └── modules/op.rp
+│
+├── .github/                      # GitHub config
+├── build/                        # Build artifacts (.o files)
+├── .cache/                       # Build cache
+├── .logs/                        # Log files
+│
+├── Makefile                      # Build system
+├── build.sh                      # Top-level build entry
+├── compile_commands.json         # LSP compile database
+├── LICENSE
+└── README.md
 ```
 
-## `src/`
+## Architecture Overview
 
-`src/` berisi implementasi utama Rupa.
-
-```text
-src/
-├── bootstrap/
-├── compiler/
-├── editor/
-├── interpreter/
-├── repl/
-├── runtime/
-├── state/
-├── utils/
-└── main.c
+```
+┌─────────────────────────────────────────────────┐
+│                    Entry Point                   │
+│  src/main.c → prompt/runner.c → processInput()  │
+└─────────────┬───────────────────┬───────────────┘
+              │                   │
+              ▼                   ▼
+   ┌──────────────────┐  ┌──────────────────┐
+   │   REPL Mode      │  │   File Mode      │
+   │  src/repl/*.c    │  │  src/prompt/*.c  │
+   └────────┬─────────┘  └────────┬─────────┘
+            │                     │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   Lexer (Tokenizer) │
+            │  src/compiler/lexer │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   Grammar Parser    │
+            │ src/compiler/parser │
+            │  grammar/ + ast/    │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   AST Interpreter   │
+            │src/compiler/interpr │
+            │  expression/        │
+            │  statement/         │
+            │  function/          │
+            │  modules/           │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   Runtime System    │
+            │  src/runtime/       │
+            │  GC, Context, IO    │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   Standard Library  │
+            │  src/stdlib/        │
+            │  http, json, math,  │
+            │  os, thread, string │
+            └─────────────────────┘
 ```
 
-### `src/compiler/`
-
-Bagian yang mengubah source Rupa menjadi representasi yang dapat diproses sistem.
-
-```text
-compiler/
-├── lexer/
-├── token/
-└── parser/
-```
-
-Alur utamanya:
-
-```text
-source
-  ↓
-lexer
-  ↓
-token
-  ↓
-parser
-  ↓
-AST
-```
-
-#### `compiler/lexer/`
-
-Bertanggung jawab membaca karakter dan mengenali bagian dasar source.
-
-Di dalamnya terdapat bagian seperti:
-
-```text
-lexer/
-├── lexeme/      # Pembacaan lexeme
-├── processor/   # Pemrosesan construct
-├── lexer.c
-├── factory.c
-├── operations.c
-└── support.c
-```
-
-Perubahan pada cara karakter, identifier, literal, operator, delimiter, atau keyword dikenali biasanya dimulai dari sini.
-
-#### `compiler/token/`
-
-Bertanggung jawab terhadap representasi token dan operasi yang berkaitan dengannya.
-
-```text
-token/
-├── check.c
-├── error.c
-├── lookup.c
-├── posix.c
-├── save.c
-├── symbol.c
-└── type.c
-```
-
-Gunakan bagian ini ketika perubahan berkaitan dengan jenis, penyimpanan, pencarian, atau validasi token.
-
-#### `compiler/parser/`
-
-Bertanggung jawab mengubah token menjadi struktur AST.
-
-```text
-parser/
-├── ast/
-├── grammar/
-└── node/
-```
-
-- `grammar/` berisi implementasi aturan construct.
-- `ast/` berisi proses pembentukan dan pembacaan struktur AST.
-- `node/` berisi pembuatan dan pengelolaan node.
-
-Jika syntax sudah dikenali lexer tetapi belum memiliki struktur program yang benar, masalahnya biasanya berada di area parser.
-
-## `src/runtime/`
-
-`runtime/` menangani sistem yang mendukung eksekusi dan lifecycle program.
-
-```text
-runtime/
-├── context/
-├── gc/
-├── input/
-├── io/
-├── keyword/
-└── validation/
-```
-
-### `runtime/gc/`
-
-Berisi implementasi Garbage Collector Rupa.
-
-GC digunakan untuk mengelola alokasi yang didaftarkan ke registry memori sehingga dapat dibersihkan secara terpusat.
-
-Perubahan pada lifecycle memori, registry pointer, atau API seperti `gcmall()`, `gcrealloc()`, dan `gcclean()` berada di area ini.
-
-### `runtime/context/`
-
-Menyimpan dan mengelola context yang digunakan selama pemrosesan input atau program.
-
-### `runtime/input/`
-
-Menangani lifecycle input, termasuk pembuatan, validasi, dan pembersihannya.
-
-### `runtime/io/`
-
-Menangani pembacaan input dari sumber seperti file.
-
-### `runtime/validation/`
-
-Berisi validasi yang berkaitan dengan bentuk dan kelengkapan syntax program.
-
-## `src/repl/`
-
-REPL adalah antarmuka interaktif Rupa.
-
-Bagian ini menangani siklus:
-
-```text
-input
-  ↓
-process
-  ↓
-result
-  ↓
-input berikutnya
-```
-
-Perubahan khusus terhadap perilaku interactive shell sebaiknya berada di sini, bukan dicampurkan ke compiler jika tidak diperlukan oleh source file biasa.
-
-## `src/editor/`
-
-Berisi sistem editor terminal yang digunakan oleh lingkungan interaktif Rupa.
-
-```text
-editor/
-├── core/
-├── display/
-└── operations/
-```
-
-- `core/` menangani state dasar editor.
-- `display/` menangani tampilan terminal.
-- `operations/` menangani operasi seperti history, reset, dan indent.
-
-## `src/interpreter/`
-
-Berisi bagian yang berkaitan dengan hasil interpretasi, debugging, dan error.
-
-```text
-interpreter/
-├── debug/
-└── error/
-```
-
-## `src/state/`
-
-Menyimpan state global atau state sistem yang digunakan oleh bagian lain.
-
-## `src/utils/`
-
-Berisi utilitas umum yang tidak secara khusus menjadi tanggung jawab compiler, runtime, atau editor.
-
-Contohnya dapat berupa operasi string, number, atom, dan identifier.
-
-Jangan menjadikan `utils/` sebagai tempat untuk kode yang belum diketahui harus diletakkan di mana. Sebuah utilitas tetap harus memiliki tanggung jawab yang cukup umum.
-
-## `lib/`
-
-`lib/` berisi header internal dan deklarasi yang digunakan antar implementasi project.
-
-Struktur `lib/` umumnya mengikuti pembagian modul di `src/`.
-
-Contoh hubungan:
-
-```text
-lib/compiler/...   → deklarasi internal compiler
-src/compiler/...   → implementasi compiler
-```
-
-Header internal tidak harus menjadi bagian dari API publik.
-
-## `include/`
-
-`include/` berisi header yang menjadi bagian dari permukaan API project.
-
-Gunakan direktori ini untuk deklarasi yang memang perlu diakses sebagai interface publik, bukan sekadar untuk semua file header.
-
-## `shared/`
-
-Berisi source yang digunakan bersama oleh beberapa bagian sistem.
-
-Kode di sini sebaiknya benar-benar bersifat shared. Jika kode hanya digunakan oleh satu modul, lebih baik tetap berada dekat dengan modul tersebut.
-
-## `stdlib/`
-
-Berisi standard library Rupa.
-
-Ini adalah tempat untuk kemampuan yang menjadi bagian dari library bahasa, bukan implementasi internal compiler.
-
-## `tests/`
-
-Berisi test untuk perilaku Rupa.
-
-Struktur test dipisahkan berdasarkan area yang diuji. Contoh syntax program berada di:
-
-```text
-tests/syntax/
-```
-
-Test harus menggambarkan perilaku yang ingin didukung bahasa.
-
-Untuk perubahan syntax, test biasanya lebih penting daripada sekadar memastikan compiler masih berhasil dibangun.
-
-## `docs/`
-
-Dokumentasi dibagi berdasarkan tujuan.
-
-```text
-docs/
-├── syntax/
-├── grammar/
-├── structure.md
-├── instruction.md
-└── ...
-```
-
-### `docs/syntax/`
-
-Dokumentasi dari sudut pandang pengguna bahasa.
-
-Fokusnya:
-
-1. Apa yang bisa ditulis?
-2. Kapan digunakan?
-3. Apa hasilnya?
-
-Gunakan dokumentasi ini sebagai acuan saat memahami atau menulis syntax Rupa.
-
-### `docs/grammar/`
-
-Dokumentasi dari sudut pandang desain bahasa dan sistem.
-
-Fokusnya dapat mencakup:
-
-- struktur grammar
-- aturan construct
-- relasi antar syntax
-- parser
-- AST
-- alasan desain
-
-### `docs/instruction.md`
-
-Panduan untuk membangun, menjalankan, melakukan test, memahami kontribusi, dan sistem memori project.
-
-### `docs/structure.md`
-
-Dokumen yang sedang dibaca. Gunakan sebagai peta awal untuk memahami lokasi dan tanggung jawab modul.
-
-## `commands/`
-
-Berisi script atau library command yang digunakan oleh `build.sh`.
-
-Bagian ini memungkinkan sistem build dibagi menjadi beberapa tanggung jawab tanpa menumpuk seluruh logika ke dalam satu script.
-
-## `build.sh`
-
-Jalur utama untuk membangun dan menjalankan workflow development Rupa.
-
-Contoh:
-
-```bash
-DEV_MODE=1 ./build.sh debug
-DEV_MODE=1 ./build.sh test
-```
-
-Gunakan:
-
-```bash
-DEV_MODE=1 ./build.sh --help
-```
-
-untuk melihat command yang tersedia.
-
-## `build/`
-
-Berisi hasil sementara proses build seperti object file.
-
-Direktori ini merupakan output build dan bukan tempat untuk implementasi source utama.
-
-## `bin/`
-
-Berisi executable hasil build, termasuk binary Rupa.
-
-## `Makefile`
-
-Menyediakan jalur build tambahan.
-
-Keberadaannya tidak mengubah pembagian source project; ia hanya menyediakan cara lain untuk menjalankan proses build.
-
-## Cara menentukan lokasi perubahan
-
-Gunakan pertanyaan berikut:
-
-| Perubahan | Lokasi awal |
-|---|---|
-| Karakter atau lexeme baru | `src/compiler/lexer/` |
-| Jenis atau operasi token | `src/compiler/token/` |
-| Grammar construct | `src/compiler/parser/grammar/` |
-| Bentuk AST | `src/compiler/parser/ast/` atau `node/` |
-| Context runtime | `src/runtime/context/` |
-| Memory dan GC | `src/runtime/gc/` |
-| REPL | `src/repl/` |
-| Editor terminal | `src/editor/` |
-| Error/debug interpreter | `src/interpreter/` |
-| Utilitas umum | `src/utils/` |
-| API/header publik | `include/` |
-| Header internal | `lib/` |
-| Standard library | `stdlib/` |
-| Test | `tests/` |
-| Dokumentasi syntax | `docs/syntax/` |
-| Dokumentasi grammar | `docs/grammar/` |
-
-Jika sebuah perubahan tampak harus menyentuh terlalu banyak bagian, periksa kembali alurnya terlebih dahulu. Bisa jadi perubahan tersebut memang lintas sistem, tetapi bisa juga tanggung jawabnya belum dipisahkan dengan jelas.
-
-## Prinsip membaca project
-
-Jangan membaca seluruh source sekaligus.
-
-Mulai dari:
-
-```text
-masalah
-  ↓
-fitur atau perilaku terkait
-  ↓
-dokumentasi
-  ↓
-entry point modul
-  ↓
-aliran data
-  ↓
-implementasi terkait
-```
-
-Contoh untuk syntax baru:
-
-```text
-docs/syntax/
-  ↓
-docs/grammar/
-  ↓
-tests/
-  ↓
-lexer
-  ↓
-token
-  ↓
-parser
-  ↓
-AST
-```
-
-Dengan cara ini, struktur project digunakan sebagai peta untuk mengikuti alur sistem, bukan sekadar daftar direktori.
+## Key Directories
+
+| Directory       | Purpose                                                  |
+| --------------- | -------------------------------------------------------- |
+| `include/`      | Public API (`#include <rupa>`)                           |
+| `lib/`          | Header files & type definitions                          |
+| `lib/intl.h`    | Central include hub                                      |
+| `lib/core/`     | Enums, constants, macros                                 |
+| `lib/types/`    | Struct definitions                                       |
+| `lib/modules/`  | Module system header                                     |
+| `src/`          | Implementation files                                     |
+| `src/compiler/` | Lexer → Parser → Interpreter pipeline                    |
+| `src/stdlib/`   | C-implemented standard library modules                   |
+| `src/runtime/`  | GC, context, input, validation                           |
+| `src/editor/`   | TUI editor (buffer, cursor, display)                     |
+| `src/repl/`     | Interactive REPL mode                                    |
+| `tests/`        | Test suites (syntax, ast, execution, semantics, modules) |
+| `modules/`      | Packaged Rupa modules (tar.gz)                           |
+| `docs/`         | Documentation (syntax, grammar, modules)                 |
+| `commands/`     | Build & development scripts                              |

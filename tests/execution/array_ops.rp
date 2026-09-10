@@ -25,4 +25,4 @@ assertEq(getFirst(myArr), 100)
 items = [{ id: 1 }, { id: 2 }, { id: 3 }]
 assertEq(items[1].id, 2)
 
-# Empty array behavior (skip - empty array not yet supported)
+# Empty array behavior is covered by semantics/typed_empty_array.rp.

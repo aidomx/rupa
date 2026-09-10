@@ -63,8 +63,16 @@ int processIdentifier(State *state, int start, int end, bool literal,
     if (te == t)
       return -1;
 
+    /* Consume array-type postfixes as part of the annotation token. This
+     * keeps `x: number[] = []` in the same shape as `x: number = 1` while
+     * preserving nested types such as `number[][]`. */
+    int typeEnd = te;
+    while (typeEnd + 1 < end && s[typeEnd] == '[' &&
+           s[typeEnd + 1] == ']')
+      typeEnd += 2;
+
     char *id = substring(s, start, p);
-    char *type = substring(s, t, te);
+    char *type = substring(s, t, typeEnd);
     if (!id || !type) {
       gcfree(id);
       gcfree(type);
@@ -79,7 +87,7 @@ int processIdentifier(State *state, int start, int end, bool literal,
     state->input->flags->isAnnotionType = true;
     gcfree(id);
     gcfree(type);
-    *next = te;
+    *next = typeEnd;
     return 0;
   }
 
