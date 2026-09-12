@@ -423,6 +423,11 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_STRUCT_DECL:
   case NODE_MEMBER_ASSIGN:
     return interpretStatement(n, id, e, x);
+  case NODE_COMMENT:
+  case NODE_INLINE_COMMENT:
+  case NODE_BLOCK_COMMENT:
+    /* Comments are parsed into the AST but ignored by the interpreter. */
+    return resultNormal(valueNull());
   default:
     return interpretExpression(n, id, e, x);
   }

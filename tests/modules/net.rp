@@ -1,0 +1,21 @@
+// net module test
+import net from rupa
+
+// Test resolve
+ip = net.resolve("localhost")
+print("Resolved: " + ip + "\n")
+
+// Test server/client
+server = net.listen(0)
+print("Server listening\n")
+
+// Connect to server
+client = net.connect("127.0.0.1", 8080)
+if client {
+  net.send(client, "Hello Server!")
+  net.close(client)
+  print("Client sent and closed\n")
+}
+
+net.close(server)
+print("All net tests passed!\n")

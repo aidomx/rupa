@@ -21,6 +21,7 @@
 #include "enum_except.h"
 #include "enum_flag.h"
 #include "enum_keyword.h"
+#include "enum_mod.h"
 #include "enum_node.h"
 #include "enum_program.h"
 #include "enum_token.h"

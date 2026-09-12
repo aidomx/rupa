@@ -354,6 +354,14 @@ int parseAtom(Request *req, DataToken *data) {
     return createString(req->node, data->value, NODE_STRING);
   }
 
+  /* Keywords that can appear as identifiers in expressions */
+  case KEYWORD: {
+    char *kw = data->value;
+    if (strcmp(kw, "default") == 0 || strcmp(kw, "case") == 0)
+      return createString(req->node, kw, NODE_LITERAL_ID);
+    return -1;
+  }
+
   default:
     return -1;
   }

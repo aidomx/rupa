@@ -5,16 +5,12 @@
  * Server functions remain in http_server.c. */
 
 /* ==================== http.request(method, url, data) ==================== */
-InterpreterResult httpRequest(int argc, RuntimeValue *argv,
-                              RuntimeEnv *env, Error *error) {
+InterpreterResult httpRequest(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
-  if (argc < 2)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.request() expects method and url"));
+  if (argc < 2) return resultFlow(FLOW_ERROR, valueString("http.request() expects method and url"));
 
   if (argv[0].type != VALUE_STRING || argv[1].type != VALUE_STRING)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.request() expects string arguments"));
+    return resultFlow(FLOW_ERROR, valueString("http.request() expects string arguments"));
 
   const char *method = argv[0].as.string;
   const char *url = argv[1].as.string;
@@ -27,30 +23,20 @@ InterpreterResult httpRequest(int argc, RuntimeValue *argv,
   if (strcmp(method, "GET") == 0) {
     snprintf(cmd, sizeof(cmd), "curl -s -o \"%s\" \"%s\"", tmpfile, url);
   } else if (strcmp(method, "POST") == 0) {
-    const char *data = argc > 2 && argv[2].type == VALUE_STRING
-                           ? argv[2].as.string
-                           : "";
-    snprintf(cmd, sizeof(cmd), "curl -s -X POST -d \"%s\" -o \"%s\" \"%s\"", data,
-             tmpfile, url);
+    const char *data = argc > 2 && argv[2].type == VALUE_STRING ? argv[2].as.string : "";
+    snprintf(cmd, sizeof(cmd), "curl -s -X POST -d \"%s\" -o \"%s\" \"%s\"", data, tmpfile, url);
   } else if (strcmp(method, "PUT") == 0) {
-    const char *data = argc > 2 && argv[2].type == VALUE_STRING
-                           ? argv[2].as.string
-                           : "";
-    snprintf(cmd, sizeof(cmd), "curl -s -X PUT -d \"%s\" -o \"%s\" \"%s\"", data,
-             tmpfile, url);
+    const char *data = argc > 2 && argv[2].type == VALUE_STRING ? argv[2].as.string : "";
+    snprintf(cmd, sizeof(cmd), "curl -s -X PUT -d \"%s\" -o \"%s\" \"%s\"", data, tmpfile, url);
   } else if (strcmp(method, "DELETE") == 0) {
     snprintf(cmd, sizeof(cmd), "curl -s -X DELETE -o \"%s\" \"%s\"", tmpfile, url);
   } else if (strcmp(method, "PATCH") == 0) {
-    const char *data = argc > 2 && argv[2].type == VALUE_STRING
-                           ? argv[2].as.string
-                           : "";
-    snprintf(cmd, sizeof(cmd), "curl -s -X PATCH -d \"%s\" -o \"%s\" \"%s\"", data,
-             tmpfile, url);
+    const char *data = argc > 2 && argv[2].type == VALUE_STRING ? argv[2].as.string : "";
+    snprintf(cmd, sizeof(cmd), "curl -s -X PATCH -d \"%s\" -o \"%s\" \"%s\"", data, tmpfile, url);
   } else {
     close(fd);
     unlink(tmpfile);
-    return resultFlow(FLOW_ERROR,
-                      valueString("Unsupported HTTP method"));
+    return resultFlow(FLOW_ERROR, valueString("Unsupported HTTP method"));
   }
 
   int ret = system(cmd);
@@ -82,8 +68,7 @@ InterpreterResult httpRequest(int argc, RuntimeValue *argv,
 }
 
 /* ==================== http.get(url) ==================== */
-static InterpreterResult httpGet(int argc, RuntimeValue *argv,
-                                RuntimeEnv *env, Error *error) {
+static InterpreterResult httpGet(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 1 || argv[0].type != VALUE_STRING)
     return resultFlow(FLOW_ERROR, valueString("http.get() expects a URL"));
 
@@ -92,32 +77,25 @@ static InterpreterResult httpGet(int argc, RuntimeValue *argv,
 }
 
 /* ==================== http.post(url, data) ==================== */
-static InterpreterResult httpPost(int argc, RuntimeValue *argv,
-                                  RuntimeEnv *env, Error *error) {
+static InterpreterResult httpPost(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 2 || argv[0].type != VALUE_STRING)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.post() expects URL and data"));
+    return resultFlow(FLOW_ERROR, valueString("http.post() expects URL and data"));
 
-  RuntimeValue args[] = {valueString("POST"), argv[0],
-                         argc > 1 ? argv[1] : valueString("")};
+  RuntimeValue args[] = {valueString("POST"), argv[0], argc > 1 ? argv[1] : valueString("")};
   return httpRequest(3, args, env, error);
 }
 
 /* ==================== http.put(url, data) ==================== */
-static InterpreterResult httpPut(int argc, RuntimeValue *argv,
-                                 RuntimeEnv *env, Error *error) {
+static InterpreterResult httpPut(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 2 || argv[0].type != VALUE_STRING)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.put() expects URL and data"));
+    return resultFlow(FLOW_ERROR, valueString("http.put() expects URL and data"));
 
-  RuntimeValue args[] = {valueString("PUT"), argv[0],
-                         argc > 1 ? argv[1] : valueString("")};
+  RuntimeValue args[] = {valueString("PUT"), argv[0], argc > 1 ? argv[1] : valueString("")};
   return httpRequest(3, args, env, error);
 }
 
 /* ==================== http.delete(url) ==================== */
-static InterpreterResult httpDelete(int argc, RuntimeValue *argv,
-                                    RuntimeEnv *env, Error *error) {
+static InterpreterResult httpDelete(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 1 || argv[0].type != VALUE_STRING)
     return resultFlow(FLOW_ERROR, valueString("http.delete() expects a URL"));
 
@@ -126,20 +104,17 @@ static InterpreterResult httpDelete(int argc, RuntimeValue *argv,
 }
 
 /* ==================== http.patch(url, data) ==================== */
-static InterpreterResult httpPatch(int argc, RuntimeValue *argv,
-                                   RuntimeEnv *env, Error *error) {
+static InterpreterResult httpPatch(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 2 || argv[0].type != VALUE_STRING)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.patch() expects URL and data"));
+    return resultFlow(FLOW_ERROR, valueString("http.patch() expects URL and data"));
 
-  RuntimeValue args[] = {valueString("PATCH"), argv[0],
-                         argc > 1 ? argv[1] : valueString("")};
+  RuntimeValue args[] = {valueString("PATCH"), argv[0], argc > 1 ? argv[1] : valueString("")};
   return httpRequest(3, args, env, error);
 }
 
 /* ==================== Module init ==================== */
-static void addEntry(struct RuntimeObjectEntry **head, const char *name,
-                     NativeFn fn, int paramCount) {
+static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
+                     int paramCount) {
   struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
   e->key = strdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
@@ -147,8 +122,7 @@ static void addEntry(struct RuntimeObjectEntry **head, const char *name,
   *head = e;
 }
 
-InterpreterResult stdHttpInit(Node *node, int id, RuntimeEnv *env,
-                              Error *error) {
+InterpreterResult stdHttpInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   (void)node;
   (void)id;
   (void)env;

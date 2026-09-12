@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   base: '/rupa/',
   title: 'Rupa',
-  description: 'One Language, Many Ways to Speak',
+  description: 'Satu Bahasa, Banyak Cara Bicara',
   
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/rupa/logo.svg' }]
@@ -11,7 +11,8 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Home', link: '/' },
+      { text: 'Beranda', link: '/' },
+      { text: 'Panduan', link: '/guide/getting-started' },
       { text: 'Syntax', link: '/syntax/' },
       { text: 'Grammar', link: '/grammar/' },
       { text: 'Modules', link: '/modules/syntax/' },
@@ -19,6 +20,14 @@ export default defineConfig({
     ],
 
     sidebar: {
+      '/guide/': [
+        {
+          text: 'Panduan',
+          items: [
+            { text: 'Memulai', link: '/guide/getting-started' }
+          ]
+        }
+      ],
       '/syntax/': [
         {
           text: 'Syntax',
@@ -46,6 +55,7 @@ export default defineConfig({
             { text: 'Fallback', link: '/syntax/fallback' },
             { text: 'Then', link: '/syntax/then' },
             { text: 'Async', link: '/syntax/async' },
+            { text: 'Builtins', link: '/syntax/builtins' },
             { text: 'Module', link: '/syntax/module' },
             { text: 'Import', link: '/syntax/import' },
             { text: 'Export', link: '/syntax/export' }
@@ -85,7 +95,11 @@ export default defineConfig({
             { text: 'JSON', link: '/modules/syntax/json' },
             { text: 'String', link: '/modules/syntax/string' },
             { text: 'Thread', link: '/modules/syntax/thread' },
-            { text: 'HTTP', link: '/modules/syntax/http' }
+            { text: 'HTTP', link: '/modules/syntax/http' },
+            { text: 'DateTime', link: '/modules/syntax/datetime' },
+            { text: 'Regex', link: '/modules/syntax/regex' },
+            { text: 'Crypto', link: '/modules/syntax/crypto' },
+            { text: 'Net', link: '/modules/syntax/net' }
           ]
         }
       ]
@@ -96,8 +110,17 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'Released under the MIT License.',
+      message: 'Dirilis di bawah Lisensi MIT.',
       copyright: '© 2026 Rupa Language'
+    },
+
+    outline: {
+      label: 'Di halaman ini'
+    },
+
+    docFooter: {
+      prev: 'Sebelumnya',
+      next: 'Berikutnya'
     }
   }
 })

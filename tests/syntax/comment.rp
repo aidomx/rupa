@@ -1,8 +1,11 @@
-# this comment
-//this comment
-/* this comment */
+# hash comment
+// line comment
+/* block comment */
 /**
- * this comment
+ * multiline block comment
  */
+print("comments work\n")
 
-//if x == 0: print(true)
+if true {
+  print(true)
+  }

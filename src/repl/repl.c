@@ -22,6 +22,7 @@ ReplContext *replContextCreate(void) {
   ctx->env = semCreateEnv(NULL);
   if (ctx->env) {
     stdlibInit(ctx->env);
+    builtinsInit(ctx->env);
   }
 
   ctx->eventLoop = eventLoopCreate();

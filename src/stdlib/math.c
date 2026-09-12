@@ -1,8 +1,7 @@
 #include <rupa.h>
 
 /* ==================== Validation helpers ==================== */
-static InterpreterResult mathTypeError(Error *error, const char *name,
-                                       const char *message) {
+static InterpreterResult mathTypeError(Error *error, const char *name, const char *message) {
   if (error)
     addError(error, (ErrorInfo){.code = (char *)"TypeError",
                                 .message = (char *)message,
@@ -14,8 +13,7 @@ static InterpreterResult mathTypeError(Error *error, const char *name,
 }
 
 static bool getNumber(int argc, RuntimeValue *argv, double *out) {
-  if (argc < 1 || !argv || !out)
-    return false;
+  if (argc < 1 || !argv || !out) return false;
 
   if (argv[0].type == VALUE_NUMBER) {
     *out = (double)argv[0].as.number;
@@ -38,8 +36,7 @@ static RuntimeValue numberResult(double value) {
 }
 
 /* ==================== math.abs(value) ==================== */
-static InterpreterResult mathAbs(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                 Error *error) {
+static InterpreterResult mathAbs(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -48,32 +45,26 @@ static InterpreterResult mathAbs(int argc, RuntimeValue *argv, RuntimeEnv *env,
 }
 
 /* ==================== math.sqrt(value) ==================== */
-static InterpreterResult mathSqrt(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                  Error *error) {
+static InterpreterResult mathSqrt(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
     return mathTypeError(error, "sqrt", "math.sqrt() expects a number");
-  if (value < 0)
-    return mathTypeError(error, "sqrt",
-                         "math.sqrt() expects a non-negative number");
+  if (value < 0) return mathTypeError(error, "sqrt", "math.sqrt() expects a non-negative number");
   return resultNormal(numberResult(sqrt(value)));
 }
 
 /* ==================== math.pow(base, exponent) ==================== */
-static InterpreterResult mathPow(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                 Error *error) {
+static InterpreterResult mathPow(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double base, exponent;
   (void)env;
-  if (argc < 2 || !getNumber(1, argv, &base) ||
-      !getNumber(1, argv + 1, &exponent))
+  if (argc < 2 || !getNumber(1, argv, &base) || !getNumber(1, argv + 1, &exponent))
     return mathTypeError(error, "pow", "math.pow() expects two numbers");
   return resultNormal(numberResult(pow(base, exponent)));
 }
 
 /* ==================== math.floor(value) ==================== */
-static InterpreterResult mathFloor(int argc, RuntimeValue *argv,
-                                   RuntimeEnv *env, Error *error) {
+static InterpreterResult mathFloor(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -82,8 +73,7 @@ static InterpreterResult mathFloor(int argc, RuntimeValue *argv,
 }
 
 /* ==================== math.ceil(value) ==================== */
-static InterpreterResult mathCeil(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                  Error *error) {
+static InterpreterResult mathCeil(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -92,8 +82,7 @@ static InterpreterResult mathCeil(int argc, RuntimeValue *argv, RuntimeEnv *env,
 }
 
 /* ==================== math.round(value) ==================== */
-static InterpreterResult mathRound(int argc, RuntimeValue *argv,
-                                   RuntimeEnv *env, Error *error) {
+static InterpreterResult mathRound(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -102,8 +91,7 @@ static InterpreterResult mathRound(int argc, RuntimeValue *argv,
 }
 
 /* ==================== Trigonometric functions ==================== */
-static InterpreterResult mathSin(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                 Error *error) {
+static InterpreterResult mathSin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -111,8 +99,7 @@ static InterpreterResult mathSin(int argc, RuntimeValue *argv, RuntimeEnv *env,
   return resultNormal(numberResult(sin(value)));
 }
 
-static InterpreterResult mathCos(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                 Error *error) {
+static InterpreterResult mathCos(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -120,8 +107,7 @@ static InterpreterResult mathCos(int argc, RuntimeValue *argv, RuntimeEnv *env,
   return resultNormal(numberResult(cos(value)));
 }
 
-static InterpreterResult mathTan(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                 Error *error) {
+static InterpreterResult mathTan(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   double value;
   (void)env;
   if (!getNumber(argc, argv, &value))
@@ -130,19 +116,17 @@ static InterpreterResult mathTan(int argc, RuntimeValue *argv, RuntimeEnv *env,
 }
 
 /* ==================== Module init ==================== */
-static void addEntry(struct RuntimeObjectEntry **head, const char *name,
-                     NativeFn fn, int paramCount) {
+static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
+                     int paramCount) {
   struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
-  if (!entry)
-    return;
+  if (!entry) return;
   entry->key = strdup(name);
   entry->value = valueNativeFunction(name, fn, paramCount);
   entry->next = *head;
   *head = entry;
 }
 
-InterpreterResult stdMathInit(Node *node, int id, RuntimeEnv *env,
-                              Error *error) {
+InterpreterResult stdMathInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   struct RuntimeObjectEntry *entries = NULL;
   (void)node;
   (void)id;

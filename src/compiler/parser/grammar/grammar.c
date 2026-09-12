@@ -13,11 +13,10 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   Token *t = r->tokens;
   while (*pos < limit && grammarIsWhitespace(t, *pos))
     (*pos)++;
-  if (*pos >= limit)
-    return -1;
+  if (*pos >= limit) return -1;
+
   int a = *pos, b = grammarLineEnd(t, a);
-  if (b > limit)
-    b = limit;
+  if (b > limit) b = limit;
 
   /* case may be emitted as a keyword by the processor; keep the grammar
    * check value-based as a defensive path while keyword tables evolve. */
@@ -35,36 +34,23 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
       *pos = b;
       return id;
     }
-    if ((id = grammarParseReturnKeyword(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParseControl(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParsePrint(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParseCase(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParseLoop(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
-      return id;
-    if ((id = grammarParseModule(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-      return id;
+    if ((id = grammarParseReturnKeyword(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseControl(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParsePrint(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseCase(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseLoop(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseModule(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
   }
 
   int id;
-  if ((id = grammarParseFunction(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
-    return id;
-  if ((id = grammarParseStruct(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH)
-    return id;
-  if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-    return id;
-  if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-    return id;
-  if ((id = grammarParseConditionalAssignment(r, a, b, pos)) !=
-      GRAMMAR_NO_MATCH)
-    return id;
-  if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH)
-    return id;
+  if ((id = grammarParseFunction(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseStruct(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseConditionalAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+  if ((id = grammarParseComment(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
 
   return grammarParseExpressionStatement(r, a, b, pos);
 }

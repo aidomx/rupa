@@ -105,8 +105,11 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
 
     return resultNormal(last);
   }
-  case NODE_RETURN:
-    return resultFlow(FLOW_RETURN, interpretNode(n, a->asReturn.expression, e, x).value);
+  case NODE_RETURN: {
+    InterpreterResult r = interpretNode(n, a->asReturn.expression, e, x);
+    if (r.flow != FLOW_NORMAL) return r;
+    return a->asReturn.explicitReturn ? resultFlow(FLOW_RETURN, r.value) : r;
+  }
   case NODE_BLOCK: {
     RuntimeValue last = valueNull();
     for (int i = 0; i < a->block.length; i++) {

@@ -1,0 +1,31 @@
+// datetime module test
+import datetime from rupa
+
+// Test now
+ts = datetime.now()
+print("Timestamp: " + ts + "\n")
+
+// Test format
+formatted = datetime.format(ts)
+print("Formatted: " + formatted + "\n")
+
+// Test components
+print("Year: " + datetime.year(ts) + "\n")
+print("Month: " + datetime.month(ts) + "\n")
+print("Day: " + datetime.day(ts) + "\n")
+print("Hour: " + datetime.hour(ts) + "\n")
+print("Minute: " + datetime.minute(ts) + "\n")
+
+// Test add
+future = datetime.add(ts, 3600)
+print("In 1 hour: " + datetime.format(future) + "\n")
+
+// Test diff
+diff = datetime.diff(ts, future)
+print("Diff: " + diff + " seconds\n")
+
+// Test parse
+parsed = datetime.parse("2026-01-15 10:30:00")
+print("Parsed: " + datetime.format(parsed) + "\n")
+
+print("All datetime tests passed!\n")

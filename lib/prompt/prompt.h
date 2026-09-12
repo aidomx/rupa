@@ -19,4 +19,9 @@ extern void testAst(const char *paths[], int length);
 extern void testExec(const char *paths[], int length);
 extern void testRepl(const char *paths[], int length);
 
+/* formatter.c — code formatting */
+extern int formatFile(const char *path);
+extern int formatString(const char *source);
+extern int formatStdin(void);
+
 #endif

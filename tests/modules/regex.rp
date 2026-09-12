@@ -1,0 +1,28 @@
+// regex module test
+import regex from rupa
+
+// Test match
+print("Match test: " + regex.match("[0-9]+", "hello123") + "\n")
+print("No match: " + regex.match("[0-9]+", "hello") + "\n")
+
+// Test find
+found = regex.find("[0-9]+", "abc123def456")
+print("Found: " + found + "\n")
+
+// Test findAll
+all = regex.findAll("[0-9]+", "abc123def456")
+print("All matches: " + all + "\n")
+
+// Test replace
+replaced = regex.replace("[0-9]+", "abc123def456", "NUM")
+print("Replaced: " + replaced + "\n")
+
+// Test replace global
+replacedGlobal = regex.replace("[0-9]+", "abc123def456", "NUM", true)
+print("Global replace: " + replacedGlobal + "\n")
+
+// Test split
+parts = regex.split("[,;]+", "one,two;three,four")
+print("Split: " + parts + "\n")
+
+print("All regex tests passed!\n")

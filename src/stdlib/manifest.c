@@ -3,8 +3,8 @@
 /* Manifest functions are now handled by install.c and loader.c.
  * This file is kept for backward compatibility but is no longer used. */
 
-int manifestAddPackage(const char *sourcePath, const char *packageName,
-                       const char *version, const char *description) {
+int manifestAddPackage(const char *sourcePath, const char *packageName, const char *version,
+                       const char *description) {
   (void)sourcePath;
   (void)packageName;
   (void)version;

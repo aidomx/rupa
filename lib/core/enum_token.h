@@ -27,13 +27,13 @@ enum TokenType {
   DIVIDE = 16,          // /
   DOLLAR = 17,          // $
   DOT = 18,             // .
-  DECIMAL = 19, // decimal literal; precision resolved by type context
-  ELLIPSIS = 20, // ...
+  DECIMAL = 19,         // decimal literal; precision resolved by type context
+  ELLIPSIS = 20,        // ...
   ENDOF = '\0',
-  EQUAL = 21,       // ==
-  EQUAL_THAN = 22,  // =
-  EXCLAMATION = 23, // !
-  FAT_ARROW = 24,   // =>
+  EQUAL = 21,         // ==
+  EQUAL_THAN = 22,    // =
+  EXCLAMATION = 23,   // !
+  FAT_ARROW = 24,     // =>
   FORM_FEED = 26,     // \f
   GREATER_EQUAL = 27, // >=
   GREATER_THAN = 28,  // >
@@ -60,21 +60,22 @@ enum TokenType {
   NOT_EQUAL = 47,   // !=
   NULLABLE = 48,    // NULL
   NUMBER = 49,
-  PERCENT = 50,       // %
-  PIPE = 51,          // |
-  PLUS = 52,          // +
-  QUESTION_MARK = 53, // ?
+  PERCENT = 50,            // %
+  PIPE = 51,               // |
+  PLUS = 52,               // +
+  QUESTION_MARK = 53,      // ?
   CONDITIONAL_ASSIGN = 67, // ?=
-  QUOTE = 54,         // "
-  SEMICOLON = 55,     // ;
-  SHIFT_LEFT = 56,    // <<
-  SHIFT_RIGHT = 57,   // >>
-  SINGLE_QUOTE = 58,  // '
-  SLASH = 59,         // /
-  STAR = 60,          // *
+  QUOTE = 54,              // "
+  SEMICOLON = 55,          // ;
+  SHIFT_LEFT = 56,         // <<
+  SHIFT_RIGHT = 57,        // >>
+  SINGLE_QUOTE = 58,       // '
+  SLASH = 59,              // /
+  STAR = 60,               // *
   STRING = 61,
   TAB = 62,       // \t
   TILDE = 63,     // ~
   UNDERLINE = 64, // _
+  COMMENT = 65,   // #///**/
   UNKNOWN = -1
 };

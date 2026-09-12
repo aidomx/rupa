@@ -9,11 +9,12 @@
 
 | Kategori | Siap | Dalam Pengembangan | Belum |
 |----------|------|-------------------|-------|
-| Syntax & Grammar | 24 | 3 | 5 |
-| Standard Library | 7 | 1 | 5 |
+| Syntax & Grammar | 25 | 2 | 5 |
+| Standard Library | 11 | 0 | 4 |
 | Module System | 4 | 1 | 2 |
 | REPL & Editor | 3 | 1 | 0 |
-| Testing | 42 | - | 13 |
+| Compiler (`-c`) | 0 | 0 | 1 |
+| Testing | 43 | - | 15 |
 | Documentation | 28 | 1 | 6 |
 
 ---
@@ -46,8 +47,8 @@
 | Control Flow | `docs/syntax/control.md` | `docs/grammar/control.md` | ✅ |
 | Fallback | `docs/syntax/fallback.md` | `docs/grammar/fallback.md` | ✅ |
 | Then (inline) | `docs/syntax/then.md` | `docs/grammar/then.md` | ✅ |
-| Annotation | `docs/syntax/annotation.md` | `docs/grammar/annotation.md` | ✅ |
 | Member Access | `docs/syntax/struct.md` | `docs/grammar/member.md` | ✅ |
+| Comment | `docs/syntax/comment.md` | `docs/grammar/comment.md` | ✅ |
 
 ### 🔨 Dalam Pengembangan
 
@@ -55,7 +56,7 @@
 |-------|-------------|--------------|--------|---------|
 | Async/Await | `docs/syntax/async.md` | `docs/grammar/async.md` | 🔨 | `await` syntax & handler blok belum stabil |
 | HTTP | `docs/modules/syntax/http.md` | `docs/modules/grammar/http.md` | ✅ | Handler user-defined works via queue-based thread safety |
-| Comment | - | - | 🔨 | `//` dan `/* */` bekerja, `#` tidak didukung |
+
 
 ### ❌ Belum Tersedia
 
@@ -86,22 +87,16 @@
 | **math** (C) | `import math from rupa` | `abs`, `sqrt`, `pow`, `floor`, `ceil`, `round`, `sin`, `cos`, `tan` | ✅ |
 | **string** | `import stdstring from rupa` | `length`, `upper`, `lower`, `trim`, `contains`, `startsWith`, `endsWith`, `replace` | ✅ |
 | **http** | `import http from rupa` | `server`, `stop`, `request`, `get`, `post`, `put`, `delete`, `patch` | ✅ |
-
-### 🔨 Dalam Pengembangan
-
-| Module | Status | Catatan |
-|--------|--------|---------|
-| ~~**http**~~ | ✅ | Queue-based handler thread-safety fixed. User-defined handler dipanggil dari main thread. Request/Response object tersedia. `res.setHeader()`, `res.json()` works. |
+| **datetime** | `import datetime from rupa` | `now`, `nowMs`, `format`, `parse`, `diff`, `add`, `year`, `month`, `day`, `hour`, `minute`, `second` | ✅ |
+| **regex** | `import regex from rupa` | `match`, `find`, `findAll`, `replace`, `split` | ✅ |
+| **crypto** | `import crypto from rupa` | `hash`, `fnv1a`, `murmur3`, `xor`, `base64Encode`, `base64Decode` | ✅ |
+| **net** | `import net from rupa` | `connect`, `send`, `receive`, `close`, `listen`, `accept`, `resolve` | ✅ |
 
 ### ❌ Belum Tersedia
 
 | Module | Deskripsi |
 |--------|-----------|
-| **crypto** | Hash, encrypt, decrypt |
-| **net** | Socket, TCP/UDP |
-| **regex** | Regular expression |
-| **datetime** | Date/time manipulation |
-| **database** | SQL/NoSQL client |
+| **database** | SQL/NoSQL client (JSON-based atau wrapper) |
 | **filesystem** | File read/write (beyond os) |
 | **ui/view** | UI rendering (terencana di `docs/syntax/view.md`) |
 
@@ -127,6 +122,7 @@
 | Fitur | Status | Catatan |
 |-------|--------|---------|
 | Multi-import from rupa | ✅ | `import http, thread, os from rupa` — grammar works |
+| Design NODE_MOD | 🔨 | Design selesai & factory siap (lihat `docs/grammar/import.md` § NODE_MOD), migrasi grammar/interpreter/formatter belum |
 
 ### ❌ Belum Tersedia
 
@@ -138,7 +134,34 @@
 
 ---
 
-## 4. REPL & Editor
+## 4. Formatter & REPL & Editor
+
+### ✅ Formatter (fmt) — Sudah Siap
+
+| Fitur | Contoh | Status |
+|-------|--------|--------|
+| Format file | `rupa fmt file.rp` | ✅ |
+| Format stdin | `rupa fmt -` (untuk vim `:%!rupa fmt -`) | ✅ |
+| Spasi operator otomatis | `x=1` → `x = 1`, `z?=true->x` → `z ?= true -> x` | ✅ |
+| Comment (`#`, `//`, `/* */`) | Dipertahankan & diratakan, `*/` closing diberi spasi | ✅ |
+| Blank line preservation | Baris kosong antar deklarasi dipertahankan | ✅ |
+| Import round-trip | Semua 8 bentuk import dari docs identik & idempotent | ✅ |
+| Self-heal import | `a as form.*` rusak → pulih ke `a.* as form` kanonik | ✅ |
+| Conditional assign | `result ?= valid -> "Sukses"` dipertahankan | ✅ |
+
+Arsitektur formatter modular di `src/compiler/formatter/`:
+
+| File | Tanggung jawab |
+|------|----------------|
+| `formatter.c` | Entry points (`formatFile`, `formatString`, `formatStdin`) + source-based formatting |
+| `format_helpers.c` | Shared utilities (`fmtIndent`, `fmtStr`, `fmtChar`, `fmtNewline`, `fmtSep`) |
+| `format_node.c` | Atom nodes (identifier, literal, number, boolean, string, null) |
+| `format_expr.c` | Expressions (binary, call, print, array, object, member, dll) |
+| `format_stmt.c` | Statements (assign, if, loop, function, import/export, dll) |
+| `format_dispatch.c` | Switch `fmtNode` utama |
+| `format_comment.c` | Deteksi & format comment |
+
+### REPL & Editor
 
 ### ✅ Sudah Siap
 
@@ -160,13 +183,49 @@
 
 ---
 
-## 5. Testing
+## 5. Compiler (`-c`)
 
-### ✅ Pass (42)
+### ❌ Belum Tersedia
+
+| Fitur | Status | Catatan |
+|-------|--------|---------|
+| `rupa -c file.rp -o binary` | ❌ | Transpile to C → compile to native binary |
+
+### Design: Transpile to C
+
+```
+rupa -c main.rp -o main
+
+Internal pipeline:
+1. Parse main.rp → AST
+2. AST → C source code (transpiler)
+3. gcc main.c -o main (with embedded runtime)
+```
+
+**Workflow:**
+- User writes: `rupa -c main.rp -o main`
+- Rupa transpiles AST to C source
+- GCC compiles C to native binary (Linux/macOS)
+- Output: self-contained binary, tidak perlu `rupa` runtime
+
+**Pertimbangan:**
+- Runtime (GC, stdlib, modules) di-embed ke binary
+- Binary size: ~200-500KB (dengan runtime)
+- Hanya untuk POSIX (Linux, macOS) — Windows butuh MinGW
+- Async/thread perlu pthread di C output
+
+**Status:** Design tersimpan, belum diimplementasi. Butuh transpiler AST → C yang cukup kompleks.
+
+---
+
+## 6. Testing
+
+### ✅ Pass (43)
 
 | Test | Deskripsi |
 |------|-----------|
 | `annotation.rp` | Type annotation |
+| `comment.rp` | Comment (hash, slash, block) |
 | `assignment.rp` | Assignment |
 | `async.rp` | Async handler |
 | `function.rp` | Function declaration |
@@ -209,14 +268,15 @@
 | `test_thread_async5.rp` | Thread + async 5 |
 | `test_thread_async6.rp` | Thread + async 6 |
 
-### ❌ Fail (13)
+### ❌ Fail (15)
 
 | Test | Error | Kemungkinan Penyebab |
 |------|-------|---------------------|
 | `array.rp` | Type mismatch | `TypeError` raised (expected: `[1, "Hello"]` has string in number[] — correct behavior) |
+| `assign.rp` | ReferenceError | File test grammar — `primary`/`fallback` memang undefined (uji formatter, bukan runtime) |
+| `assignment.rp` | ReferenceError | File test grammar — `primary`/`fallback`/`default` memang undefined (uji parser, bukan runtime) |
 | `case.rp` | Scope error | Variable scope dalam case |
 | `colon-context.rp` | - | Type annotation syntax |
-| `comment.rp` | - | `#` comment tidak didukung |
 | `expression.rp` | - | Expression tertentu belum didukung |
 | `test_http.rp` | Timeout (124) | Server test needs timeout adjustment |
 | `test_json_debug.rp` | - | Module resolution |
@@ -229,7 +289,7 @@
 
 ---
 
-## 6. Documentation
+## 7. Documentation
 
 ### ✅ Sudah Siap
 
@@ -254,6 +314,14 @@
 | Module: String (G) | `docs/modules/grammar/string.md` | ✅ |
 | Module: Thread (G) | `docs/modules/grammar/thread.md` | ✅ |
 | Module: HTTP (G) | `docs/modules/grammar/http.md` | ✅ |
+| Module: DateTime | `docs/modules/syntax/datetime.md` | ✅ |
+| Module: DateTime (G) | `docs/modules/grammar/datetime.md` | ✅ |
+| Module: Regex | `docs/modules/syntax/regex.md` | ✅ |
+| Module: Regex (G) | `docs/modules/grammar/regex.md` | ✅ |
+| Module: Crypto | `docs/modules/syntax/crypto.md` | ✅ |
+| Module: Crypto (G) | `docs/modules/grammar/crypto.md` | ✅ |
+| Module: Net | `docs/modules/syntax/net.md` | ✅ |
+| Module: Net (G) | `docs/modules/grammar/net.md` | ✅ |
 
 ### ❌ Belum Dibuat
 
@@ -264,7 +332,7 @@
 
 ---
 
-## 7. Pending Tasks (Prioritas)
+## 8. Pending Tasks (Prioritas)
 
 ### High Priority
 
@@ -276,14 +344,14 @@
 
 4. ~~**Multi-import `import a, b from rupa`**~~ ✅ Grammar works
 5. **Fix HTTP test** — `test_http.rp` timeout karena server blocking
-6. **Add `#` comment support** — Atau update docs bahwa tidak didukung
+6. ~~**Add `#` comment support**~~ ✅ Done — `#`, `//`, `/* */` diparse jadi token, diabaikan interpreter
 7. **Fix array type checking** — `x: number[] = [1, "a"]` currently raises TypeError (may be correct behavior)
+8. **Migrasi NODE_MOD** — grammar emit `NODE_MOD` → formatter/printer `case NODE_MOD` (round-trip tabel pemetaan) → interpreter binding → hapus 4 node lama (`NODE_IMPORT`, `NODE_MODULE_IMPORT`, `NODE_EXPORT`, `NODE_EXPORT_DECL`)
 
 ### Low Priority
 
 8. **Add for loop** — C-style `for (i=0; i<n; i++)`
 9. **Try/Catch error handling** — Error handling yang proper
-10. **Regex module** — Regular expression
-11. **Crypto module** — Hash, encrypt
-12. **Database module** — SQL/NoSQL client
-13. **UI/View module** — Rendering komponen UI
+10. **Database module** — JSON-based atau wrapper (belum diimplementasi)
+11. **UI/View module** — Rendering komponen UI
+12. **`-c` Compilation** — Transpile to C → native binary (design tersimpan)

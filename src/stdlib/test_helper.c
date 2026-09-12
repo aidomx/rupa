@@ -8,11 +8,12 @@ void testHelperReset(void) {
   g_assert_failures = 0;
 }
 
-int testHelperFailures(void) { return g_assert_failures; }
+int testHelperFailures(void) {
+  return g_assert_failures;
+}
 
 /* ==================== assert(condition) ==================== */
-static InterpreterResult testAssert(int argc, RuntimeValue *argv,
-                                    RuntimeEnv *env, Error *error) {
+static InterpreterResult testAssert(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   g_assert_count++;
 
@@ -30,19 +31,17 @@ static InterpreterResult testAssert(int argc, RuntimeValue *argv,
   if (!valueTruthy(argv[0])) {
     g_assert_failures++;
     if (error)
-      addError(error,
-               (ErrorInfo){.code = "AssertError",
-                           .message = "assertion failed: condition is falsy",
-                           .line = 0,
-                           .row = 0,
-                           .type = ERR_ASSERT_FAILED});
+      addError(error, (ErrorInfo){.code = "AssertError",
+                                  .message = "assertion failed: condition is falsy",
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_ASSERT_FAILED});
   }
   return resultNormal(valueNull());
 }
 
 /* ==================== assertEq(actual, expected) ==================== */
-static InterpreterResult testAssertEq(int argc, RuntimeValue *argv,
-                                      RuntimeEnv *env, Error *error) {
+static InterpreterResult testAssertEq(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   g_assert_count++;
 
@@ -64,14 +63,11 @@ static InterpreterResult testAssertEq(int argc, RuntimeValue *argv,
     char expected_buf[128] = {0};
 
     /* Simple type name extraction */
-    snprintf(actual_buf, sizeof(actual_buf), "type=%s",
-             valueTypeName(argv[0].type));
-    snprintf(expected_buf, sizeof(expected_buf), "type=%s",
-             valueTypeName(argv[1].type));
+    snprintf(actual_buf, sizeof(actual_buf), "type=%s", valueTypeName(argv[0].type));
+    snprintf(expected_buf, sizeof(expected_buf), "type=%s", valueTypeName(argv[1].type));
 
     char msg[512];
-    snprintf(msg, sizeof(msg), "assertEq failed: got %s, expected %s",
-             actual_buf, expected_buf);
+    snprintf(msg, sizeof(msg), "assertEq failed: got %s, expected %s", actual_buf, expected_buf);
 
     if (error)
       addError(error, (ErrorInfo){.code = "AssertError",
@@ -84,20 +80,19 @@ static InterpreterResult testAssertEq(int argc, RuntimeValue *argv,
 }
 
 /* ==================== assertType(value, typeName) ==================== */
-static InterpreterResult testAssertType(int argc, RuntimeValue *argv,
-                                        RuntimeEnv *env, Error *error) {
+static InterpreterResult testAssertType(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                        Error *error) {
   (void)env;
   g_assert_count++;
 
   if (argc < 2 || argv[1].type != VALUE_STRING || !argv[1].as.string) {
     g_assert_failures++;
     if (error)
-      addError(error,
-               (ErrorInfo){.code = "AssertError",
-                           .message = "assertType() requires (value, string)",
-                           .line = 0,
-                           .row = 0,
-                           .type = ERR_ASSERT_FAILED});
+      addError(error, (ErrorInfo){.code = "AssertError",
+                                  .message = "assertType() requires (value, string)",
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_ASSERT_FAILED});
     return resultNormal(valueNull());
   }
 
@@ -107,8 +102,8 @@ static InterpreterResult testAssertType(int argc, RuntimeValue *argv,
   if (strcmp(actual_type, expected_type) != 0) {
     g_assert_failures++;
     char msg[256];
-    snprintf(msg, sizeof(msg), "assertType failed: got '%s', expected '%s'",
-             actual_type, expected_type);
+    snprintf(msg, sizeof(msg), "assertType failed: got '%s', expected '%s'", actual_type,
+             expected_type);
     if (error)
       addError(error, (ErrorInfo){.code = "AssertError",
                                   .message = strdup(msg),
@@ -120,8 +115,8 @@ static InterpreterResult testAssertType(int argc, RuntimeValue *argv,
 }
 
 /* ==================== getFailures() ==================== */
-static InterpreterResult testGetFailures(int argc, RuntimeValue *argv,
-                                         RuntimeEnv *env, Error *error) {
+static InterpreterResult testGetFailures(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                         Error *error) {
   (void)argc;
   (void)argv;
   (void)env;
@@ -131,13 +126,10 @@ static InterpreterResult testGetFailures(int argc, RuntimeValue *argv,
 
 /* ==================== Module init ==================== */
 void testHelperInit(RuntimeEnv *env) {
-  if (!env)
-    return;
+  if (!env) return;
 
   semSet(env, "assert", valueNativeFunction("assert", testAssert, 1));
   semSet(env, "assertEq", valueNativeFunction("assertEq", testAssertEq, 2));
-  semSet(env, "assertType",
-         valueNativeFunction("assertType", testAssertType, 2));
-  semSet(env, "getFailures",
-         valueNativeFunction("getFailures", testGetFailures, 0));
+  semSet(env, "assertType", valueNativeFunction("assertType", testAssertType, 2));
+  semSet(env, "getFailures", valueNativeFunction("getFailures", testGetFailures, 0));
 }

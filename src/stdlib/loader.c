@@ -1,8 +1,4 @@
 #include <rupa.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-
 /* Maximum number of external stdlib modules */
 #define MAX_STDLIB_MODULES 64
 
@@ -23,10 +19,8 @@ static char extractedGlobalDir[1024] = {0};
 static char extractedLocalDir[1024] = {0};
 
 /* The system archive is embedded into the executable by the build. */
-extern const unsigned char _binary_modules_rupa_modules_tar_gz_start[]
-    __attribute__((weak));
-extern const unsigned char _binary_modules_rupa_modules_tar_gz_end[]
-    __attribute__((weak));
+extern const unsigned char _binary_modules_rupa_modules_tar_gz_start[] __attribute__((weak));
+extern const unsigned char _binary_modules_rupa_modules_tar_gz_end[] __attribute__((weak));
 
 /**
  * Get the extraction path for the embedded system archive.
@@ -139,23 +133,19 @@ static int extractArchive(const char *archivePath, const char *extractDir);
  * Extract the archive embedded in the executable.
  */
 static int extractEmbeddedArchive(const char *extractDir) {
-  if (!_binary_modules_rupa_modules_tar_gz_start ||
-      !_binary_modules_rupa_modules_tar_gz_end ||
-      _binary_modules_rupa_modules_tar_gz_end <=
-          _binary_modules_rupa_modules_tar_gz_start)
+  if (!_binary_modules_rupa_modules_tar_gz_start || !_binary_modules_rupa_modules_tar_gz_end ||
+      _binary_modules_rupa_modules_tar_gz_end <= _binary_modules_rupa_modules_tar_gz_start)
     return -1;
 
   char archivePath[1024];
-  snprintf(archivePath, sizeof(archivePath), "%s/rupa_modules.tar.gz",
-           extractDir);
+  snprintf(archivePath, sizeof(archivePath), "%s/rupa_modules.tar.gz", extractDir);
   mkdirp(extractDir, 0755);
 
   FILE *archive = fopen(archivePath, "wb");
   if (!archive) return -1;
-  size_t size = (size_t)(_binary_modules_rupa_modules_tar_gz_end -
-                         _binary_modules_rupa_modules_tar_gz_start);
-  bool written = fwrite(_binary_modules_rupa_modules_tar_gz_start, 1, size,
-                        archive) == size;
+  size_t size =
+      (size_t)(_binary_modules_rupa_modules_tar_gz_end - _binary_modules_rupa_modules_tar_gz_start);
+  bool written = fwrite(_binary_modules_rupa_modules_tar_gz_start, 1, size, archive) == size;
   fclose(archive);
   if (!written) return -1;
 
@@ -181,8 +171,7 @@ static int extractArchive(const char *archivePath, const char *extractDir) {
 
   /* Extract */
   char cmd[2048];
-  snprintf(cmd, sizeof(cmd), "tar xzf \"%s\" -C \"%s\" 2>/dev/null",
-           archivePath, extractDir);
+  snprintf(cmd, sizeof(cmd), "tar xzf \"%s\" -C \"%s\" 2>/dev/null", archivePath, extractDir);
   return system(cmd);
 }
 
@@ -226,11 +215,9 @@ static void cacheAdd(const char *name, const char *path, int priority) {
     return;
   }
 
-  strncpy(stdlibCache[stdlibCacheCount].name, name,
-          sizeof(stdlibCache[stdlibCacheCount].name) - 1);
+  strncpy(stdlibCache[stdlibCacheCount].name, name, sizeof(stdlibCache[stdlibCacheCount].name) - 1);
   stdlibCache[stdlibCacheCount].name[sizeof(stdlibCache[stdlibCacheCount].name) - 1] = '\0';
-  strncpy(stdlibCache[stdlibCacheCount].path, path,
-          sizeof(stdlibCache[stdlibCacheCount].path) - 1);
+  strncpy(stdlibCache[stdlibCacheCount].path, path, sizeof(stdlibCache[stdlibCacheCount].path) - 1);
   stdlibCache[stdlibCacheCount].path[sizeof(stdlibCache[stdlibCacheCount].path) - 1] = '\0';
   stdlibCache[stdlibCacheCount].priority = priority;
   stdlibCache[stdlibCacheCount].loaded = false;
@@ -288,9 +275,9 @@ static void scanDir(const char *dirpath, int priority) {
  * Priority (highest first):
  * 1. Project archive: ./modules/rupa_modules.tar.gz -> /tmp/rupa-local/
  * 2. User archive: ~/.rupa/rupa_modules.tar.gz -> /tmp/rupa-global/
- * 3. Embedded system archive -> /tmp/rupa-system-<pid>/extracted/
+ * 3. Embedded system archive -> /tmp/rupa-system/extracted/
  *
- * tests/modules is only a development fixture and is never scanned at runtime.
+ * stdlib is only a development fixture and is never scanned at runtime.
  */
 void stdlibLoaderInit(void) {
   stdlibCacheCount = 0;

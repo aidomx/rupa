@@ -1,28 +1,32 @@
 ---
 layout: home
+
 hero:
   name: Rupa
-  text: One Language, Many Ways to Speak
-  tagline: A general-purpose programming language built from scratch with a simple foundation that doesn't limit where it can go.
+  text: Satu Bahasa, Banyak Cara Bicara
+  tagline: Bahasa pemrograman serbaguna yang dibangun dari nol dengan fondasi sederhana yang tidak membatasi ke mana ia bisa berkembang.
   actions:
     - theme: brand
-      text: Syntax Reference
+      text: Mulai
+      link: /guide/getting-started
+    - theme: alt
+      text: Referensi Syntax
       link: /syntax/
     - theme: alt
       text: GitHub
       link: https://github.com/aidomx/rupa
 
 features:
-  - title: Versatile
-    details: Designed to grow across different contexts — from small experiments to larger systems.
-  - title: Lightweight
-    details: No unnecessary complexity. Built with a minimal core that stays out of your way.
-  - title: Flexible
-    details: Syntax adapts to your needs with async/await, pattern matching, and type annotations.
-  - title: Solid Foundation
-    details: Feature changes never compromise the core structure without clear reasoning.
-  - title: Built-in GC
-    details: Automatic memory management through a centralised garbage collector with clear ownership.
-  - title: Native Async
-    details: First-class async/await with handlers, timeouts, and status tracking built into the language.
+  - title: Serbaguna
+    details: Dirancang untuk berkembang di berbagai konteks — dari eksperimen kecil hingga sistem yang lebih besar.
+  - title: Ringan
+    details: Tanpa kompleksitas yang tidak perlu. Dibangun dengan core minimal yang tidak menghalangi.
+  - title: Fleksibel
+    details: Syntax menyesuaikan kebutuhan Anda dengan async/await, pattern matching, dan type annotation.
+  - title: Fondasi Kokoh
+    details: Perubahan fitur tidak pernah mengorbankan struktur core tanpa alasan yang jelas.
+  - title: GC Bawaan
+    details: Manajemen memori otomatis melalui garbage collector terpusat dengan ownership yang jelas.
+  - title: Async Native
+    details: async/await first-class dengan handler, timeout, dan status tracking yang tertanam di bahasa.
 ---

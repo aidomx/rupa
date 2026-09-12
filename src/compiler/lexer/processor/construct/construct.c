@@ -1,26 +1,34 @@
 #include <rupa.h>
 
 static TokenType last_token_type(State *state) {
-  if (!state || !state->tokens || state->tokens->length == 0)
-    return UNKNOWN;
+  if (!state || !state->tokens || state->tokens->length == 0) return UNKNOWN;
   return state->tokens->data[state->tokens->length - 1].type;
 }
 
-static bool skipComment(const char *s, int *p, int end) {
+static bool parseComment(Token *t, const char *s, int *p, int end, int line) {
   char c = s[*p];
-  char next = s[*p + 1];
+  char next = (*p + 1 < end) ? s[*p + 1] : 0;
 
-  // Single comment : # or //
+  /* Single-line comment : # or // */
   if (c == '#' || (c == '/' && next == '/')) {
-    while (*p < end && s[*p] != '\n')
-      (*p)++;
+    int start = *p;
+    int marker = (c == '#') ? 1 : 2; /* skip # or // */
+    int pos = start + marker;
+    while (pos < end && s[pos] != '\n')
+      pos++;
+    *p = pos;
 
-    if (s[*p] == '\n')
-      return true;
+    addDelim(t, c, NULL, line, start);
+    char *str = substring(s, start + marker, pos);
+    addToken(t, createDataToken(str, NULL, COMMENT, line, pos));
+
+    if (*p < end && s[*p] == '\n') return true;
+    return true;
   }
 
-  // Block comment : /**/
+  /* Block comment: slash-star ... star-slash */
   if (c == '/' && next == '*') {
+    int start = *p;
     /* Advance past opening block comment marker */
     (*p) += 2;
 
@@ -28,11 +36,17 @@ static bool skipComment(const char *s, int *p, int end) {
     while (*p < end - 1) {
       if (s[*p] == '*' && s[*p + 1] == '/') {
         (*p) += 2; /* advance past end marker */
+        addDelim(t, '/', NULL, line, start);
+        char *str = substring(s, start, *p);
+        addToken(t, createDataToken(str, NULL, COMMENT, line, *p));
         return true;
       }
       (*p)++;
     }
     /* Unterminated block comment — consume to end of input */
+    addDelim(t, '/', NULL, line, start);
+    char *str = substring(s, start, end);
+    addToken(t, createDataToken(str, NULL, COMMENT, line, end));
     *p = end;
     return true;
   }
@@ -41,8 +55,7 @@ static bool skipComment(const char *s, int *p, int end) {
 }
 
 int processConstruct(State *state, int start, int end, bool *waiting) {
-  if (!state || !state->input || !state->tokens || !waiting)
-    return -1;
+  if (!state || !state->input || !state->tokens || !waiting) return -1;
 
   const char *s = state->input->content;
   int p = start;
@@ -62,24 +75,12 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       continue;
     }
 
-    /* Line comments are ignored by the lexer.  They must not invalidate
-       tokens that were already accepted before '#'. */
-    if (skipComment(s, &p, end)) {
-      p++;
+    /* Comments are tokenized by the lexer. After parseComment returns,
+       *p points to the next character. Let the main loop handle it
+       naturally so NEWLINE tokens are emitted as statement separators. */
+    if (parseComment(state->tokens, s, &p, end, state->input->line)) {
       continue;
     }
-
-    /*if (c == '#') {*/
-    /*while (p < end && s[p] != '\n')*/
-    /*p++;*/
-    /*continue;*/
-    /*}*/
-
-    /*if (c == '/' && s[p + 1] == '/') {*/
-    /*while (p < end && s[p] != '\n')*/
-    /*p++;*/
-    /*continue;*/
-    /*}*/
 
     if (c == '\n') {
       /* `:` selalu membatasi body satu statement fisik, termasuk ketika
@@ -91,8 +92,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
          * NEWLINE to prevent the following statement being absorbed. */
         addDelim(state->tokens, '\n', NULL, state->input->line, p++);
         singleStatement = false;
-        if (ctx)
-          ctx->colon = 0;
+        if (ctx) ctx->colon = 0;
         continue;
       }
       /* NEWLINE tetap penting sebagai batas statement di dalam `{ ... }`.
@@ -112,8 +112,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
        *
        * The comma expects the next value, but the physical newline must not
        * make the smart lexer think the expression is incomplete. */
-      if (bracket || paren ||
-          (ctx && ctx->objectDepth > 0 && brace >= ctx->objectDepth)) {
+      if (bracket || paren || (ctx && ctx->objectDepth > 0 && brace >= ctx->objectDepth)) {
         p++;
         continue;
       }
@@ -133,18 +132,14 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
     KeywordType keywordType = KEYWORD_NONE;
     int keywordNext = p;
     if (scanKeyword(s, p, end, &keywordType, &keywordNext)) {
-      int next =
-          processKeyword(state, keywordType, p, keywordNext, end, waiting);
-      if (next < 0)
-        return -1;
+      int next = processKeyword(state, keywordType, p, keywordNext, end, waiting);
+      if (next < 0) return -1;
       p = next;
       /* Keywords that are followed by a value expression (return, async)
        * must leave expectValue true so that a subsequent '{' is recognised
        * as an object literal (objectDepth) rather than a block. */
-      expectValue =
-          (keywordType == KEYWORD_RETURN || keywordType == KEYWORD_ASYNC);
-      if (singleStatement)
-        statementStarted = true;
+      expectValue = (keywordType == KEYWORD_RETURN || keywordType == KEYWORD_ASYNC);
+      if (singleStatement) statementStarted = true;
       continue;
     }
 
@@ -163,8 +158,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       }
       p = next;
       expectValue = false;
-      if (singleStatement)
-        statementStarted = true;
+      if (singleStatement) statementStarted = true;
       continue;
     }
 
@@ -183,19 +177,16 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       }
       p = next;
       expectValue = false;
-      if (singleStatement)
-        statementStarted = true;
+      if (singleStatement) statementStarted = true;
       continue;
     }
 
     if (isalpha((unsigned char)c) || c == '_') {
       int next = p;
-      if (processIdentifier(state, p, end, expectValue, &next) < 0)
-        return -1;
+      if (processIdentifier(state, p, end, expectValue, &next) < 0) return -1;
       p = next;
       expectValue = false;
-      if (singleStatement)
-        statementStarted = true;
+      if (singleStatement) statementStarted = true;
       continue;
     }
 
@@ -212,27 +203,22 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
        * type-annotation/single-statement colon instead of a property
        * separator, and fail outright on non-word values like strings. */
       bool wasExpectingValue = expectValue;
-      if (processDelimiter(state, p, end, &next, &brace, &bracket, &paren,
-                           &expectValue) < 0)
+      if (processDelimiter(state, p, end, &next, &brace, &bracket, &paren, &expectValue) < 0)
         return -1;
       if (ctx) {
         ctx->brace = brace;
         ctx->bracket = bracket;
         ctx->paren = paren;
         if (c == '{') {
-          TokenType previous =
-              state->tokens->length > 1
-                  ? state->tokens->data[state->tokens->length - 2].type
-                  : UNKNOWN;
-          ctx->inStruct = (previous == IDENTIFIER && paren == 0 &&
-                           !state->input->flags->isAssignment)
-                              ? 1
-                              : ctx->inStruct;
-          ctx->objectDepth = (previous == ASSIGN || wasExpectingValue)
-                                 ? brace
-                                 : ctx->objectDepth;
-          if (ctx->inStruct)
-            state->input->flags->isStructDecl = true;
+          TokenType previous = state->tokens->length > 1
+                                   ? state->tokens->data[state->tokens->length - 2].type
+                                   : UNKNOWN;
+          ctx->inStruct =
+              (previous == IDENTIFIER && paren == 0 && !state->input->flags->isAssignment)
+                  ? 1
+                  : ctx->inStruct;
+          ctx->objectDepth = (previous == ASSIGN || wasExpectingValue) ? brace : ctx->objectDepth;
+          if (ctx->inStruct) state->input->flags->isStructDecl = true;
         } else if (c == ':') {
           /* A colon inside an object is a property separator, not a
              single-statement marker. */
@@ -243,16 +229,14 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
         } else if (c == '}') {
           if (ctx->objectDepth > 0 && brace < ctx->objectDepth)
             ctx->objectDepth = brace > 0 ? brace : 0;
-          if (ctx->inStruct && brace == 0)
-            ctx->inStruct = 0;
+          if (ctx->inStruct && brace == 0) ctx->inStruct = 0;
           if (brace == 0) {
             ctx->colon = 0;
             singleStatement = false;
           }
         }
       }
-      if (singleStatement && c != ':')
-        statementStarted = true;
+      if (singleStatement && c != ':') statementStarted = true;
       p = next;
       continue;
     }
@@ -261,8 +245,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       bool opWaiting = false;
       if (processOperator(state, p, end, &next, &opWaiting) < 0) {
         *waiting = opWaiting;
-        if (opWaiting)
-          return next;
+        if (opWaiting) return next;
         return -1;
       }
       p = next;
@@ -271,8 +254,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
        * themselves: `i++` / `i--` must be allowed to end at NEWLINE. */
       TokenType op = last_token_type(state);
       expectValue = op != INCREMENT && op != DECREMENT;
-      if (singleStatement)
-        statementStarted = true;
+      if (singleStatement) statementStarted = true;
       continue;
     }
 
@@ -291,8 +273,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       *waiting = true;
       return p;
     }
-    if (ctx)
-      ctx->colon = 0;
+    if (ctx) ctx->colon = 0;
     *waiting = false;
     return p;
   }

@@ -1,0 +1,7 @@
+import crypto, datetime, http, math, net from rupa
+
+print("crypto module: {{crypto}}\n")
+print("datetime module: {{datetime}}\n")
+print("http module: {{http}}\n")
+print("math module: {{math}}\n")
+print("net module: {{net}}\n")

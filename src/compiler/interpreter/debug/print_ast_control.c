@@ -1,8 +1,7 @@
 #include <rupa.h>
 
 bool printControlAst(Node *node, int index, int level) {
-  if (!node || index < 0 || index >= node->length)
-    return false;
+  if (!node || index < 0 || index >= node->length) return false;
 
   AstNode *n = &node->ast[index];
   switch (n->type) {
@@ -10,6 +9,26 @@ bool printControlAst(Node *node, int index, int level) {
     printIndent(level);
     printf("Break\n");
     return true;
+  case NODE_COMMENT:
+  case NODE_INLINE_COMMENT:
+  case NODE_BLOCK_COMMENT: {
+    printIndent(level);
+    printf("Comment:\n");
+    printIndent(level + 1);
+    printf("Type:\n");
+    printAst(node, n->asComment.type, level + 2);
+    const char *kind = (n->asComment.type == NODE_BLOCK_COMMENT) ? "BlockComment" : "InlineComment";
+    printIndent(level + 3);
+    printf("%s\n", kind);
+    printIndent(level + 1);
+    printf("Value:\n");
+    printIndent(level + 3);
+    char str[MAX_BUFFER_SIZE];
+    serialize(n->asComment.value, str);
+    printf("%s\n", str);
+    return true;
+  }
+
   case NODE_CONTINUE:
     printIndent(level);
     printf("Continue\n");
@@ -48,20 +67,17 @@ bool printControlAst(Node *node, int index, int level) {
     printIndent(level);
     printf("Update: %s%s\n", n->update.prefix ? "prefix " : "postfix ",
            n->update.op ? n->update.op : "?");
-    if (n->update.target >= 0)
-      printAst(node, n->update.target, level + 1);
+    if (n->update.target >= 0) printAst(node, n->update.target, level + 1);
     return true;
   case NODE_LOOP:
     printIndent(level);
     printf("Loop: %s\n", n->loop.kind);
-    if (n->loop.condition >= 0)
-      printAst(node, n->loop.condition, level + 1);
-    if (n->loop.body >= 0)
-      printAst(node, n->loop.body, level + 1);
+    if (n->loop.condition >= 0) printAst(node, n->loop.condition, level + 1);
+    if (n->loop.body >= 0) printAst(node, n->loop.body, level + 1);
     return true;
   case NODE_RETURN:
     printIndent(level);
-    printf("Return:\n");
+    printf(n->asReturn.explicitReturn ? "Return:\n" : "Expression statement:\n");
     printAst(node, n->asReturn.expression, level + 1);
     return true;
   case NODE_CASE:
@@ -126,9 +142,8 @@ bool printControlAst(Node *node, int index, int level) {
   case NODE_EXPORT:
   case NODE_EXTENDS:
     printIndent(level);
-    printf("Module statement:\n");
-    if (n->module.value >= 0)
-      printAst(node, n->module.value, level + 1);
+    printf("Module Declaration:\n");
+    if (n->module.value >= 0) printAst(node, n->module.value, level + 1);
     if (n->module.name >= 0) {
       printIndent(level + 1);
       printf("from: ");
@@ -164,9 +179,7 @@ bool printControlAst(Node *node, int index, int level) {
                           ? node->ast[n->astExport.policies[i].nameNode].string.value
                           : "?")
                    : "?",
-               n->astExport.policies[i].policy
-                   ? n->astExport.policies[i].policy
-                   : "?");
+               n->astExport.policies[i].policy ? n->astExport.policies[i].policy : "?");
       }
     }
     return true;
@@ -183,14 +196,12 @@ bool printControlAst(Node *node, int index, int level) {
       struct AstModuleImportEntry *e = &n->moduleImport.entries[i];
       printIndent(level + 1);
       printf("entry: ");
-      if (e->pathNode >= 0)
-        printAst(node, e->pathNode, level + 2);
+      if (e->pathNode >= 0) printAst(node, e->pathNode, level + 2);
       if (e->aliasNode >= 0) {
         printf(" as ");
         printAst(node, e->aliasNode, level + 2);
       }
-      if (e->isWildcard)
-        printf(" (wildcard)");
+      if (e->isWildcard) printf(" (wildcard)");
       printf("\n");
     }
     if (n->moduleImport.alias >= 0) {

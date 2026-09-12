@@ -25,6 +25,7 @@ rupa-v22/
 │   │   ├── enum_flag.h           # Runtime flag types
 │   │   ├── enum_interpreter.h    # Interpreter state types
 │   │   ├── enum_keyword.h        # Keyword token types
+│   │   ├── enum_mod.h            # Module design baru (ModEntryKind, ModType)
 │   │   ├── enum_node.h           # AST node types
 │   │   ├── enum_program.h        # Program phase types
 │   │   ├── enum_token.h          # Token types
@@ -39,16 +40,10 @@ rupa-v22/
 │   ├── types/                    # Type struct definitions
 │   │   ├── compiler/             # Compiler types
 │   │   │   ├── compiler.h
-│   │   │   ├── interpreter_error.h
-│   │   │   ├── interpreter_function.h
-│   │   │   ├── interpreter_result.h
-│   │   │   ├── interpreter_value.h
-│   │   │   ├── lexer.h
-│   │   │   ├── parse_ast.h
-│   │   │   ├── parse_node.h
-│   │   │   ├── semantic_eventloop.h
-│   │   │   ├── semantic_symbol.h
-│   │   │   └── semantic_value.h
+│   │   │   ├── parser/           # ast.h (termasuk AstMod design baru), node.h
+│   │   │   ├── interpreter/      # Runtime interpreter types
+│   │   │   ├── lexer/            # Lexer types
+│   │   │   └── semantic/         # Symbol & eventloop types
 │   │   ├── debug/debug.h
 │   │   ├── editor/editor.h
 │   │   ├── repl/repl.h
@@ -119,9 +114,15 @@ rupa-v22/
 │   │
 │   ├── bootstrap/                # File loading & bootstrapping
 │   │   └── loader.c
-│   │
-│   ├── compiler/                 # Compiler pipeline
-│   │   ├── formatter/formatter.c         # Code formatter
+││   │   ├── compiler/                 # Compiler pipeline
+│   │   ├── formatter/               # Code formatter (modular)
+│   │   │   ├── formatter.c          # Entry points (formatFile/String/Stdin)
+│   │   │   ├── format_helpers.c     # fmtIndent, fmtStr, fmtChar, fmtNewline
+│   │   │   ├── format_node.c        # Atom nodes
+│   │   │   ├── format_expr.c        # Expressions
+│   │   │   ├── format_stmt.c        # Statements (incl. import/export)
+│   │   │   ├── format_dispatch.c    # fmtNode main switch
+│   │   │   └── format_comment.c     # Comment formatting
 │   │   │
 │   │   ├── lexer/                # Tokenizer
 │   │   │   ├── lexer.c, factory.c, operations.c, support.c
@@ -170,7 +171,8 @@ rupa-v22/
 │   │   │   │   └── array/array.c           # Array grammar
 │   │   │   │
 │   │   │   ├── node/             # AST node utilities
-│   │   │   │   ├── cleaner.c, create.c, factory.c, factory_nodes.c
+│   │   │   │   ├── cleaner.c, create.c, factory.c
+│   │   │   │   └── factory_nodes.c  # Statements, module (incl. NODE_MOD factories), async, case
 │   │   │   │
 │   │   │   ├── token/            # Token utilities
 │   │   │   │   ├── check.c, error.c, lookup.c, posix.c

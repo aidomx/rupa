@@ -41,22 +41,22 @@
 // #include <stdnoreturn.h>  /* Noreturn function specifier (C11) */
 
 /* --- Date and Time --- */
-#include <sys/time.h> /* POSIX time structures (gettimeofday) */
-#include <time.h>     /* [USED] Date and time functions */
-// #include <sys/timeb.h>    /*ftime() function (legacy) */
+#include <sys/time.h>  /* POSIX time structures (gettimeofday) */
+#include <time.h>      /* [USED] Date and time functions */
+#include <sys/timeb.h> /*ftime() function (legacy) */
 #include <bits/wordsize.h>
 
 /* --- Error Handling --- */
 #include <errno.h> /* [USED] Error number definitions */
 // #include <assert.h>       /* Assert macro */
-// #include <error.h>        /* GNU error handling (non-standard) */
+#include <error.h> /* GNU error handling (non-standard) */
 
 /* --- Dynamic Memory --- */
 // #include <malloc.h>       /* Non-standard malloc extensions */
 // #include <gc.h>           /* Boehm GC (third-party) */
 
 /* --- Signals --- */
-#include <signal.h>       /* Signal handling */
+#include <signal.h> /* Signal handling */
 // #include <setjmp.h>       /* Non-local jumps (setjmp/longjmp) */
 // #include <stdatomic.h>    /* Atomic operations (C11) */
 // #include <threads.h>      /* Thread support (C11) */
@@ -76,21 +76,21 @@
 #include <sys/types.h>   /* [USED] System data types */
 #include <sys/utsname.h> /* [USED] System name/OS info */
 #include <unistd.h>      /* [USED] POSIX operating system API */
-// #include <fnmatch.h>      /* Filename pattern matching */
-// #include <glob.h>         /* Pathname pattern expansion */
+                         // #include <fnmatch.h>      /* Filename pattern matching */
+                         // #include <glob.h>         /* Pathname pattern expansion */
 
 /* --- Process Management (POSIX) --- */
-// #include <sys/wait.h>     /* Wait for process termination */
-// #include <sys/resource.h> /* Resource usage */
-// #include <sys/syscall.h>  /* System call numbers */
+#include <sys/wait.h>     /* Wait for process termination */
+#include <sys/resource.h> /* Resource usage */
+#include <sys/syscall.h>  /* System call numbers */
 
 /* --- IPC (POSIX) --- */
 // #include <sys/ipc.h>      /* IPC */
 // #include <sys/shm.h>      /* Shared memory */
 // #include <sys/mman.h>     /* Memory-mapped files */
-#include <sys/socket.h>   /* Socket programming */
-#include <netinet/in.h>   /* Internet address family */
-#include <arpa/inet.h>    /* Internet operations */
+#include <sys/socket.h> /* Socket programming */
+#include <netinet/in.h> /* Internet address family */
+#include <arpa/inet.h>  /* Internet operations */
 // #include <netdb.h>        /* Network database operations */
 
 /* --- Terminal I/O (POSIX) --- */
@@ -98,21 +98,22 @@
 // #include <sys/ioctl.h>    /* Terminal I/O control (moved to platform.h) */
 
 /* --- Thread Support (POSIX) --- */
-#include <pthread.h>      /* POSIX threads */
+#include <pthread.h> /* POSIX threads */
 // #include <semaphore.h>    /* Semaphores */
 
 /* --- Regex --- */
-// #include <regex.h>        /* POSIX regular expressions */
+#include <regex.h> /* POSIX regular expressions */
 
 /* --- Cryptography --- */
-// #include <openssl/sha.h>  /* OpenSSL (third-party) */
-// #include <openssl/md5.h>  /* OpenSSL (third-party) */
+/*#include <openssl/sha.h> [> OpenSSL (third-party) <]*/
+#include <openssl/evp.h>
+/*#include <openssl/md5.h> [> OpenSSL (third-party) <]*/
 
 /* --- Networking --- */
-// #include <curl/curl.h>    /* libcurl (third-party) */
+// #include <curl/curl.h> /* libcurl (third-party) */
 // #include <sqlite3.h>      /* SQLite (third-party) */
 
 /* --- Debugging --- */
-// #include <assert.h>       /* Assert macro */
+#include <assert.h> /* Assert macro */
 // #include <execinfo.h>     /* Backtrace (GNU extension) */
 // #include <dlfcn.h>        /* Dynamic linking */

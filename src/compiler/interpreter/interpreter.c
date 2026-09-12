@@ -11,6 +11,7 @@ void interpreter(Node *node, Error *error) {
   if (!env) return;
 
   stdlibInit(env);
+  builtinsInit(env);
   g_event_loop = eventLoopCreate();
 
   int root = 0;

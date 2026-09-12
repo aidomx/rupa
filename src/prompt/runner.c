@@ -62,6 +62,7 @@ int run(const char *paths[], int length) {
   RuntimeEnv *env = semCreateEnv(NULL);
   if (!env) return 1;
   stdlibInit(env);
+  builtinsInit(env);
 
   extern struct EventLoop *g_event_loop;
   g_event_loop = eventLoopCreate();

@@ -66,6 +66,22 @@ int loader(const char *args[], int length) {
       break;
     }
 
+    else if (strcmp(args[i], "fmt") == 0) {
+      if (i + 1 < length) {
+        int result;
+        if (strcmp(args[i + 1], "-") == 0)
+          result = formatStdin();
+        else
+          result = formatFile(args[i + 1]);
+        gcclean();
+        return result;
+      } else {
+        fprintf(stderr, "fmt: no file specified\n");
+        gcclean();
+        return 1;
+      }
+    }
+
     else if (strcmp(args[i], "--test-exec") == 0) {
       testExec(args + i + 1, length - i - 1);
       handled = true;

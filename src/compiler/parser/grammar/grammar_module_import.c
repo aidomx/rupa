@@ -9,10 +9,8 @@
  */
 
 /* Parse flat import entries between baseIdx and fromPos. */
-static int parseFlatImportEntries(Request *r, Token *t, int baseIdx,
-                                  int fromPos,
-                                  struct AstModuleImportEntry *entries,
-                                  int *entryCount) {
+static int parseFlatImportEntries(Request *r, Token *t, int baseIdx, int fromPos,
+                                  struct AstModuleImportEntry *entries, int *entryCount) {
   int cur = baseIdx;
   *entryCount = 0;
 
@@ -22,16 +20,14 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx,
       continue;
     }
 
-    if (cur >= fromPos ||
-        (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
+    if (cur >= fromPos || (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
       break;
 
     int pathStart = cur;
     cur++;
     while (cur < fromPos && t->data[cur].type == DOT) {
       cur++;
-      if (cur >= fromPos ||
-          (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
+      if (cur >= fromPos || (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
         break;
       cur++;
     }
@@ -40,14 +36,11 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx,
     if (cur < fromPos && t->data[cur].type == STAR) {
       char pathBuf[256] = {0};
       for (int i = pathStart; i < cur; i++) {
-        if (t->data[i].type == DOT)
-          continue;
-        if (pathBuf[0])
-          strcat(pathBuf, ".");
+        if (t->data[i].type == DOT) continue;
+        if (pathBuf[0]) strcat(pathBuf, ".");
         strcat(pathBuf, t->data[i].value);
       }
-      entries[*entryCount].pathNode =
-          createString(r->node, pathBuf, NODE_LITERAL_ID);
+      entries[*entryCount].pathNode = createString(r->node, pathBuf, NODE_LITERAL_ID);
       entries[*entryCount].aliasNode = -1;
       entries[*entryCount].isWildcard = true;
       cur++;
@@ -58,9 +51,7 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx,
            t->data[cur].type == LITERAL_ID) &&
           !strcmp(t->data[cur].value, "as")) {
         cur++;
-        if (cur < fromPos &&
-            (t->data[cur].type == IDENTIFIER ||
-             t->data[cur].type == LITERAL_ID)) {
+        if (cur < fromPos && (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
           entries[*entryCount].aliasNode =
               createString(r->node, t->data[cur].value, NODE_LITERAL_ID);
           cur++;
@@ -74,32 +65,34 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx,
     {
       char pathBuf[256] = {0};
       for (int i = pathStart; i < cur; i++) {
-        if (t->data[i].type == DOT)
-          continue;
-        if (pathBuf[0])
-          strcat(pathBuf, ".");
+        if (t->data[i].type == DOT) continue;
+        if (pathBuf[0]) strcat(pathBuf, ".");
         strcat(pathBuf, t->data[i].value);
       }
 
-      entries[*entryCount].pathNode =
-          createString(r->node, pathBuf, NODE_LITERAL_ID);
+      entries[*entryCount].pathNode = createString(r->node, pathBuf, NODE_LITERAL_ID);
       entries[*entryCount].isWildcard = false;
       entries[*entryCount].aliasNode = -1;
 
       int nextCur = cur;
       if (nextCur < fromPos &&
-          (t->data[nextCur].type == KEYWORD ||
-           t->data[nextCur].type == IDENTIFIER ||
+          (t->data[nextCur].type == KEYWORD || t->data[nextCur].type == IDENTIFIER ||
            t->data[nextCur].type == LITERAL_ID) &&
           !strcmp(t->data[nextCur].value, "as")) {
         nextCur++;
         if (nextCur < fromPos &&
-            (t->data[nextCur].type == IDENTIFIER ||
-             t->data[nextCur].type == LITERAL_ID)) {
-          entries[*entryCount].aliasNode = createString(
-              r->node, t->data[nextCur].value, NODE_LITERAL_ID);
+            (t->data[nextCur].type == IDENTIFIER || t->data[nextCur].type == LITERAL_ID)) {
+          entries[*entryCount].aliasNode =
+              createString(r->node, t->data[nextCur].value, NODE_LITERAL_ID);
           nextCur++;
         }
+      }
+
+      /* Trailing wildcard after alias: `a as form.*` */
+      if (nextCur + 1 < fromPos && t->data[nextCur].type == DOT &&
+          t->data[nextCur + 1].type == STAR) {
+        entries[*entryCount].isWildcard = true;
+        nextCur += 2;
       }
 
       (*entryCount)++;
@@ -116,8 +109,7 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
    * No extra +1 needed — grammarModuleDetectFlatImport expects the
    * first entry identifier (e.g. `b` in `b.*`). */
   int baseIdx = grammarModuleDetectFlatImport(t, a, b, &fromPos);
-  if (baseIdx < 0 || fromPos < 0)
-    return GRAMMAR_NO_MATCH;
+  if (baseIdx < 0 || fromPos < 0) return GRAMMAR_NO_MATCH;
 
   struct AstModuleImportEntry entries[64];
   int entryCount = 0;
@@ -137,24 +129,20 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
   }
 
   char *fromPath = grammarModuleBuildPath(t, fromStart, fromPathEnd);
-  int basePath = fromPath ? createString(r->node, fromPath, NODE_LITERAL_ID)
-                          : -1;
+  int basePath = fromPath ? createString(r->node, fromPath, NODE_LITERAL_ID) : -1;
   free(fromPath);
 
   /* Optional `as alias` after from path */
   int aliasIdx = -1;
   int afterPath = fromPathEnd + 1;
   if (afterPath < b &&
-      (t->data[afterPath].type == KEYWORD ||
-       t->data[afterPath].type == IDENTIFIER ||
+      (t->data[afterPath].type == KEYWORD || t->data[afterPath].type == IDENTIFIER ||
        t->data[afterPath].type == LITERAL_ID) &&
       !strcmp(t->data[afterPath].value, "as")) {
     afterPath++;
     if (afterPath < b &&
-        (t->data[afterPath].type == IDENTIFIER ||
-         t->data[afterPath].type == LITERAL_ID)) {
-      aliasIdx =
-          createString(r->node, t->data[afterPath].value, NODE_LITERAL_ID);
+        (t->data[afterPath].type == IDENTIFIER || t->data[afterPath].type == LITERAL_ID)) {
+      aliasIdx = createString(r->node, t->data[afterPath].value, NODE_LITERAL_ID);
       afterPath++;
     }
   }
@@ -176,8 +164,7 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
       if (nameCount == 0) break;
       int nameIds[64];
       for (int i = 0; i < nameCount; i++)
-        nameIds[i] = createString(r->node, t->data[names[i]].value,
-                                  NODE_LITERAL_ID);
+        nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
       int v = createArray(r->node, nameIds, nameCount);
       int n = createString(r->node, "rupa", NODE_LITERAL_ID);
       *pos = b;
@@ -187,21 +174,22 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
     /* Check for `from rupa.M` (stdlib with dot) */
     int modIdx = grammarModuleDetectFromRupa(t, cur, b);
     if (modIdx >= 0) {
-      if (nameCount == 0)
-        break;
+      if (nameCount == 0) break;
       if (nameCount == 1) {
-        int v = createString(r->node, t->data[names[0]].value,
-                             NODE_LITERAL_ID);
-        int n = createString(r->node, t->data[modIdx].value, NODE_LITERAL_ID);
+        int v = createString(r->node, t->data[names[0]].value, NODE_LITERAL_ID);
+        char fullPath[512];
+        snprintf(fullPath, sizeof(fullPath), "rupa.%s", t->data[modIdx].value);
+        int n = createString(r->node, fullPath, NODE_LITERAL_ID);
         *pos = b;
         return createModule(r->node, NODE_IMPORT, v, n);
       }
       int nameIds[64];
       for (int i = 0; i < nameCount; i++)
-        nameIds[i] = createString(r->node, t->data[names[i]].value,
-                                  NODE_LITERAL_ID);
+        nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
       int v = createArray(r->node, nameIds, nameCount);
-      int n = createString(r->node, t->data[modIdx].value, NODE_LITERAL_ID);
+      char fullPath[512];
+      snprintf(fullPath, sizeof(fullPath), "rupa.%s", t->data[modIdx].value);
+      int n = createString(r->node, fullPath, NODE_LITERAL_ID);
       *pos = b;
       return createModule(r->node, NODE_IMPORT, v, n);
     }
@@ -211,39 +199,32 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
       int pathEnd = -1;
       int pathStart = grammarModuleDetectFrom(t, cur, b, &pathEnd);
       if (pathStart >= 0 && pathEnd >= 0) {
-        if (nameCount == 0)
-          break;
+        if (nameCount == 0) break;
         char *fullPath = grammarModuleBuildPath(t, pathStart, pathEnd);
         if (nameCount == 1) {
-          int v = createString(r->node, t->data[names[0]].value,
-                               NODE_LITERAL_ID);
-          int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID)
-                            : -1;
+          int v = createString(r->node, t->data[names[0]].value, NODE_LITERAL_ID);
+          int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID) : -1;
           free(fullPath);
           *pos = b;
           return createModule(r->node, NODE_IMPORT, v, n);
         }
         int nameIds[64];
         for (int i = 0; i < nameCount; i++)
-          nameIds[i] = createString(r->node, t->data[names[i]].value,
-                                    NODE_LITERAL_ID);
+          nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
         int v = createArray(r->node, nameIds, nameCount);
-        int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID)
-                          : -1;
+        int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID) : -1;
         free(fullPath);
         *pos = b;
         return createModule(r->node, NODE_IMPORT, v, n);
       }
     }
 
-    if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID)
-      break;
+    if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID) break;
 
     names[nameCount++] = cur;
     cur++;
 
-    if (cur < b && t->data[cur].type == COMMA)
-      cur++;
+    if (cur < b && t->data[cur].type == COMMA) cur++;
     continue;
   }
 

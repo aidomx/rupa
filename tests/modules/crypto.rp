@@ -1,0 +1,27 @@
+// crypto module test
+import crypto from rupa
+
+// Test md5
+print("MD5: " + crypto.md5("hello") + "\n")
+
+// Test sha1
+print("SHA1: " + crypto.sha1("hello") + "\n")
+
+// Test sha256
+print("SHA256: " + crypto.sha256("hello") + "\n")
+
+// Test sha512
+print("SHA512: " + crypto.sha512("hello") + "\n")
+
+// Test base64
+encoded = crypto.base64Encode("Hello Rupa!")
+print("Encoded: " + encoded + "\n")
+
+decoded = crypto.base64Decode(encoded)
+print("Decoded: " + decoded + "\n")
+
+// Test hmac
+hmac = crypto.hmac("secret", "message")
+print("HMAC: " + hmac + "\n")
+
+print("All crypto tests passed!\n")

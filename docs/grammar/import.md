@@ -156,3 +156,53 @@ resolveModulePath("modules.d")  → "modules/d.rp"
 ```
 
 `./` prefix di-strip oleh `resolveModulePath`.
+
+## NODE_MOD (design baru — belum aktif)
+
+> Status: **design selesai, factory siap** (`createModImport`/`createModExport` di
+> `src/compiler/parser/node/factory_nodes.c`). Migrasi grammar/interpreter/formatter
+> belum dilakukan — node lama (`NODE_IMPORT`, `NODE_MODULE_IMPORT`, `NODE_EXPORT`,
+> `NODE_EXPORT_DECL`) masih dipakai runtime.
+
+1 container untuk 2 job: import dan export. Semua alokasi via GC
+(`gccalloc`/`gcstrdup`), tanpa free manual.
+
+### Struct
+
+```
+AstModEntry (enum ModEntryKind type, name, key, value, childrens)
+AstMod      (enum ModType type, entries[], source, sourceAlias, policies[])
+```
+
+| Field | Isi | Contoh |
+|-------|-----|--------|
+| `type` (entry) | `MOD_ID` / `MOD_MEMBER` / `MOD_WILD` | `x` / `x.y` / `x.*` |
+| `name` | nama sumber entry | `a`, `login` |
+| `key` | binding lokal `x as y` → `"y"`; NULL = pakai name | `import a.* as form` → `key:"form"` |
+| `value` | payload policy `{ a: private }` → `"private"`; selain itu NULL | policy |
+| `childrens` | sub-path `a.create` → rantai entry `{name:"create"}` | `MOD_MEMBER` |
+| `type` (AstMod) | `ImportDecl` / `ExportDecl` | — |
+| `source` | path module; **NULL = export lokal** (`export x`) | `"../modules"`, `"rupa.os"` |
+| `sourceAlias` | `from X as m` → `"m"` | namespace |
+| `policies` | `export c from Y -> { a: private }` | array entry |
+
+### Tabel Pemetaan Sintaks (oracle untuk round-trip test)
+
+| Sintaks | entries | source | sourceAlias | policies |
+|---|---|---|---|---|
+| `import create, update from ../modules.a` | `{ID:create}`, `{ID:update}` | `../modules.a` | - | - |
+| `import b.*, c.*, d.* from ../modules as m` | `{WILD:b}`, `{WILD:c}`, `{WILD:d}` | `../modules` | `m` | - |
+| `import a.* as form from ../modules` | `{WILD:a, key:form}` | `../modules` | - | - |
+| `import a.* as form, b.login from ../modules` | + `{MEMBER:b → [login]}` | `../modules` | - | - |
+| `import d from ../modules` | `{ID:d}` | `../modules` | - | - |
+| `import info from rupa.os` | `{ID:info}` | `rupa.os` | - | - |
+| `export x` | `{ID:x}` | **NULL** | - | - |
+| `export a, b from ../c` | `{ID:a}`, `{ID:b}` | `../c` | - | - |
+| `export c from ../c -> { a: private }` | `{ID:c}` | `../c` | - | `{name:a, value:private}` |
+
+### Rencana Migrasi
+
+1. Grammar emit `NODE_MOD` (node lama tetap ada sebagai deprecated)
+2. Formatter & printer tambah `case NODE_MOD` — round-trip tabel pemetaan
+3. Interpreter binding `NODE_MOD` paralel dengan jalur lama
+4. Hapus 4 node lama + struct lama dalam satu commit

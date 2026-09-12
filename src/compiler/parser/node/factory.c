@@ -127,7 +127,14 @@ int createProgram(Node *root) {
  * Membuat return statement untuk REPL expressions
  */
 int createReturn(Node *root, int expression_id) {
-  AstNode node = {.type = NODE_RETURN, .asReturn.expression = expression_id};
+  AstNode node = {.type = NODE_RETURN,
+                  .asReturn = {.expression = expression_id, .explicitReturn = true}};
+  return createAst(root, node);
+}
+
+int createExpressionStatement(Node *root, int expression_id) {
+  AstNode node = {.type = NODE_RETURN,
+                  .asReturn = {.expression = expression_id, .explicitReturn = false}};
   return createAst(root, node);
 }
 

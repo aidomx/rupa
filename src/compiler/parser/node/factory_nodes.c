@@ -1,8 +1,116 @@
 #include <rupa.h>
 
+/* ---- Module design baru (NODE_MOD) — 1 container untuk import & export ----
+ * Semua alokasi via GC (gccalloc/gcstrdup), tidak ada free manual.
+ */
+
+AstModEntry *modEntry(const char *name) {
+  AstModEntry *e = gccalloc(1, sizeof(AstModEntry));
+  if (!e) return NULL;
+  e->type = MOD_ID;
+  e->name = gcstrdup(name);
+  return e;
+}
+
+AstModEntry *modEntryKey(const char *name, const char *key) {
+  AstModEntry *e = modEntry(name);
+  if (!e) return NULL;
+  e->key = gcstrdup(key);
+  return e;
+}
+
+AstModEntry *modEntryWild(const char *name) {
+  AstModEntry *e = modEntry(name);
+  if (!e) return NULL;
+  e->type = MOD_WILD;
+  return e;
+}
+
+AstModEntry *modEntryMember(const char *name, AstModEntry *path) {
+  AstModEntry *e = modEntry(name);
+  if (!e) return NULL;
+  e->type = MOD_MEMBER;
+  e->childrens = path;
+  return e;
+}
+
+AstModEntry *modPolicy(const char *name, const char *value) {
+  AstModEntry *e = modEntry(name);
+  if (!e) return NULL;
+  e->value = gcstrdup(value);
+  return e;
+}
+
+/* Copy array entry ke GC — struktur rantai childrens ikut diduplikat. */
+static AstModEntry *modCopyEntries(AstModEntry *entries, int entryCount) {
+  if (!entries || entryCount <= 0) return NULL;
+  AstModEntry *out = gccalloc(entryCount, sizeof(AstModEntry));
+  if (!out) return NULL;
+  for (int i = 0; i < entryCount; i++) {
+    out[i].type = entries[i].type;
+    out[i].name = entries[i].name ? gcstrdup(entries[i].name) : NULL;
+    out[i].key = entries[i].key ? gcstrdup(entries[i].key) : NULL;
+    out[i].value = entries[i].value ? gcstrdup(entries[i].value) : NULL;
+    /* Rantai childrens disalin rekursif (shallow per node, GC-owned). */
+    AstModEntry *src = entries[i].childrens;
+    AstModEntry *dst = NULL;
+    while (src) {
+      AstModEntry *c = gccalloc(1, sizeof(AstModEntry));
+      if (!c) break;
+      c->type = src->type;
+      c->name = src->name ? gcstrdup(src->name) : NULL;
+      c->key = src->key ? gcstrdup(src->key) : NULL;
+      c->value = src->value ? gcstrdup(src->value) : NULL;
+      if (dst)
+        dst->childrens = c;
+      else
+        out[i].childrens = c;
+      dst = c;
+      src = src->childrens;
+    }
+  }
+  return out;
+}
+
+int createModImport(Node *root, AstModEntry *entries, int entryCount,
+                    const char *source, const char *sourceAlias) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_MOD};
+  n.mod.type = ImportDecl;
+  n.mod.entries = modCopyEntries(entries, entryCount);
+  n.mod.entryCount = entryCount;
+  n.mod.source = source ? gcstrdup(source) : NULL;
+  n.mod.sourceAlias = sourceAlias ? gcstrdup(sourceAlias) : NULL;
+  n.mod.policies = NULL;
+  n.mod.policyCount = 0;
+  return createAst(root, n);
+}
+
+int createModExport(Node *root, AstModEntry *entries, int entryCount,
+                    const char *source, AstModEntry *policies, int policyCount) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_MOD};
+  n.mod.type = ExportDecl;
+  n.mod.entries = modCopyEntries(entries, entryCount);
+  n.mod.entryCount = entryCount;
+  n.mod.source = source ? gcstrdup(source) : NULL;
+  n.mod.sourceAlias = NULL;
+  n.mod.policies = modCopyEntries(policies, policyCount);
+  n.mod.policyCount = policies ? policyCount : 0;
+  return createAst(root, n);
+}
+
 /* AST Node Factory — Statements, Module, Async, Case
  * Core factory functions remain in factory.c.
- * createAst and copyIds are declared in rupa_modules.h. */
+ * createAst and copyIds are declared in rupa_modules.h
+ */
+int createComment(Node *root, char *value, int type) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_COMMENT};
+  n.asComment.type = type;
+  n.asComment.value = strdup(value);
+  return createAst(root, n);
+}
 
 int createConditionalAssignment(Node *root, int target, int value) {
   if (!root || target < 0 || value < 0) return -1;
@@ -61,8 +169,7 @@ int createLoop(Node *root, const char *kind, int condition, int body) {
   return createAst(root, n);
 }
 
-int createFunctionDecl(Node *root, int name, int *params, int paramLength,
-                       int body) {
+int createFunctionDecl(Node *root, int name, int *params, int paramLength, int body) {
   AstNode n = {.type = NODE_FUNCTION_DECL};
   n.function.name = name;
   n.function.params = copyIds(params, paramLength);
@@ -97,28 +204,26 @@ int createObject(Node *root, struct AstObjectEntry *entries, int length) {
   AstNode n = {.type = NODE_OBJECT};
   if (length > 0) {
     n.object.entries = gcmall(sizeof(struct AstObjectEntry) * length);
-    if (!n.object.entries)
-      return -1;
+    if (!n.object.entries) return -1;
     memcpy(n.object.entries, entries, sizeof(struct AstObjectEntry) * length);
   }
   n.object.length = length;
   return createAst(root, n);
 }
 
-int createAsync(Node *root, int request, int handler, int timeout,
-                 int loaderId, int timeoutId) {
-  if (!root || request < 0)
-    return -1;
+int createAsync(Node *root, int request, int handler, int timeout, int loaderId, int timeoutId) {
+  if (!root || request < 0) return -1;
   AstNode node = {.type = NODE_ASYNC,
-                  .async = {.request = request, .handler = handler,
-                            .timeout = timeout, .loaderId = loaderId,
+                  .async = {.request = request,
+                            .handler = handler,
+                            .timeout = timeout,
+                            .loaderId = loaderId,
                             .timeoutId = timeoutId}};
   return createAst(root, node);
 }
 
 int createAwait(Node *root, int expression) {
-  if (!root || expression < 0)
-    return -1;
+  if (!root || expression < 0) return -1;
   AstNode node = {.type = NODE_AWAIT, .await = {.expression = expression}};
   return createAst(root, node);
 }
@@ -143,8 +248,7 @@ int createCase(Node *root, int subject, struct AstCaseEntry *entries, int length
 
 int createMemberAssign(Node *root, int target, int value) {
   if (!root || target < 0 || value < 0) return -1;
-  AstNode node = {.type = NODE_MEMBER_ASSIGN,
-                  .memberAssign = {.target = target, .value = value}};
+  AstNode node = {.type = NODE_MEMBER_ASSIGN, .memberAssign = {.target = target, .value = value}};
   return createAst(root, node);
 }
 
@@ -155,9 +259,8 @@ int createStringInterp(Node *root, int *parts, int length) {
   return createAst(root, n);
 }
 
-int createModuleImport(Node *root, int basePath,
-                       struct AstModuleImportEntry *entries, int entryCount,
-                       int alias) {
+int createModuleImport(Node *root, int basePath, struct AstModuleImportEntry *entries,
+                       int entryCount, int alias) {
   if (!root) return -1;
   AstNode n = {.type = NODE_MODULE_IMPORT};
   n.moduleImport.basePath = basePath;
@@ -166,15 +269,13 @@ int createModuleImport(Node *root, int basePath,
   n.moduleImport.alias = alias;
   if (entryCount > 0 && entries) {
     n.moduleImport.entries = gcmall(sizeof(struct AstModuleImportEntry) * entryCount);
-    memcpy(n.moduleImport.entries, entries,
-           sizeof(struct AstModuleImportEntry) * entryCount);
+    memcpy(n.moduleImport.entries, entries, sizeof(struct AstModuleImportEntry) * entryCount);
   }
   return createAst(root, n);
 }
 
-int createExportDecl(Node *root, int namespaceName, int sourcePath,
-                     int selectiveItems, struct AstExportPolicyEntry *policies,
-                     int policyCount) {
+int createExportDecl(Node *root, int namespaceName, int sourcePath, int selectiveItems,
+                     struct AstExportPolicyEntry *policies, int policyCount) {
   if (!root) return -1;
   AstNode n = {.type = NODE_EXPORT_DECL};
   n.astExport.namespaceName = namespaceName;

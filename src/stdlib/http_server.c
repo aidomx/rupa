@@ -12,10 +12,6 @@ ServerEntry serverTable[MAX_SERVERS];
 int serverCount = 0;
 pthread_mutex_t serverMutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* Keep-alive: main thread runs event loop while server is running */
-static pthread_mutex_t keepAliveMutex = PTHREAD_MUTEX_INITIALIZER;
-static bool keepAliveRunning = false;
-
 /* ==================== HTTP Request/Response types ==================== */
 
 typedef struct {
@@ -57,6 +53,11 @@ static PendingRequest pendingQueue[MAX_PENDING];
 static pthread_mutex_t queueMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t requestReadyCond = PTHREAD_COND_INITIALIZER;
 static int pendingCount = 0;
+
+/* The handler executes on the server thread. Keep the response context
+ * thread-local so concurrent HTTP requests never modify each other's
+ * response headers/body. */
+static _Thread_local PendingRequest *currentPendingRequest = NULL;
 
 /* Enqueue a request from the server thread */
 static PendingRequest *enqueueRequest(int client_fd, int server_id,
@@ -126,72 +127,66 @@ static void parseRequest(const char *raw, HttpRequest *req) {
 static InterpreterResult resSetHeader(int argc, RuntimeValue *argv,
                                       RuntimeEnv *env, Error *error) {
   (void)env;
+  (void)error;
   if (argc < 2 || argv[0].type != VALUE_STRING || argv[1].type != VALUE_STRING)
     return resultFlow(FLOW_ERROR,
                       valueString("res.setHeader() expects two strings"));
 
-  /* Find the pending request being processed */
-  pthread_mutex_lock(&queueMutex);
-  for (int i = 0; i < MAX_PENDING; i++) {
-    if (pendingQueue[i].in_use && !pendingQueue[i].response_ready) {
-      HttpResponse *res = &pendingQueue[i].response;
-      int written = snprintf(res->headers_buf + res->headers_len,
-                             sizeof(res->headers_buf) - res->headers_len,
-                             "%s: %s\r\n", argv[0].as.string, argv[1].as.string);
-      res->headers_len += written;
-      pthread_mutex_unlock(&queueMutex);
-      return resultNormal(valueNull());
-    }
-  }
-  pthread_mutex_unlock(&queueMutex);
-  return resultFlow(FLOW_ERROR, valueString("No active response"));
+  PendingRequest *pr = currentPendingRequest;
+  if (!pr) return resultFlow(FLOW_ERROR, valueString("No active response"));
+
+  HttpResponse *res = &pr->response;
+  int written = snprintf(res->headers_buf + res->headers_len,
+                         sizeof(res->headers_buf) - res->headers_len,
+                         "%s: %s\r\n", argv[0].as.string, argv[1].as.string);
+  if (written < 0 || written >= (int)(sizeof(res->headers_buf) - res->headers_len))
+    return resultFlow(FLOW_ERROR, valueString("Response headers too large"));
+  res->headers_len += written;
+  return resultNormal(valueNull());
 }
 
 /* ==================== res.json(obj) ==================== */
 static InterpreterResult resJson(int argc, RuntimeValue *argv,
                                  RuntimeEnv *env, Error *error) {
   (void)env;
+  (void)error;
   if (argc < 1)
-    return resultFlow(FLOW_ERROR, valueString("res.json() expects a value"));
+    return resultFlow(FLOW_ERROR,
+                      valueString("res.json() expects a value"));
 
-  pthread_mutex_lock(&queueMutex);
-  for (int i = 0; i < MAX_PENDING; i++) {
-    if (pendingQueue[i].in_use && !pendingQueue[i].response_ready) {
-      HttpResponse *res = &pendingQueue[i].response;
-      res->headers_len = 0;
-      int w = snprintf(res->headers_buf, sizeof(res->headers_buf),
-                       "Content-Type: application/json\r\n");
-      res->headers_len = w;
+  PendingRequest *pr = currentPendingRequest;
+  if (!pr) return resultFlow(FLOW_ERROR, valueString("No active response"));
 
-      if (argv[0].type == VALUE_STRING && argv[0].as.string) {
-        res->body_len = snprintf(res->body, sizeof(res->body), "\"%s\"",
-                                 argv[0].as.string);
-      } else if (argv[0].type == VALUE_NUMBER) {
-        res->body_len = snprintf(res->body, sizeof(res->body), "%d",
-                                 argv[0].as.number);
-      } else if (argv[0].type == VALUE_BOOLEAN) {
-        res->body_len = snprintf(res->body, sizeof(res->body), "%s",
-                                 argv[0].as.boolean ? "true" : "false");
-      } else if (argv[0].type == VALUE_NULL) {
-        res->body_len = snprintf(res->body, sizeof(res->body), "null");
-      } else {
-        /* Use json.stringify to serialize any value */
-        InterpreterResult jr = jsonStringify(1, argv, NULL, NULL);
-        if (jr.flow == FLOW_NORMAL && jr.value.type == VALUE_STRING &&
-            jr.value.as.string) {
-          res->body_len = (int)strlen(jr.value.as.string);
-          if (res->body_len >= MAX_RESPONSE_SIZE)
-            res->body_len = MAX_RESPONSE_SIZE - 1;
-          memcpy(res->body, jr.value.as.string, res->body_len);
-          res->body[res->body_len] = '\0';
-        }
-      }
-      pthread_mutex_unlock(&queueMutex);
-      return resultNormal(valueNull());
+  HttpResponse *res = &pr->response;
+  res->headers_len = snprintf(res->headers_buf, sizeof(res->headers_buf),
+                              "Content-Type: application/json\r\n");
+
+  if (argv[0].type == VALUE_STRING && argv[0].as.string) {
+    res->body_len = snprintf(res->body, sizeof(res->body), "\"%s\"",
+                             argv[0].as.string);
+  } else if (argv[0].type == VALUE_NUMBER) {
+    res->body_len = snprintf(res->body, sizeof(res->body), "%d",
+                             argv[0].as.number);
+  } else if (argv[0].type == VALUE_BOOLEAN) {
+    res->body_len = snprintf(res->body, sizeof(res->body), "%s",
+                             argv[0].as.boolean ? "true" : "false");
+  } else if (argv[0].type == VALUE_NULL) {
+    res->body_len = snprintf(res->body, sizeof(res->body), "null");
+  } else {
+    InterpreterResult jr = jsonStringify(1, argv, NULL, NULL);
+    if (jr.flow == FLOW_NORMAL && jr.value.type == VALUE_STRING &&
+        jr.value.as.string) {
+      res->body_len = (int)strlen(jr.value.as.string);
+      if (res->body_len >= MAX_RESPONSE_SIZE)
+        res->body_len = MAX_RESPONSE_SIZE - 1;
+      memcpy(res->body, jr.value.as.string, res->body_len);
+      res->body[res->body_len] = '\0';
     }
   }
-  pthread_mutex_unlock(&queueMutex);
-  return resultFlow(FLOW_ERROR, valueString("No active response"));
+
+  if (res->body_len < 0 || res->body_len >= MAX_RESPONSE_SIZE)
+    return resultFlow(FLOW_ERROR, valueString("Response body too large"));
+  return resultNormal(valueNull());
 }
 
 /* ==================== Build response string ==================== */
@@ -422,10 +417,17 @@ static void *serverThread(void *arg) {
       continue;
     }
 
-    /* Wait for main thread to process the response */
+    /* Process the request here so http.server() can return immediately.
+     * The old design waited for a main-thread event loop that blocked inside
+     * http.server(), so code after `http.server(...)` (including
+     * thread.sleep/http.stop) could never run. */
+    currentPendingRequest = pr;
+    processRequest(pr);
+    currentPendingRequest = NULL;
+
     pthread_mutex_lock(&pr->mutex);
-    while (!pr->response_ready && server->running)
-      pthread_cond_wait(&pr->response_cond, &pr->mutex);
+    pr->response_ready = true;
+    pthread_cond_signal(&pr->response_cond);
     pthread_mutex_unlock(&pr->mutex);
 
     /* Send response */
@@ -449,54 +451,6 @@ static void *serverThread(void *arg) {
   }
 
   return NULL;
-}
-
-/* ==================== Main thread event loop ==================== */
-/* Called from httpServer() — processes queued requests until server stops. */
-static void httpEventLoop(void) {
-  pthread_mutex_lock(&queueMutex);
-
-  while (keepAliveRunning) {
-    /* Wait for a request or stop signal (with timeout to check stop) */
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1; /* 1 second timeout for stop check */
-
-    while (pendingCount == 0 && keepAliveRunning) {
-      int ret = pthread_cond_timedwait(&requestReadyCond, &queueMutex, &ts);
-      if (ret == ETIMEDOUT) {
-        /* Timeout — re-check keepAliveRunning in outer loop */
-        break;
-      }
-    }
-
-    if (!keepAliveRunning)
-      break;
-    if (pendingCount == 0)
-      continue; /* Timeout with no requests — loop back */
-
-    /* Find a pending request */
-    for (int i = 0; i < MAX_PENDING; i++) {
-      if (pendingQueue[i].in_use && !pendingQueue[i].response_ready) {
-        PendingRequest *pr = &pendingQueue[i];
-        pthread_mutex_unlock(&queueMutex);
-
-        /* Process the request (safe — main thread) */
-        processRequest(pr);
-
-        /* Signal server thread that response is ready */
-        pthread_mutex_lock(&pr->mutex);
-        pr->response_ready = true;
-        pthread_cond_signal(&pr->response_cond);
-        pthread_mutex_unlock(&pr->mutex);
-
-        pthread_mutex_lock(&queueMutex);
-        break;
-      }
-    }
-  }
-
-  pthread_mutex_unlock(&queueMutex);
 }
 
 /* ==================== http.server(port, handler) ==================== */
@@ -543,13 +497,9 @@ InterpreterResult httpServer(int argc, RuntimeValue *argv,
     return resultFlow(FLOW_ERROR, valueString("Failed to start server thread"));
   }
 
-  /* Run event loop on main thread — processes handler calls */
-  pthread_mutex_lock(&keepAliveMutex);
-  keepAliveRunning = true;
-  pthread_mutex_unlock(&keepAliveMutex);
-
-  httpEventLoop();
-
+  /* The server thread owns request processing. Do not enter a blocking
+   * event loop here: callers must be able to continue to thread.sleep(),
+   * http.stop(), and other Rupa statements after server creation. */
   return resultNormal(valueNumber(id));
 }
 
@@ -575,12 +525,6 @@ InterpreterResult httpStop(int argc, RuntimeValue *argv,
   /* Signal server thread to stop */
   shutdown(server->server_fd, SHUT_RDWR);
   close(server->server_fd);
-
-  /* Wake up main thread event loop */
-  pthread_mutex_lock(&keepAliveMutex);
-  keepAliveRunning = false;
-  pthread_mutex_unlock(&keepAliveMutex);
-  pthread_cond_signal(&requestReadyCond);
 
   pthread_join(server->thread, NULL);
 

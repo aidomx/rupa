@@ -9,25 +9,21 @@ bool pathExists(const char *path) {
   return stat(path, &st) == 0;
 }
 
-bool readJsonString(const char *json, const char *key, char *out,
-                    size_t outSize) {
+bool readJsonString(const char *json, const char *key, char *out, size_t outSize) {
   char pattern[256];
   snprintf(pattern, sizeof(pattern), "\"%s\"", key);
 
   const char *pos = strstr(json, pattern);
-  if (!pos)
-    return false;
+  if (!pos) return false;
 
   pos = strchr(pos + strlen(pattern), ':');
-  if (!pos)
-    return false;
+  if (!pos) return false;
   pos++;
 
   while (*pos == ' ' || *pos == '\t')
     pos++;
 
-  if (*pos != '"')
-    return false;
+  if (*pos != '"') return false;
   pos++;
 
   size_t i = 0;
@@ -38,16 +34,13 @@ bool readJsonString(const char *json, const char *key, char *out,
   return i > 0;
 }
 
-bool readModuleJson(const char *dir, char *name, size_t nameSize,
-                    char *version, size_t versionSize,
-                    char *author, size_t authorSize,
-                    char *description, size_t descSize) {
+bool readModuleJson(const char *dir, char *name, size_t nameSize, char *version, size_t versionSize,
+                    char *author, size_t authorSize, char *description, size_t descSize) {
   char path[1024];
   snprintf(path, sizeof(path), "%s/module.json", dir);
 
   FILE *f = fopen(path, "r");
-  if (!f)
-    return false;
+  if (!f) return false;
 
   fseek(f, 0, SEEK_END);
   long size = ftell(f);
@@ -63,14 +56,10 @@ bool readModuleJson(const char *dir, char *name, size_t nameSize,
   fclose(f);
 
   bool ok = true;
-  if (name)
-    ok = ok && readJsonString(json, "name", name, nameSize);
-  if (version)
-    ok = ok && readJsonString(json, "version", version, versionSize);
-  if (author)
-    ok = ok && readJsonString(json, "author", author, authorSize);
-  if (description)
-    ok = ok && readJsonString(json, "description", description, descSize);
+  if (name) ok = ok && readJsonString(json, "name", name, nameSize);
+  if (version) ok = ok && readJsonString(json, "version", version, versionSize);
+  if (author) ok = ok && readJsonString(json, "author", author, authorSize);
+  if (description) ok = ok && readJsonString(json, "description", description, descSize);
 
   free(json);
   return ok;
@@ -86,9 +75,8 @@ int listArchive(const char *archivePath, const char *label) {
   snprintf(extractDir, sizeof(extractDir), "/tmp/rupa-pkg-%d", getpid());
 
   char cmd[2048];
-  snprintf(cmd, sizeof(cmd),
-           "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null",
-           extractDir, archivePath, extractDir);
+  snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", extractDir,
+           archivePath, extractDir);
   system(cmd);
 
   printf("%s:\n", label);

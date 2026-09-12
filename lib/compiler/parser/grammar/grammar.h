@@ -244,4 +244,6 @@ int grammarParseConditionalAssignment(struct Request *r, int a, int b, int *pos)
  */
 int grammarParseExpressionStatement(struct Request *r, int a, int b, int *pos);
 
+int grammarParseComment(struct Request *r, int a, int b, int *pos);
+
 #endif

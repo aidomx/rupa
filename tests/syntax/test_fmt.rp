@@ -1,0 +1,13 @@
+//comment
+/* comment */
+/*
+* comment
+*/
+/**
+* comment
+*/
+if true {
+  print(true)
+  }
+
+  x = 1

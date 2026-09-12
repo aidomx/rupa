@@ -3,12 +3,10 @@
 struct GarbageCollector *gc = NULL;
 
 void gcinit(int capacity) {
-  if (capacity <= 0 || gc)
-    return;
+  if (capacity <= 0 || gc) return;
 
   gc = calloc(1, sizeof(GarbageCollector));
-  if (!gc)
-    return;
+  if (!gc) return;
 
   gc->items = malloc(capacity * sizeof(void *));
   if (!gc->items) {
@@ -27,8 +25,7 @@ void gcinit(int capacity) {
 }
 
 void *gcrealloc(void *ptr, size_t new_size) {
-  if (!gc)
-    return realloc(ptr, new_size);
+  if (!gc) return realloc(ptr, new_size);
 
   pthread_mutex_lock(&gc->lock);
   int index = gcfind(ptr);
@@ -45,23 +42,20 @@ void *gcrealloc(void *ptr, size_t new_size) {
 
 void *gccalloc(size_t num, size_t size) {
   void *ptr = gcmall(num * size);
-  if (ptr)
-    memset(ptr, 0, num * size);
+  if (ptr) memset(ptr, 0, num * size);
   return ptr;
 }
 
 void *gcmall(size_t size) {
   void *ptr = malloc(size);
-  if (!ptr)
-    return NULL;
+  if (!ptr) return NULL;
 
   gcreg(ptr);
   return ptr;
 }
 
 void gcreg(void *ptr) {
-  if (!gc || !ptr)
-    return;
+  if (!gc || !ptr) return;
 
   pthread_mutex_lock(&gc->lock);
   if (gc->count >= gc->capacity) {
@@ -88,8 +82,7 @@ void gcfree(void *ptr) {
   for (int i = 0; i < gc->count; i++) {
     if (gc->items[i] == ptr) {
       free(ptr);
-      memmove(&gc->items[i], &gc->items[i + 1],
-              (gc->count - i - 1) * sizeof(void *));
+      memmove(&gc->items[i], &gc->items[i + 1], (gc->count - i - 1) * sizeof(void *));
       gc->count--;
       pthread_mutex_unlock(&gc->lock);
       return;
@@ -100,14 +93,12 @@ void gcfree(void *ptr) {
 }
 
 void gcremove(void *ptr) {
-  if (!gc || !ptr)
-    return;
+  if (!gc || !ptr) return;
 
   pthread_mutex_lock(&gc->lock);
   for (int i = 0; i < gc->count; i++) {
     if (gc->items[i] == ptr) {
-      memmove(&gc->items[i], &gc->items[i + 1],
-              (gc->count - i - 1) * sizeof(void *));
+      memmove(&gc->items[i], &gc->items[i + 1], (gc->count - i - 1) * sizeof(void *));
       gc->count--;
       pthread_mutex_unlock(&gc->lock);
       return;
@@ -117,8 +108,7 @@ void gcremove(void *ptr) {
 }
 
 void gcclean(void) {
-  if (!gc)
-    return;
+  if (!gc) return;
 
   pthread_mutex_lock(&gc->lock);
   if (gc->count > 0 && gc->items) {
@@ -139,32 +129,27 @@ void gcclean(void) {
 }
 
 int gcfind(void *ptr) {
-  if (!gc || !ptr)
-    return -1;
+  if (!gc || !ptr) return -1;
 
   /* Called both with and without lock held — use atomic read for count */
   int n = gc->count;
   for (int i = 0; i < n; i++) {
-    if (gc->items[i] == ptr)
-      return i;
+    if (gc->items[i] == ptr) return i;
   }
   return -1;
 }
 
 char *gcstrdup(const char *str) {
-  if (!str)
-    return NULL;
+  if (!str) return NULL;
 
   size_t len = strlen(str) + 1;
   char *dup = gcmall(len);
-  if (dup)
-    memcpy(dup, str, len);
+  if (dup) memcpy(dup, str, len);
   return dup;
 }
 
 char *gcstrndup(const char *str, size_t n) {
-  if (!str)
-    return NULL;
+  if (!str) return NULL;
 
   char *dup = gcmall(n + 1);
   if (dup) {
@@ -180,7 +165,6 @@ void **gcarray(size_t count, size_t element_size) {
 
 void *gcresize(void *ptr, size_t old_size, size_t new_size) {
   void *new_ptr = gcrealloc(ptr, new_size);
-  if (new_ptr && new_size > old_size)
-    memset((char *)new_ptr + old_size, 0, new_size - old_size);
+  if (new_ptr && new_size > old_size) memset((char *)new_ptr + old_size, 0, new_size - old_size);
   return new_ptr;
 }

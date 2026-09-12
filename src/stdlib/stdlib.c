@@ -1,17 +1,16 @@
 #include <rupa.h>
 
 /* Forward declarations for module initializers */
-extern InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env,
-                                   Error *error);
-extern InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
-                                   Error *error);
-extern InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
-                                       Error *error);
-extern InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env,
-                                     Error *error);extern InterpreterResult stdThreadInit(Node *node, int id, RuntimeEnv *env,
-                                   Error *error);
-extern InterpreterResult stdHttpInit(Node *node, int id, RuntimeEnv *env,
-                                   Error *error);
+extern InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdJsonInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdThreadInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdHttpInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdCryptoInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdDatetimeInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdNetInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdRegexInit(Node *node, int id, RuntimeEnv *env, Error *error);
 
 /* Module registry */
 typedef struct {
@@ -19,10 +18,17 @@ typedef struct {
   InterpreterResult (*init)(Node *node, int id, RuntimeEnv *env, Error *error);
 } StdModuleEntry;
 
-static StdModuleEntry stdlib_modules[] = {    {"os", stdOsInit},        {"io", stdIoInit},
-    {"stdstring", stdStringInit}, {"json", stdJsonInit},
-    {"thread", stdThreadInit}, {"http", stdHttpInit},
-    {NULL, NULL}};
+static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit},
+                                          {"io", stdIoInit},
+                                          {"stdstring", stdStringInit},
+                                          {"json", stdJsonInit},
+                                          {"thread", stdThreadInit},
+                                          {"http", stdHttpInit},
+                                          {"net", stdNetInit},
+                                          {"crypto", stdCryptoInit},
+                                          {"datetime", stdDatetimeInit},
+                                          {"regex", stdRegexInit},
+                                          {NULL, NULL}};
 
 /* Initialize stdlib — do NOT register modules as globals.
  * Modules (math, os, json, etc.) are only available via import.
@@ -37,8 +43,7 @@ void stdlibInit(RuntimeEnv *env) {
 
 /* Get a standard module by name */
 bool stdlibGetModule(const char *name, RuntimeValue *out) {
-  if (!name)
-    return false;
+  if (!name) return false;
 
   for (int i = 0; stdlib_modules[i].name != NULL; i++) {
     if (strcmp(stdlib_modules[i].name, name) == 0) {

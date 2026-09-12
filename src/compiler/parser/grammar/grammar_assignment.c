@@ -77,5 +77,5 @@ int grammarParseConditionalAssignment(Request *r, int a, int b, int *pos) {
 int grammarParseExpressionStatement(Request *r, int a, int b, int *pos) {
   int e = grammarParseExpr(r, a, b);
   *pos = b;
-  return e >= 0 ? createReturn(r->node, e) : -1;
+  return e >= 0 ? createExpressionStatement(r->node, e) : -1;
 }

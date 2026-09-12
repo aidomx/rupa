@@ -2,12 +2,13 @@ import dbtest from rupa
 import thread from rupa
 
 loader() {
-  if this.status == AWAIT:
+  if this.status == AWAIT {
     print("loading...\n")
-  else if this.status == SUCCESS:
+  } else if this.status == SUCCESS {
     print(this.data, "\n")
-  else:
+  } else {
     print(this.error, "\n")
+  }
 }
 
 slowGetUsers() {
@@ -16,7 +17,7 @@ slowGetUsers() {
 }
 
 // Fast request with long timeout → SUCCESS
-async dbtest.getUser() -> {loader, 5000}
+async dbtest.getUser() -> { loader, 5000 }
 
 // Slow request with short timeout → ERROR
-async slowGetUsers() -> {loader, 50}
+async slowGetUsers() -> { loader, 50 }

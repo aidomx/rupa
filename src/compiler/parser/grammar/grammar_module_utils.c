@@ -133,7 +133,15 @@ int grammarModuleDetectFlatImport(Token *t, int a, int b, int *fromPos) {
     return -1;
   if (t->data[a].type != IDENTIFIER && t->data[a].type != LITERAL_ID)
     return -1;
-  if (a + 1 >= b || t->data[a + 1].type != DOT)
+  /* First entry must continue with `.` (a.create) or an `as` alias
+   * (a as form.*) — old-style `import X from Y` falls through to the
+   * legacy parser instead. */
+  if (a + 1 >= b)
+    return -1;
+  TokenType next = t->data[a + 1].type;
+  bool asAlias = (next == KEYWORD || next == IDENTIFIER || next == LITERAL_ID) &&
+                 !strcmp(t->data[a + 1].value, "as");
+  if (next != DOT && !asAlias)
     return -1;
 
   int cur = a;

@@ -30,7 +30,7 @@ static pthread_mutex_t tableMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Wrapper to pass NativeFn args through pthread_create */
 typedef struct {
-  NativeFn fn;
+  RuntimeValue function;
   int argc;
   RuntimeValue *argv;
   ThreadEntry *entry;
@@ -38,7 +38,36 @@ typedef struct {
 
 static void *threadWrapper(void *arg) {
   ThreadWrapper *tw = (ThreadWrapper *)arg;
-  InterpreterResult r = tw->fn(tw->argc, tw->argv, NULL, NULL);
+  InterpreterResult r = resultNormal(valueNull());
+
+  if (tw->function.type == VALUE_NATIVE_FUNCTION &&
+      tw->function.as.nativeFunc) {
+    r = tw->function.as.nativeFunc->func(tw->argc, tw->argv, NULL, NULL);
+  } else if (tw->function.type == VALUE_FUNCTION &&
+             tw->function.as.function) {
+    RuntimeFunction *fn = tw->function.as.function;
+    RuntimeEnv *local = semCreateEnv(fn->closure);
+    if (!local) {
+      r = resultFlow(FLOW_ERROR, valueString("Failed to create thread environment"));
+    } else {
+      for (int i = 0; i < tw->argc && i < fn->paramLength; i++) {
+        const char *name = NULL;
+        int param = fn->params[i];
+        if (param >= 0 && param < fn->node->length) {
+          AstNode *pn = &fn->node->ast[param];
+          if (pn->type == NODE_IDENTIFIER) name = pn->identifier.name;
+          else if (pn->type == NODE_LITERAL_ID) name = pn->string.value;
+        }
+        if (name) semSet(local, name, tw->argv[i]);
+      }
+      r = interpretNode(fn->node, fn->body, local, NULL);
+      if (r.flow == FLOW_RETURN) r = resultNormal(r.value);
+    }
+  } else {
+    r = resultFlow(FLOW_ERROR, valueString("Invalid thread function"));
+  }
+
+  pthread_mutex_lock(&tableMutex);
   tw->entry->result = r.value;
   tw->entry->done = true;
   if (r.flow == FLOW_ERROR) {
@@ -46,6 +75,8 @@ static void *threadWrapper(void *arg) {
     snprintf(tw->entry->error_msg, sizeof(tw->entry->error_msg),
              "Thread error");
   }
+  pthread_mutex_unlock(&tableMutex);
+
   free(tw->argv);
   free(tw);
   return NULL;
@@ -54,9 +85,10 @@ static void *threadWrapper(void *arg) {
 /* ==================== thread.create(fn) ==================== */
 static InterpreterResult threadCreate(int argc, RuntimeValue *argv,
                                       RuntimeEnv *env, Error *error) {
-  if (argc < 1 || argv[0].type != VALUE_NATIVE_FUNCTION)
+  if (argc < 1 ||
+      (argv[0].type != VALUE_NATIVE_FUNCTION && argv[0].type != VALUE_FUNCTION))
     return resultFlow(FLOW_ERROR,
-                      valueString("thread.create() expects a native function"));
+                      valueString("thread.create() expects a function"));
 
   pthread_mutex_lock(&tableMutex);
   if (threadCount >= MAX_THREADS) {
@@ -76,7 +108,7 @@ static InterpreterResult threadCreate(int argc, RuntimeValue *argv,
 
   ThreadWrapper *tw = malloc(sizeof(ThreadWrapper));
   if (!tw) return resultFlow(FLOW_ERROR, valueString("malloc failed"));
-  tw->fn = argv[0].as.nativeFunc->func;
+  tw->function = argv[0];
   tw->argc = 0;
   tw->argv = NULL;
   tw->entry = entry;

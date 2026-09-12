@@ -5,12 +5,10 @@
 
 /* External declarations from package.c */
 extern bool pathExists(const char *path);
-extern bool readJsonString(const char *json, const char *key, char *out,
-                           size_t outSize);
-extern bool readModuleJson(const char *dir, char *name, size_t nameSize,
-                           char *version, size_t versionSize,
-                           char *author, size_t authorSize,
-                           char *description, size_t descSize);
+extern bool readJsonString(const char *json, const char *key, char *out, size_t outSize);
+extern bool readModuleJson(const char *dir, char *name, size_t nameSize, char *version,
+                           size_t versionSize, char *author, size_t authorSize, char *description,
+                           size_t descSize);
 extern int listArchive(const char *archivePath, const char *label);
 
 static void showUsage(void) {
@@ -20,10 +18,8 @@ static void showUsage(void) {
   fprintf(stderr, "  rupa add -g <package> <path>  Add to global archive\n");
   fprintf(stderr, "  rupa add <directory>          Auto-detect name, local\n");
   fprintf(stderr, "  rupa add -g <directory>       Auto-detect name, global\n");
-  fprintf(stderr,
-          "  rupa remove <package>         Remove from local archive\n");
-  fprintf(stderr,
-          "  rupa remove -g <package>      Remove from global archive\n");
+  fprintf(stderr, "  rupa remove <package>         Remove from local archive\n");
+  fprintf(stderr, "  rupa remove -g <package>      Remove from global archive\n");
   fprintf(stderr, "  rupa list                     List local packages\n");
   fprintf(stderr, "  rupa list -g                  List global packages\n");
   fprintf(stderr, "\nArchives:\n");
@@ -32,10 +28,8 @@ static void showUsage(void) {
 }
 
 static const char *findDownloader(void) {
-  if (system("command -v curl >/dev/null 2>&1") == 0)
-    return "curl";
-  if (system("command -v wget >/dev/null 2>&1") == 0)
-    return "wget";
+  if (system("command -v curl >/dev/null 2>&1") == 0) return "curl";
+  if (system("command -v wget >/dev/null 2>&1") == 0) return "wget";
   return NULL;
 }
 
@@ -46,51 +40,49 @@ static int downloadFile(const char *url, const char *dest) {
     return -1;
   }
 
-  char cmd[2048];
+  char cmd[MAX_CMD_LENGTH];
   if (strcmp(downloader, "curl") == 0) {
-    snprintf(cmd, sizeof(cmd), "curl -fsSL -o \"%s\" \"%s\"", dest, url);
+    snprintf(cmd, MAX_CMD_LENGTH, "curl -fsSL -o \"%s\" \"%s\"", dest, url);
   } else {
-    snprintf(cmd, sizeof(cmd), "wget -q -O \"%s\" \"%s\"", dest, url);
+    snprintf(cmd, MAX_CMD_LENGTH, "wget -q -O \"%s\" \"%s\"", dest, url);
   }
 
   return system(cmd);
 }
 
-static int addLocalPackage(const char *packageName, const char *sourcePath,
-                           bool global, const char *version) {
-  const char *archivePath =
-      global ? "~/.rupa/rupa_modules.tar.gz" : LOCAL_ARCHIVE;
+static int addLocalPackage(const char *packageName, const char *sourcePath, bool global,
+                           const char *version) {
+  const char *archivePath = global ? "~/.rupa/rupa_modules.tar.gz" : LOCAL_ARCHIVE;
 
-  char tempDir[1024];
-  snprintf(tempDir, sizeof(tempDir), "/tmp/rupa-add-%d", getpid());
-  char cmd[2048];
+  char tempDir[MAX_TMPDIR_LENGTH];
+  snprintf(tempDir, MAX_TMPDIR_LENGTH, "/tmp/rupa-add-%d", getpid());
+  char cmd[MAX_CMD_LENGTH];
 
   if (pathExists(archivePath)) {
-    snprintf(cmd, sizeof(cmd),
-             "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", tempDir,
-             archivePath, tempDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null",
+             tempDir, archivePath, tempDir);
     system(cmd);
   } else {
-    snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\"", tempDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\"", tempDir);
     system(cmd);
   }
 
-  char pkgDir[1024];
-  snprintf(pkgDir, sizeof(pkgDir), "%s/%s", tempDir, packageName);
+  char pkgDir[MAX_PKGDIR_LENGTH];
+  snprintf(pkgDir, MAX_PKGDIR_LENGTH, "%s/%s", tempDir, packageName);
 
-  snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", pkgDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", pkgDir);
   system(cmd);
 
-  snprintf(cmd, sizeof(cmd), "cp -r \"%s\" \"%s\"", sourcePath, pkgDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "cp -r \"%s\" \"%s\"", sourcePath, pkgDir);
   if (system(cmd) != 0) {
     fprintf(stderr, "Error: Failed to copy package from %s\n", sourcePath);
-    snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", tempDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", tempDir);
     system(cmd);
     return -1;
   }
 
-  char versionFile[1024];
-  snprintf(versionFile, sizeof(versionFile), "%s/.version", pkgDir);
+  char versionFile[MAX_VERSIONFILE_LENGTH];
+  snprintf(versionFile, MAX_VERSIONFILE_LENGTH, "%s/.version", pkgDir);
   FILE *fp = fopen(versionFile, "w");
   if (fp) {
     fprintf(fp, "%s", version);
@@ -103,24 +95,22 @@ static int addLocalPackage(const char *packageName, const char *sourcePath,
     size_t dirLen = (size_t)(lastSlash - archivePath);
     strncpy(archiveDir, archivePath, dirLen);
     archiveDir[dirLen] = '\0';
-    snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\"", archiveDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\"", archiveDir);
     system(cmd);
   }
 
-  snprintf(cmd, sizeof(cmd), "tar czf \"%s\" -C \"%s\" .", archivePath,
-           tempDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "tar czf \"%s\" -C \"%s\" .", archivePath, tempDir);
   if (system(cmd) != 0) {
     fprintf(stderr, "Error: Failed to create archive\n");
-    snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", tempDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", tempDir);
     system(cmd);
     return -1;
   }
 
-  snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", tempDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", tempDir);
   system(cmd);
 
-  printf("Package '%s' (v%s) added to %s.\n", packageName, version,
-         global ? "global" : "local");
+  printf("Package '%s' (v%s) added to %s.\n", packageName, version, global ? "global" : "local");
 
   stdlibLoaderRefresh();
 
@@ -136,32 +126,30 @@ static int removeLocalPackage(const char *packageName, bool global) {
     return 1;
   }
 
-  char tempDir[1024];
-  snprintf(tempDir, sizeof(tempDir), "/tmp/rupa-rm-%d", getpid());
-  char cmd[2048];
-  snprintf(cmd, sizeof(cmd),
-           "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", tempDir,
+  char tempDir[MAX_TMPDIR_LENGTH];
+  snprintf(tempDir, MAX_TMPDIR_LENGTH, "/tmp/rupa-rm-%d", getpid());
+  char cmd[MAX_CMD_LENGTH];
+  snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", tempDir,
            archivePath, tempDir);
   system(cmd);
 
-  char pkgDir[1024];
-  snprintf(pkgDir, sizeof(pkgDir), "%s/%s", tempDir, packageName);
+  char pkgDir[MAX_PKGDIR_LENGTH];
+  snprintf(pkgDir, MAX_PKGDIR_LENGTH, "%s/%s", tempDir, packageName);
   struct stat st;
   if (stat(pkgDir, &st) != 0 || !S_ISDIR(st.st_mode)) {
     fprintf(stderr, "Package '%s' not found.\n", packageName);
-    snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", tempDir);
+    snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", tempDir);
     system(cmd);
     return 1;
   }
 
-  snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", pkgDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", pkgDir);
   system(cmd);
 
-  snprintf(cmd, sizeof(cmd), "tar czf \"%s\" -C \"%s\" .", archivePath,
-           tempDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "tar czf \"%s\" -C \"%s\" .", archivePath, tempDir);
   system(cmd);
 
-  snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", tempDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", tempDir);
   system(cmd);
 
   printf("Package '%s' removed.\n", packageName);
@@ -219,8 +207,7 @@ int stdlibManage(const char *args[], int length) {
       }
       packageName = args[argStart];
       sourcePath = args[argStart + 1];
-      if (length - argStart > 2)
-        version = args[argStart + 2];
+      if (length - argStart > 2) version = args[argStart + 2];
     }
 
     return addLocalPackage(packageName, sourcePath, global, version);
@@ -246,8 +233,7 @@ int stdlibManage(const char *args[], int length) {
       listArchive(archivePath, "Global packages (~/.rupa/rupa_modules.tar.gz)");
       free(archivePath);
     } else {
-      listArchive(LOCAL_ARCHIVE,
-                  "Local packages (./modules/rupa_modules.tar.gz)");
+      listArchive(LOCAL_ARCHIVE, "Local packages (./modules/rupa_modules.tar.gz)");
     }
     return 0;
   }

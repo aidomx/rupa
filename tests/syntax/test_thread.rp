@@ -1,0 +1,5 @@
+import thread from rupa
+
+print("Before sleep\n")
+thread.sleep(100)
+print("After sleep\n")
