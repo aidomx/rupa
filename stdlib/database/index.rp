@@ -1,9 +1,7 @@
-/**
- * Database Manage
- * Untuk mendukung penggunaan Database
- * File ini hanya untuk re-export
- */
+// index.rp — Public entry untuk modul database.
+// `import db from rupa` binds namespace db { driver, dsn, open }.
 namespace db {
-  export driver.* -> { getDriver: private }
+  export driver from ./driver
+  export dsn from ./dsn
+  export open.open from ./open
 }
-

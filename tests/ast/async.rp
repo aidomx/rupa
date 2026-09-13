@@ -1,3 +1,5 @@
-async request => {
+loader() {
   print("Request created\n")
-} -> 5000
+}
+
+async request -> { loader, 5000 }

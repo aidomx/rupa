@@ -1,0 +1,119 @@
+// dsn.rp — Parser DSN generik.
+// Bentuk: scheme://[user[:pass]@]host[:port][/database]
+// Contoh: mariadb://admin:secret@db.local:3307/shop
+//         sqlite://data/app.db
+//         nosql://cluster.local:9200/cache
+
+parse(text) {
+  u = { scheme: "", user: "", pass: "", host: "", port: 0, path: "", raw: text }
+
+  n = len(text)
+
+  // scheme: sampai "://"
+  i = 0
+  while i + 2 < n && !(text[i] == ":" && text[i + 1] == "/" && text[i + 2] == "/") {
+    u.scheme = u.scheme + text[i]
+    i = i + 1
+  }
+  if i + 2 >= n {
+    u.scheme = ""
+    return u
+  }
+  i = i + 3
+
+  // authority: sampai "/" pertama
+  auth = ""
+  while i < n && text[i] != "/" {
+    auth = auth + text[i]
+    i = i + 1
+  }
+  // path: sisanya (termasuk "/" awal)
+  path = ""
+  while i < n {
+    path = path + text[i]
+    i = i + 1
+  }
+  u.path = path
+
+  m = len(auth)
+
+  // userinfo: segmen terakhir sebelum "@"
+  at = -1
+  j = 0
+  while j < m {
+    if auth[j] == "@":
+      at = j
+    j = j + 1
+  }
+  hostpart = auth
+  if at >= 0 {
+    userinfo = ""
+    k = 0
+    while k < at {
+      userinfo = userinfo + auth[k]
+      k = k + 1
+    }
+    hostpart = ""
+    k = at + 1
+    while k < m {
+      hostpart = hostpart + auth[k]
+      k = k + 1
+    }
+    colon = -1
+    k = 0
+    ul = len(userinfo)
+    while k < ul {
+      if userinfo[k] == ":":
+        colon = k
+      k = k + 1
+    }
+    if colon >= 0 {
+      uu = ""
+      k = 0
+      while k < colon {
+        uu = uu + userinfo[k]
+        k = k + 1
+      }
+      pp = ""
+      k = colon + 1
+      while k < ul {
+        pp = pp + userinfo[k]
+        k = k + 1
+      }
+      u.user = uu
+      u.pass = pp
+    } else {
+      u.user = userinfo
+    }
+  }
+
+  // host:port
+  colon = -1
+  k = 0
+  hl = len(hostpart)
+  while k < hl {
+    if hostpart[k] == ":":
+      colon = k
+    k = k + 1
+  }
+  if colon >= 0 {
+    hh = ""
+    k = 0
+    while k < colon {
+      hh = hh + hostpart[k]
+      k = k + 1
+    }
+    num = ""
+    k = colon + 1
+    while k < hl {
+      num = num + hostpart[k]
+      k = k + 1
+    }
+    u.host = hh
+    u.port = toNumber(num)
+  } else {
+    u.host = hostpart
+  }
+
+  return u
+}

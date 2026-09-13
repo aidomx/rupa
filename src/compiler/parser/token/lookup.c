@@ -58,6 +58,10 @@ int getPrecedence(DataToken *token) {
   case GREATER_THAN:
   case GREATER_EQUAL:
     return 10;
+  case LOGICAL_AND: /* di bawah comparison, di atas PIPE/ARROW */
+    return 5;
+  case LOGICAL_OR:
+    return 4;
   default:
     return -1;
   }

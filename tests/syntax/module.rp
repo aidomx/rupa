@@ -3,11 +3,9 @@ import b.*, c.*, d.* from ../modules as m
 import os from rupa
 import a.* as form, b.login, b.register from ../modules
 import d from ../modules
-import math from rupa
-import db from rupa
+import db, math from rupa
 
 print(db)
-
 
 print(math + "\n")
 print(math.add(1, 2) + "\n")

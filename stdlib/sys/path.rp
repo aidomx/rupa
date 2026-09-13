@@ -1,0 +1,132 @@
+// path.rp — Path utilities untuk modul sys.
+// Semua fungsi bekerja dengan path bergaya POSIX ("/").
+
+sep() {
+  return "/"
+}
+
+isAbsolute(path) {
+  return len(path) > 0 && path[0] == "/"
+}
+
+// Buang segmen terakhir dari text: "a/b" -> "a", "seg" -> ""
+dropLastSeg(text) {
+  cut = len(text)
+  while cut > 0 && text[cut - 1] != "/" {
+    cut = cut - 1
+  }
+  if cut == 0: return ""
+  result = ""
+  i = 0
+  while i < cut - 1 {
+    result = result + text[i]
+    i = i + 1
+  }
+  return result
+}
+
+// Ambil segmen terakhir: "a/b.txt" -> "b.txt"
+lastSeg(text) {
+  i = len(text) - 1
+  while i >= 0 && text[i] != "/" {
+    i = i - 1
+  }
+  result = ""
+  j = i + 1
+  while j < len(text) {
+    result = result + text[j]
+    j = j + 1
+  }
+  return result
+}
+
+// Gabung segmen path, otomatis tambah "/" di antaranya
+join(base, rest) {
+  if len(rest) == 0: return base
+  if len(base) == 0: return rest
+  hasTrailing = base[len(base) - 1] == "/"
+  hasLeading = rest[0] == "/"
+  if hasTrailing || hasLeading: return base + rest
+  return base + "/" + rest
+}
+
+// Nama file terakhir: "dir/file.txt" -> "file.txt"
+base(path) {
+  return lastSeg(path)
+}
+
+// Directory: "dir/file.txt" -> "dir", "file.txt" -> ""
+dir(path) {
+  return dropLastSeg(path)
+}
+
+// Ekstensi: "file.tar.gz" -> "gz", "file" -> ""
+ext(path) {
+  name = lastSeg(path)
+  i = len(name) - 1
+  while i > 0 {
+    if name[i] == "/": return ""
+    if name[i] == "." {
+      result = ""
+      j = i + 1
+      while j < len(name) {
+        result = result + name[j]
+        j = j + 1
+      }
+      return result
+    }
+    i = i - 1
+  }
+  return ""
+}
+
+normalize(path) {
+  if len(path) == 0: return "."
+  absolute = isAbsolute(path)
+  trailing = path[len(path) - 1] == "/"
+  // akumulasi segmen yang disimpan sebagai "/seg" beruntun
+  acc = ""
+  depth = 0
+  seg = ""
+  i = 0
+  while i <= len(path) {
+    ch = ""
+    if i < len(path): ch = path[i]
+    if i == len(path) || ch == "/" {
+      if len(seg) > 0 {
+        if seg == ".." {
+          if depth > 0 {
+            acc = dropLastSeg(acc)
+            depth = depth - 1
+          } else if !absolute {
+            acc = acc + "/.."
+          }
+        } else if seg != "." {
+          acc = acc + "/" + seg
+          depth = depth + 1
+        }
+        seg = ""
+      }
+    } else {
+      seg = seg + ch
+    }
+    i = i + 1
+  }
+
+  if len(acc) == 0 {
+    if absolute: return "/"
+    return "."
+  }
+
+  // acc berbentuk "/seg/seg": relative buang slash depan, absolute pertahankan
+  result = ""
+  i = 1
+  while i < len(acc) {
+    result = result + acc[i]
+    i = i + 1
+  }
+  if absolute: result = "/" + result
+  if trailing && len(result) > 0 && result != "/":
+    result = result + "/"
+  return result
+}

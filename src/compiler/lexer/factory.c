@@ -4,14 +4,11 @@ void clearToken(Token *token, int capacity) {
   if (!token)
     return;
 
+  /* Token strings are GC-owned (gcstrdup) — never free() them here or the
+   * allocator mismatches and the heap corrupts. GC reclaims them. */
   for (int i = 0; i < token->length; i++) {
-    if (token->data[i].value) {
-      free(token->data[i].value);
-    }
-
-    if (token->data[i].safetyType) {
-      free(token->data[i].safetyType);
-    }
+    token->data[i].value = NULL;
+    token->data[i].safetyType = NULL;
     token->data[i].line = 0;
     token->data[i].row = 0;
     token->data[i].type = 0;
@@ -70,12 +67,12 @@ int createTokenId(State *state, int start, int end) {
                     .row = ed->cursorCol,
                     .safetyType = NULL,
                     .type = IDENTIFIER,
-                    .value = strdup(id)};
+                    .value = gcstrdup(id)};
 
   gcfree(id);
 
   if (safetyType) {
-    data.safetyType = strdup(safetyType);
+    data.safetyType = gcstrdup(safetyType);
     gcfree(safetyType);
   }
 
@@ -112,9 +109,11 @@ DataToken createDataToken(char *input, char *safetyType, TokenType tokenType,
                           int line, int row) {
   DataToken data = {.line = line,
                     .row = row,
-                    .safetyType = safetyType ? strdup(safetyType) : NULL,
+                    .safetyType = safetyType ? gcstrdup(safetyType) : NULL,
                     .type = tokenType,
-                    .value = strdup(input)};
+                    /* input may legitimately be NULL/empty (e.g. an empty
+                     * `//` comment); strdup(NULL) is UB and segfaults. */
+                    .value = input ? gcstrdup(input) : NULL};
 
   return data;
 }

@@ -204,6 +204,7 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
   RuntimeEnv *mod_env = semCreateEnv(NULL);
   if (!mod_env) return valueNull();
   stdlibInit(mod_env);
+  builtinsInit(mod_env); /* len, type, … wajib tersedia di scope module */
 
   const char *prev_path = g_source_file_path;
 

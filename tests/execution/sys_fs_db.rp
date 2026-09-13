@@ -1,0 +1,72 @@
+// Test modul fs & database (jalankan: ./bin/rupa --test-exec tests/execution/sys_fs_db.rp)
+import fs from rupa
+import db from rupa
+
+assertEq(type(fs.read), "function")
+assertEq(type(fs.readLines), "function")
+assertEq(type(fs.copy), "function")
+assertEq(type(db.open), "function")
+assertEq(type(db.driver), "object")
+
+// fs: write/read round-trip
+assertEq(fs.write("/tmp/rupa_fs_test.txt", "hello\nworld"), true)
+assertEq(fs.read("/tmp/rupa_fs_test.txt"), "hello\nworld")
+
+// fs: lines
+assertEq(fs.readLines("/tmp/rupa_fs_test.txt"), ["hello", "world"])
+assertEq(fs.writeLines("/tmp/rupa_fs_test2.txt", ["a", "b"]), true)
+assertEq(fs.read("/tmp/rupa_fs_test2.txt"), "a\nb\n")
+
+// fs: path helpers
+assertEq(fs.base("a/b/c.txt"), "c.txt")
+assertEq(fs.dir("a/b/c.txt"), "a/b")
+assertEq(fs.ext("a/b/c.txt"), "txt")
+assertEq(fs.join("a", "b.txt"), "a/b.txt")
+
+// fs: copy + move + remove
+assertEq(fs.copy("/tmp/rupa_fs_test.txt", "/tmp/rupa_fs_copy.txt"), true)
+assertEq(fs.exists("/tmp/rupa_fs_copy.txt"), true)
+assertEq(fs.move("/tmp/rupa_fs_copy.txt", "/tmp/rupa_fs_moved.txt"), true)
+assertEq(fs.exists("/tmp/rupa_fs_copy.txt"), false)
+assertEq(fs.remove("/tmp/rupa_fs_moved.txt"), true)
+assertEq(fs.exists("/tmp/rupa_fs_moved.txt"), false)
+fs.remove("/tmp/rupa_fs_test.txt")
+fs.remove("/tmp/rupa_fs_test2.txt")
+
+// db: driver registry
+assertEq(db.driver.has("sqlite"), true)
+assertEq(db.driver.has("mariadb"), true)
+assertEq(db.driver.has("mysql"), true)
+assertEq(db.driver.has("psql"), true)
+assertEq(db.driver.has("nosql"), true)
+assertEq(db.driver.has("oracle"), false)
+assertEq(db.driver.list(), ["nosql", "mariadb", "mysql", "psql", "sqlite"])
+
+// db: DSN parser
+u = db.dsn.parse("mariadb://admin:secret@db.local:3307/shop")
+assertEq(u.scheme, "mariadb")
+assertEq(u.user, "admin")
+assertEq(u.pass, "secret")
+assertEq(u.host, "db.local")
+assertEq(u.port, 3307)
+assertEq(u.path, "/shop")
+
+// db: open (validasi & koneksi)
+c = db.open("sqlite://data/app.db")
+assertEq(c.ok, true)
+assertEq(c.driver, "sqlite")
+assertEq(c.database, "data/app.db")
+
+c2 = db.open("mariadb://admin:secret@db.local/shop")
+assertEq(c2.ok, true)
+assertEq(c2.host, "db.local")
+assertEq(c2.port, 3306) // default port dari spec driver
+
+c3 = db.open("psql://u:p@h:5433/dbx")
+assertEq(c3.ok, true)
+assertEq(c3.port, 5433)
+
+assertEq(db.open("oracle://x/y").ok, false)
+assertEq(db.open("mariadb://admin@db.local/shop").ok, false)
+
+print("sys_fs_db: all assertions passed")

@@ -16,5 +16,11 @@ InterpreterResult stdStringEndsWith(int argc, RuntimeValue *argv,
                                     RuntimeEnv *env, Error *error);
 InterpreterResult stdStringReplace(int argc, RuntimeValue *argv,
                                    RuntimeEnv *env, Error *error);
+InterpreterResult stdStringSplit(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                 Error *error);
+InterpreterResult stdStringIndexOf(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error);
+InterpreterResult stdStringSlice(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                 Error *error);
 
 #endif

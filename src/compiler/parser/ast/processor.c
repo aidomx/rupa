@@ -29,8 +29,16 @@ Node *processGenerate(Request *req) {
     if (p >= req->tokens->length || isToken(req->tokens, p, ENDOF))
       break;
     int before = p, id = grammarParseStatement(req, &p, req->tokens->length);
-    if (id >= 0)
+    if (id >= 0) {
       addToProgram(req->node, req->programId, id);
+    } else if (req->error) {
+      DataToken *bad = &req->tokens->data[before];
+      char message[256];
+      snprintf(message, sizeof(message), "unexpected token '%s'",
+               bad->value ? bad->value : "");
+      addSourceError(req->error, "SyntaxError", message, bad->line, bad->row,
+                     ERR_UNEXPECTED_TOKEN);
+    }
     if (p <= before)
       p++;
   }

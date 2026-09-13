@@ -1,0 +1,5 @@
+// index.rp — Public entry point untuk modul sys.
+// `import sys from rupa` binds this package object directly.
+
+export env, cwd, platform, arch, hostname, user, home, tmp, exists, path from ./sys
+export sep, join, base, dir, ext, normalize, isAbsolute from ./path

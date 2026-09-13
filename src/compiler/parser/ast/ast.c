@@ -1,5 +1,7 @@
 #include <rupa.h>
 
+DataToken *g_parser_token = NULL;
+
 /**
  * @brief Menambahkan deklarasi ke dalam program node AST.
  *
@@ -56,15 +58,20 @@ void addToProgram(Node *node, int programId, int declId) {
  *
  * @note Struktur ini dipakai sebagai "state container" utama parser.
  */
-Request createRequest(Token *tokens, int capacity) {
+Request createRequestWithError(Token *tokens, int capacity, Error *error) {
   Request req = {.tokens = tokens,
                  .node = createNode(capacity),
                  .left = -1,
                  .right.start = -1,
                  .right.end = -1,
-                 .programId = createProgram(req.node)};
-
+                 .programId = -1,
+                 .error = error};
+  req.programId = createProgram(req.node);
   return req;
+}
+
+Request createRequest(Token *tokens, int capacity) {
+  return createRequestWithError(tokens, capacity, NULL);
 }
 
 /**

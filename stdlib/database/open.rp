@@ -1,0 +1,81 @@
+// open.rp — Membuka koneksi database via DSN.
+// Validasi sesuai spec driver, lalu kembalikan object koneksi.
+// Saat ini belum ada I/O jaringan: status "ready" berarti DSN valid
+// dan parameter koneksi lengkap — siap disambungkan ke driver nyata.
+//
+// Format server : scheme://[user[:pass]@]host[:port]/database
+// Format sqlite : sqlite://file.db  atau  sqlite:///abs/path/file.db
+
+import dsn from ./dsn
+import driver from ./driver
+
+// Nama database dari path: "/shop" -> "shop", "" -> ""
+dbName(path) {
+  if len(path) == 0:
+    return ""
+  out = ""
+  i = 1
+  n = len(path)
+  while i < n {
+    out = out + path[i]
+    i = i + 1
+  }
+  return out
+}
+
+openConn(u, spec) {
+  port = u.port
+  if port == 0:
+    port = spec.port
+
+  return {
+    ok: true,
+    driver: u.scheme,
+    host: u.host,
+    port: port,
+    database: dbName(u.path),
+    user: u.user,
+    dsn: u.raw,
+    status: "ready"
+  }
+}
+
+openSqlite(u) {
+  // authority + path = lokasi file: "data" + "/app.db" -> "data/app.db"
+  file = u.host + u.path
+  if len(file) == 0:
+    return { ok: false, error: "sqlite requires a file path", dsn: u.raw }
+
+  return {
+    ok: true,
+    driver: "sqlite",
+    host: "",
+    port: 0,
+    database: file,
+    user: "",
+    dsn: u.raw,
+    status: "ready"
+  }
+}
+
+open(text) {
+  u = dsn.parse(text)
+  spec = driver.get(u.scheme)
+  if spec == null:
+    return { ok: false, error: "unknown driver: " + u.scheme, dsn: text }
+
+  if len(u.scheme) == 0:
+    return { ok: false, error: "missing scheme", dsn: text }
+
+  if u.scheme == "sqlite":
+    return openSqlite(u)
+
+  if len(u.host) == 0:
+    return { ok: false, error: "host is required", dsn: text }
+  if spec.needsAuth && (len(u.user) == 0 || len(u.pass) == 0):
+    return { ok: false, error: "user and password are required", dsn: text }
+  if len(u.path) == 0:
+    return { ok: false, error: "database name is required", dsn: text }
+
+  return openConn(u, spec)
+}

@@ -26,6 +26,7 @@ extern void fmtNumber(Formatter *f, Node *node, int id);
 extern void fmtDecimal(Formatter *f, Node *node, int id);
 extern void fmtBoolean(Formatter *f, Node *node, int id);
 extern void fmtString(Formatter *f, Node *node, int id);
+extern void fmtStringInterp(Formatter *f, Node *node, int id);
 extern void fmtNull(Formatter *f);
 
 /* ==================== Expression formatters ==================== */

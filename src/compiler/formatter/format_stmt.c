@@ -35,59 +35,55 @@ void fmtIf(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtStr(f, "if ");
   fmtNode(f, node, n->asIf.condition);
-  fmtSep(f);
 
   AstNode *thenNode = (n->asIf.thenBlock >= 0) ? &node->ast[n->asIf.thenBlock] : NULL;
-  if (thenNode && thenNode->type == NODE_BLOCK) {
-    fmtChar(f, '{');
-    fmtNewline(f);
-    f->indent++;
-    for (int i = 0; i < thenNode->block.length; i++) {
-      fmtNode(f, node, thenNode->block.statements[i]);
-      fmtNewline(f);
+  if (!n->asIf.isBlock) {
+    fmtStr(f, ":");
+    if (thenNode && thenNode->type == NODE_BLOCK && thenNode->block.length == 1) {
+      fmtStr(f, " ");
+      fmtNode(f, node, thenNode->block.statements[0]);
+    } else if (n->asIf.thenBlock >= 0) {
+      fmtStr(f, " ");
+      fmtNode(f, node, n->asIf.thenBlock);
     }
-    f->indent--;
-    fmtStr(f, "}");
   } else {
+    fmtStr(f, " {");
     fmtNewline(f);
     f->indent++;
-    if (n->asIf.thenBlock >= 0) fmtNode(f, node, n->asIf.thenBlock);
-    fmtNewline(f);
+    if (thenNode && thenNode->type == NODE_BLOCK) {
+      for (int i = 0; i < thenNode->block.length; i++) {
+        fmtNode(f, node, thenNode->block.statements[i]);
+        fmtNewline(f);
+      }
+    }
     f->indent--;
     fmtStr(f, "}");
   }
 
   if (n->asIf.elseBlock >= 0) {
-    fmtSep(f);
     AstNode *elseNode = &node->ast[n->asIf.elseBlock];
+    fmtStr(f, " else");
     if (elseNode->type == NODE_IF) {
-      fmtStr(f, "else ");
+      fmtStr(f, " ");
       fmtIf(f, node, n->asIf.elseBlock);
     } else {
-      fmtStr(f, "else");
-      fmtSep(f);
+      fmtStr(f, " {");
+      fmtNewline(f);
+      f->indent++;
       if (elseNode->type == NODE_BLOCK) {
-        fmtChar(f, '{');
-        fmtNewline(f);
-        f->indent++;
         for (int i = 0; i < elseNode->block.length; i++) {
           fmtNode(f, node, elseNode->block.statements[i]);
           fmtNewline(f);
         }
-        f->indent--;
-        fmtStr(f, "}");
       } else {
-        fmtNewline(f);
-        f->indent++;
         fmtNode(f, node, n->asIf.elseBlock);
         fmtNewline(f);
-        f->indent--;
-        fmtStr(f, "}");
       }
+      f->indent--;
+      fmtStr(f, "}");
     }
   }
 }
-
 void fmtLoop(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtStr(f, n->loop.kind);

@@ -23,6 +23,9 @@ void fmtNode(Formatter *f, Node *node, int id) {
   case NODE_STRING:
     fmtString(f, node, id);
     break;
+  case NODE_STRING_INTERP:
+    fmtStringInterp(f, node, id);
+    break;
   case NODE_NULLABLE:
     fmtNull(f);
     break;

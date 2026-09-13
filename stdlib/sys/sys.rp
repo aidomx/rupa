@@ -1,0 +1,51 @@
+// sys.rp — Informasi & utilitas sistem.
+// Modul murni bahasa Rupa: facade atas module os (native) + path utilities.
+
+import os from rupa
+import sep, join, base, dir, ext, normalize, isAbsolute from ./path
+
+env(key) {
+  return os.getenv(key)
+}
+
+cwd() {
+  return os.getcwd()
+}
+
+platform() {
+  return os.info("sysname")
+}
+
+arch() {
+  return os.info("machine")
+}
+
+hostname() {
+  return os.info("hostname")
+}
+
+user() {
+  return os.info("user")
+}
+
+home() {
+  return os.getenv("HOME")
+}
+
+tmp() {
+  return "/tmp"
+}
+
+exists(path) {
+  return os.path.exists(path)
+}
+
+path = {
+  sep: "/",
+  join: join,
+  base: base,
+  dir: dir,
+  ext: ext,
+  normalize: normalize,
+  isAbsolute: isAbsolute
+}

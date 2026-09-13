@@ -11,6 +11,7 @@ extern InterpreterResult stdCryptoInit(Node *node, int id, RuntimeEnv *env, Erro
 extern InterpreterResult stdDatetimeInit(Node *node, int id, RuntimeEnv *env, Error *error);
 extern InterpreterResult stdNetInit(Node *node, int id, RuntimeEnv *env, Error *error);
 extern InterpreterResult stdRegexInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdFsbaseInit(Node *node, int id, RuntimeEnv *env, Error *error);
 
 /* Module registry */
 typedef struct {
@@ -28,6 +29,7 @@ static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit},
                                           {"crypto", stdCryptoInit},
                                           {"datetime", stdDatetimeInit},
                                           {"regex", stdRegexInit},
+                                          {"fsbase", stdFsbaseInit},
                                           {NULL, NULL}};
 
 /* Initialize stdlib — do NOT register modules as globals.

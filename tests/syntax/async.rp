@@ -1,5 +1,4 @@
-import dbtest from rupa
-import thread from rupa
+import dbtest, thread from rupa
 
 loader() {
   if this.status == AWAIT {

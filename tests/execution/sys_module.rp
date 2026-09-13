@@ -1,0 +1,33 @@
+// test_sys.rp — Regression test untuk module sys (stdlib/sys)
+import sys from rupa
+
+// facade os
+assertEq(type(sys.cwd()), "string")
+assertEq(type(sys.platform()), "string")
+assertEq(sys.tmp(), "/tmp")
+assertEq(sys.exists("/tmp"), true)
+assertEq(sys.exists("/no/such/path/xyz"), false)
+
+// path utilities
+assertEq(sys.path.sep, "/")
+assertEq(sys.path.join("a", "b"), "a/b")
+assertEq(sys.path.join("a/", "b"), "a/b")
+assertEq(sys.path.join("a", "/b"), "a/b")
+assertEq(sys.path.base("dir/f.txt"), "f.txt")
+assertEq(sys.path.dir("dir/f.txt"), "dir")
+assertEq(sys.path.ext("x.tar.gz"), "gz")
+assertEq(sys.path.ext("Makefile"), "")
+assertEq(sys.path.isAbsolute("/a"), true)
+assertEq(sys.path.isAbsolute("a/b"), false)
+assertEq(sys.path.normalize("a/./b/../c"), "a/c")
+assertEq(sys.path.normalize("/a/../b/c"), "/b/c")
+assertEq(sys.path.normalize(".."), "..")
+assertEq(sys.path.normalize("/"), "/")
+
+// && || ! (dukungan logical operator)
+assertEq(true && true, true)
+assertEq(true && false, false)
+assertEq(false || true, true)
+assertEq(!false, true)
+
+print("sys module OK\n")

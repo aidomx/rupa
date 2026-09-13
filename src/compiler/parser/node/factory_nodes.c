@@ -174,11 +174,12 @@ int createBlock(Node *root, int *items, int length) {
   return createAst(root, n);
 }
 
-int createIf(Node *root, int condition, int thenBlock, int elseBlock) {
+int createIf(Node *root, int condition, int thenBlock, int elseBlock, bool isBlock) {
   AstNode n = {.type = NODE_IF};
   n.asIf.condition = condition;
   n.asIf.thenBlock = thenBlock;
   n.asIf.elseBlock = elseBlock;
+  n.asIf.isBlock = isBlock;
   return createAst(root, n);
 }
 

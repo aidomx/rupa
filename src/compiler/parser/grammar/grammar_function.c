@@ -14,8 +14,14 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
 
   int name = createId(r->node, t->data[a].value);
   int *ps = NULL, n = 0, start = a + 2;
+  int depth = 0; /* kedalaman kurung: koma di dalam nested call bukan pemisah */
   for (int j = a + 2; j <= c; j++) {
-    if (j == c || (j < c && t->data[j].type == COMMA)) {
+    TokenType q = t->data[j].type;
+    if (q == LPAREN || q == LBLOCK || q == LBRACE)
+      depth++;
+    else if (q == RPAREN || q == RBLOCK || q == RBRACE)
+      depth--;
+    if (j == c || (j < c && depth == 0 && t->data[j].type == COMMA)) {
       int pid = -1;
 
       /* The lexer normalizes a simple "name: Type" parameter into a

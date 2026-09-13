@@ -28,35 +28,6 @@
  * Returns true and advances *p past the comment if found.
  * Returns false if *p is not at a comment start.
  */
-static bool skipComment(const char *s, int *p, int end) {
-  char c = s[*p];
-  char next = (*p + 1 < end) ? s[*p + 1] : 0;
-
-  /* Single comment : # or // */
-  if (c == '#' || (c == '/' && next == '/')) {
-    while (*p < end && s[*p] != '\n')
-      (*p)++;
-    if (*p < end && s[*p] == '\n') return true;
-    return false;
-  }
-
-  /* Block comment: slash-star ... star-slash */
-  if (c == '/' && next == '*') {
-    (*p) += 2;
-    while (*p < end - 1) {
-      if (s[*p] == '*' && s[*p + 1] == '/') {
-        (*p) += 2;
-        return true;
-      }
-      (*p)++;
-    }
-    /* Unterminated block comment */
-    *p = end;
-    return true;
-  }
-
-  return false;
-}
 
 /* ==================== Source-based formatting ==================== */
 
@@ -102,6 +73,44 @@ static const char *getDeclNeedle(Node *node, int nodeId) {
   }
 }
 
+/*
+ * Find the start of the next declaration in source.
+ *
+ * Prefers an occurrence of needle that begins a physical line (only
+ * whitespace before it on that line) so a short identifier like `i`
+ * does not match inside an unconsumed `for i < x.length` header or
+ * `print(...)` body — which used to reorder `i = 0` ahead of the
+ * comment preceding it. Falls back to the first plain occurrence so
+ * declarations that do not start a line still match.
+ */
+static int findDeclStart(const char *src, int srcPos, int srcLen,
+                         const char *needle) {
+  if (!needle) return -1;
+  size_t nlen = strlen(needle);
+  if (nlen == 0) return -1;
+
+  int pos = srcPos;
+  int fallback = -1;
+  while (pos + (int)nlen <= srcLen) {
+    const char *found = strstr(src + pos, needle);
+    if (!found) break;
+    int p = (int)(found - src);
+    if (fallback < 0) fallback = p;
+
+    /* Walk back over indentation; the match is at line start when the
+     * preceding char is a newline (or the match begins the file). */
+    int q = p;
+    while (q > 0 && src[q - 1] != '\n' &&
+           (src[q - 1] == ' ' || src[q - 1] == '\t'))
+      q--;
+    if (q == 0 || src[q - 1] == '\n')
+      return p;
+
+    pos = p + 1;
+  }
+  return fallback;
+}
+
 static int runFormat(State *state, Formatter *fmt) {
   Buffer *buffer = state->buffer;
   const char *src = buffer->value;
@@ -113,13 +122,22 @@ static int runFormat(State *state, Formatter *fmt) {
 
   Token *tokens = state->tokens;
   if (!tokens || tokens->length == 0 || (state->input->flags && state->input->flags->isWaiting)) {
-    fprintf(stderr, "Error: Compiled is failed\n");
+    if (!state->error || state->error->size == 0)
+      addSourceErrorAt(state->error, "LexerError", "no tokens produced",
+                       state->input->content, state->input->cursor, ERR_UNEXPECTED_EOF);
+    printErrors(state->error);
     return 1;
   }
 
-  Request req = createRequest(tokens, 10);
+  Request req = createRequestWithError(tokens, 10, state->error);
   Node *node = processGenerate(&req);
-  if (!node || node->length <= 0) return 1;
+  if (!node || node->length <= 0) {
+    if (!state->error || state->error->size == 0)
+      addSourceErrorAt(state->error, "ParserError", "failed to build AST",
+                       state->input->content, state->input->cursor, ERR_SYNTAX);
+    printErrors(state->error);
+    return 1;
+  }
 
   int root = -1;
   for (int i = 0; i < node->length; i++) {
@@ -129,7 +147,12 @@ static int runFormat(State *state, Formatter *fmt) {
     }
   }
 
-  if (root < 0) return 1;
+  if (root < 0) {
+    addSourceErrorAt(state->error, "ParserError", "program root not found",
+                     state->input->content, state->input->cursor, ERR_SYNTAX);
+    printErrors(state->error);
+    return 1;
+  }
 
   AstNode *prog = &node->ast[root];
   AstDeclaration *current = prog->program.declarations;
@@ -159,8 +182,7 @@ static int runFormat(State *state, Formatter *fmt) {
     const char *needle = getDeclNeedle(node, declIds[d]);
     int declStart = -1;
     if (needle) {
-      const char *found = strstr(src + srcPos, needle);
-      if (found) declStart = (int)(found - src);
+      declStart = findDeclStart(src, srcPos, srcLen, needle);
     }
     /* For comment declarations without a needle, find the next non-comment
      * declaration's needle so we only scan source up to that point. */
@@ -172,8 +194,7 @@ static int runFormat(State *state, Formatter *fmt) {
           continue;
         const char *jnNeedle = getDeclNeedle(node, declIds[j]);
         if (jnNeedle) {
-          const char *found = strstr(src + srcPos, jnNeedle);
-          if (found) declStart = (int)(found - src);
+          declStart = findDeclStart(src, srcPos, srcLen, jnNeedle);
         }
         break;
       }

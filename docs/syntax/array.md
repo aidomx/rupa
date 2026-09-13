@@ -31,6 +31,44 @@ Array bertingkat dapat ditulis dengan beberapa `[]`:
 matrix: number[][] = [[1, 2], [3, 4]]
 ```
 
+## Method array
+
+Method bawaan array sengaja dibuat minimal — hanya operasi mutasi dasar yang hidup di core. Transformasi seperti `map`, `filter`, `reduce` tetap berupa fungsi di modul `collections`, bukan method, supaya bahasa tidak terasa seperti JS.
+
+### push
+
+Menambah element ke akhir array (in-place). Mengembalikan array itu sendiri.
+
+```rupa
+arr = [1, 2]
+arr.push(3)
+print(arr)
+// [1, 2, 3]
+
+arr.push(4, 5) // beberapa nilai sekaligus
+```
+
+### pop
+
+Mengambil element terakhir (in-place). Mengembalikan element yang diambil, atau `null` untuk array kosong.
+
+```rupa
+arr = [1, 2, 3]
+x = arr.pop()
+print(x)
+// 3
+print(arr)
+// [1, 2]
+```
+
+### length
+
+Property (bukan method) jumlah element:
+
+```rupa
+print(arr.length)
+```
+
 ## Kapan digunakan?
 
 Gunakan array untuk menyimpan koleksi data urutan. Akses element menggunakan subscript notation `[index]`.

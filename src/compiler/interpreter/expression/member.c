@@ -59,6 +59,15 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
     } else if (!strcmp(key, "replace")) {
       fn = stdStringReplace;
       paramCount = 2;
+    } else if (!strcmp(key, "split")) {
+      fn = stdStringSplit;
+      paramCount = 1;
+    } else if (!strcmp(key, "indexOf")) {
+      fn = stdStringIndexOf;
+      paramCount = 1;
+    } else if (!strcmp(key, "slice")) {
+      fn = stdStringSlice;
+      paramCount = 2;
     }
     if (fn) {
       RuntimeValue method = valueNativeFunction(key, fn, paramCount);
@@ -152,10 +161,54 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
                                   .row = 0,
                                   .type = ERR_TYPE_MISMATCH});
     return resultFlow(FLOW_ERROR, valueNull());
-  }
+  }    /* --- Object element assignment: obj["key"] = value --- */
+    if (target->type == NODE_SUBSCRIPT) {
+      InterpreterResult base =
+          interpretNode(node, target->subscript.posId, env, error);
+      if (base.flow != FLOW_NORMAL) return base;
 
-  /* --- Array element assignment: arr[i] = value --- */
-  if (target->type == NODE_SUBSCRIPT) {
+      if (base.value.type == VALUE_OBJECT) {
+        InterpreterResult keyRes =
+            interpretNode(node, target->subscript.index, env, error);
+        if (keyRes.flow != FLOW_NORMAL) return keyRes;
+        if (keyRes.value.type != VALUE_STRING || !keyRes.value.as.string) {
+          if (error)
+            addError(error,
+                     (ErrorInfo){.code = "TypeError",
+                                 .message = "object index must be a string",
+                                 .line = 0,
+                                 .row = 0,
+                                 .type = ERR_TYPE_MISMATCH});
+          return resultFlow(FLOW_ERROR, valueNull());
+        }
+        if (!valueObjectSet(&base.value, keyRes.value.as.string, val.value)) {
+          if (error)
+            addError(error,
+                     (ErrorInfo){.code = "InternalError",
+                                 .message = "failed to set object property",
+                                 .line = 0,
+                                 .row = 0,
+                                 .type = ERR_INTERNAL});
+          return resultFlow(FLOW_ERROR, valueNull());
+        }
+        /* Write the mutated object back (mirrors obj.field = v). */
+        if (target->subscript.posId >= 0 &&
+            target->subscript.posId < node->length) {
+          AstNode *baseAst = &node->ast[target->subscript.posId];
+          const char *baseName = NULL;
+          if (baseAst->type == NODE_IDENTIFIER)
+            baseName = baseAst->identifier.name;
+          else if (baseAst->type == NODE_LITERAL_ID)
+            baseName = baseAst->string.value;
+          if (baseName)
+            semSet(env, baseName, base.value);
+        }
+        return resultNormal(val.value);
+      }
+    }
+
+    /* --- Array element assignment: arr[i] = value --- */
+    if (target->type == NODE_SUBSCRIPT) {
     InterpreterResult base =
         interpretNode(node, target->subscript.posId, env, error);
     if (base.flow != FLOW_NORMAL) return base;
@@ -192,7 +245,26 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
 
     int i = idx.value.as.number;
     int len = base.value.as.array.length;
-    if (i < 0 || i >= len) {
+    /* Auto-grow: arr[len] = v menambah elemen baru (push semantics).
+     * Indeks di luar itu tetap out of bounds. */
+    if (i == len) {
+      int newLen = len + 1;
+      RuntimeValue *items =
+          gcrealloc(base.value.as.array.items, sizeof(RuntimeValue) * newLen);
+      if (!items && newLen > 0) {
+        if (error)
+          addError(error,
+                   (ErrorInfo){.code = "IOError",
+                               .message = "out of memory growing array",
+                               .line = 0,
+                               .row = 0,
+                               .type = ERR_INTERNAL});
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
+      items[newLen - 1] = val.value;
+      base.value.as.array.items = items;
+      base.value.as.array.length = newLen;
+    } else if (i < 0 || i >= len) {
       static char message[256];
       snprintf(message, sizeof(message),
                "index %d is out of bounds for array of length %d", i, len);

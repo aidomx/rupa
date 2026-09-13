@@ -1,0 +1,6 @@
+{
+  "name": "fs",
+  "author": "Aidomx",
+  "version": "1.0.0",
+  "description": "Filesystem utilities: read, write, lines, copy, move, path helpers"
+}

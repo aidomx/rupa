@@ -104,6 +104,7 @@ void clearStateInput(Input *input) {
   // free(input);
 }
 
+
 void clearStateToken(Token *token) {
   if (!token) return;
 

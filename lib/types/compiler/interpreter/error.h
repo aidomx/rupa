@@ -6,6 +6,7 @@
  * Menyimpan pesan error, kode error, dan lokasi (line, row).
  */
 struct ErrorInfo {
+  const char *file;
   const char *code;
   char *message;
   int line;

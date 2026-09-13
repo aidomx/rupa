@@ -1,0 +1,39 @@
+// Test method string bawaan (jalankan: ./bin/rupa --test-exec tests/execution/string_methods.rp)
+
+s = "a,b,c"
+
+// split
+assertEq(s.split(","), ["a", "b", "c"])
+assertEq("2026-09-13".split("-"), ["2026", "09", "13"]) // pada literal
+assertEq("x::y".split("::"), ["x", "y"])                // separator multi-karakter
+assertEq("".split(","), [""])                            // string kosong -> satu part kosong
+
+// indexOf
+assertEq(s.indexOf("b"), 2)
+assertEq(s.indexOf("z"), -1)
+assertEq("hello".indexOf("lo"), 3)
+assertEq("abc".indexOf(""), 0)
+
+// slice
+assertEq(s.slice(2, 4), "b,")
+assertEq("hello".slice(1), "ello")       // tanpa end -> sampai habis
+assertEq("hello".slice(-1), "o")         // negatif = dari akhir
+assertEq("hello".slice(0, -1), "hell")
+assertEq("hello".slice(9, 12), "")       // out of range -> kosong
+assertEq("hello".slice(3, 1), "")        // start >= end -> kosong
+
+// string indexing tetap bekerja
+assertEq("abc"[1], "b")
+
+// method string yang sudah ada tidak terganggu
+assertEq("rupa".upper(), "RUPA")
+assertEq("RUPA".lower(), "rupa")
+assertEq("hello world".contains("wor"), true)
+assertEq("hello world".replace("world", "rupa"), "hello rupa")
+
+// chained: split -> indexOf pada hasilnya
+parts = s.split(",")
+assertEq(parts[1], "b")
+assertEq(parts.length, 3)
+
+print("string_methods: all assertions passed")

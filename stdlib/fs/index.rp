@@ -1,0 +1,5 @@
+// index.rp — Public entry point untuk modul fs.
+// `import fs from rupa` binds this package object directly.
+export read, write, append, remove, exists, size, isDir from ./fs
+export readLines, writeLines, copy, move from ./fs
+export join, base, dir, ext from ./fs

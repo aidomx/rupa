@@ -91,12 +91,33 @@ InterpreterResult interpretBinary(Node *node, AstNode *ast, RuntimeEnv *env,
       interpretExpression(node, ast->binary.left, env, error);
   if (leftResult.flow != FLOW_NORMAL)
     return leftResult;
+  RuntimeValue left = leftResult.value;
+  const char *op = ast->binary.op ? ast->binary.op : "";
+
+  /* && dan || short-circuit: operand kanan hanya dievaluasi bila diperlukan */
+  /* Unary NOT prefix: `!expr` disimpan sebagai binary dengan right == -1 */
+  if (!strcmp(op, "!") && ast->binary.right < 0) {
+    return resultNormal(valueBoolean(!valueTruthy(left)));
+  }
+
+  if (!strcmp(op, "&&") || !strcmp(op, "||")) {
+    bool lt = valueTruthy(left);
+    if (!strcmp(op, "&&") && !lt)
+      return resultNormal(valueBoolean(false));
+    if (!strcmp(op, "||") && lt)
+      return resultNormal(valueBoolean(true));
+    InterpreterResult rightResult =
+        interpretExpression(node, ast->binary.right, env, error);
+    if (rightResult.flow != FLOW_NORMAL)
+      return rightResult;
+    return resultNormal(valueBoolean(valueTruthy(rightResult.value)));
+  }
+
   InterpreterResult rightResult =
       interpretExpression(node, ast->binary.right, env, error);
   if (rightResult.flow != FLOW_NORMAL)
     return rightResult;
-  RuntimeValue left = leftResult.value, right = rightResult.value;
-  const char *op = ast->binary.op ? ast->binary.op : "";
+  RuntimeValue right = rightResult.value;
 
   if (!strcmp(op, "+")) {
     if (numeric(left) && numeric(right))

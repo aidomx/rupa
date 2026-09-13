@@ -154,6 +154,104 @@ InterpreterResult stdStringReplace(int argc, RuntimeValue *argv,
   return resultNormal(out);
 }
 
+/* ==================== string.split(sep) ==================== */
+InterpreterResult stdStringSplit(int argc, RuntimeValue *argv,
+                                 RuntimeEnv *env, Error *error) {
+  const char *value;
+  (void)env;
+  if (!getRuntimeString(argc, argv, &value) || argc < 2 ||
+      argv[1].type != VALUE_STRING || !argv[1].as.string ||
+      argv[1].as.string[0] == '\0')
+    return stringTypeError(error,
+                           "string.split() expects a non-empty separator");
+
+  const char *sep = argv[1].as.string;
+  size_t sepLength = strlen(sep);
+
+  /* Count parts first so the items buffer can be allocated once. */
+  int count = 1;
+  for (const char *p = value; (p = strstr(p, sep)) != NULL; p += sepLength)
+    count++;
+
+  RuntimeValue *items = calloc((size_t)count, sizeof(*items));
+  if (!items)
+    return resultNormal(valueNull());
+
+  int n = 0;
+  const char *start = value;
+  for (const char *p; (p = strstr(start, sep)) != NULL;) {
+    size_t partLength = (size_t)(p - start);
+    char *part = malloc(partLength + 1);
+    if (!part) {
+      free(items);
+      return resultNormal(valueNull());
+    }
+    memcpy(part, start, partLength);
+    part[partLength] = '\0';
+    items[n++] = valueString(part);
+    free(part);
+    start = p + sepLength;
+  }
+  items[n++] = valueString(start); /* remainder after the last separator */
+
+  return resultNormal(valueArray(items, n));
+}
+
+/* ==================== string.indexOf(sub) ==================== */
+InterpreterResult stdStringIndexOf(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error) {
+  const char *value;
+  (void)env;
+  if (!getRuntimeString(argc, argv, &value) || argc < 2 ||
+      argv[1].type != VALUE_STRING || !argv[1].as.string)
+    return stringTypeError(error, "string.indexOf() expects a string");
+
+  if (argv[1].as.string[0] == '\0')
+    return resultNormal(valueNumber(0));
+
+  const char *found = strstr(value, argv[1].as.string);
+  return resultNormal(valueNumber(found ? (int)(found - value) : -1));
+}
+
+/* ==================== string.slice(start, end?) ==================== */
+InterpreterResult stdStringSlice(int argc, RuntimeValue *argv,
+                                 RuntimeEnv *env, Error *error) {
+  const char *value;
+  (void)env;
+  if (!getRuntimeString(argc, argv, &value) || argc < 2 ||
+      argv[1].type != VALUE_NUMBER)
+    return stringTypeError(error,
+                           "string.slice() expects (start, end?) numbers");
+
+  int length = (int)strlen(value);
+  int start = argv[1].as.number;
+  int end = (argc >= 3 && argv[2].type == VALUE_NUMBER) ? argv[2].as.number
+                                                        : length;
+
+  /* Negative indices count from the end, then clamp into [0, length]. */
+  if (start < 0)
+    start = length + start;
+  if (end < 0)
+    end = length + end;
+  if (start < 0)
+    start = 0;
+  if (end > length)
+    end = length;
+  if (start > length)
+    start = length;
+  if (start >= end)
+    return resultNormal(valueString(""));
+
+  char *result = malloc((size_t)(end - start) + 1);
+  if (!result)
+    return resultNormal(valueNull());
+  memcpy(result, value + start, (size_t)(end - start));
+  result[end - start] = '\0';
+  RuntimeValue out = valueString(result);
+  free(result);
+  return resultNormal(out);
+}
+
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
   struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
@@ -180,5 +278,8 @@ InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
   addEntry(&entries, "startsWith", stdStringStartsWith, 2);
   addEntry(&entries, "endsWith", stdStringEndsWith, 2);
   addEntry(&entries, "replace", stdStringReplace, 3);
+  addEntry(&entries, "split", stdStringSplit, 2);
+  addEntry(&entries, "indexOf", stdStringIndexOf, 2);
+  addEntry(&entries, "slice", stdStringSlice, 3);
   return resultNormal(valueObject(entries));
 }

@@ -16,6 +16,7 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   if (*pos >= limit) return -1;
 
   int a = *pos, b = grammarLineEnd(t, a);
+  g_parser_token = &t->data[a];
   if (b > limit) b = limit;
 
   /* case may be emitted as a keyword by the processor; keep the grammar

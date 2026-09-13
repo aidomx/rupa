@@ -1,7 +1,7 @@
 # TODO — Rupa Language
 
 > Dokumentasi status semua fitur: yang sudah siap, yang sedang dikerjakan, dan yang belum tersedia.
-> Terakhir diperbarui: 10 September 2026
+> Terakhir diperbarui: 13 September 2026
 
 ---
 
@@ -9,13 +9,23 @@
 
 | Kategori         | Siap | Dalam Pengembangan | Belum |
 | ---------------- | ---- | ------------------ | ----- |
-| Syntax & Grammar | 25   | 2                  | 5     |
-| Standard Library | 11   | 0                  | 4     |
-| Module System    | 4    | 1                  | 2     |
-| REPL & Editor    | 3    | 1                  | 0     |
+| Syntax & Grammar | 26   | 1                  | 6     |
+| Standard Library | 16   | 0                  | 1     |
+| Module System    | 10   | 0                  | 3     |
+| REPL & Editor    | 14   | 1                  | 0     |
 | Compiler (`-c`)  | 0    | 0                  | 1     |
-| Testing          | 43   | -                  | 15    |
-| Documentation    | 28   | 1                  | 6     |
+| Testing          | 45   | -                  | 0     |
+| Documentation    | 30   | 0                  | 2     |
+
+> Sumber angka: tabel di tiap bagian dokumen ini. Testing = test suite syntax
+> (45/45 PASS via `./build.sh test`); tambahan: 29 file test execution di
+> `tests/execution/` (via `--test-exec`, termasuk `array_methods`,
+> `string_methods`, `sys_fs_db`, `sys_module`) dan scan formatter
+> `./build.sh fmt -` atas 110 file: 109 PASS, 1 FAIL by-design
+> (`tests/stress/index.rp` yang memang mengharapkan LexerError).
+> Standard Library 16 = 11 modul native (C) + 5 Rupa packages (sys, fs,
+> database, collections, strings). REPL & Editor 14 = 8 fitur formatter + 6 fitur REPL.
+> Documentation 30 mengikuti tabel bagian 7.
 
 ---
 
@@ -61,15 +71,16 @@
 
 | Fitur                            | Catatan                                |
 | -------------------------------- | -------------------------------------- |
-| Ternary / Conditional Expression | Belum ada                              |
 | For loop (C-style)               | Hanya `while`                          |
 | Destructuring                    | Belum ada                              |
 | Class / OOP                      | Hanya `struct`                         |
 | Try/Catch                        | Error handling belum ada               |
-| Switch statement                 | Menggunakan `case` (different syntax)  |
-| Arrow function                   | `=>` sudah dipakai untuk async handler |
 | Generator / Iterator             | Belum ada                              |
 | Decorator                        | Belum ada                              |
+
+Catatan: kebutuhan conditional-expression sudah tertutup oleh fallback chain
+`x = primary | fallback | default` (lihat `docs/syntax/fallback.md`) — Rupa
+sengaja tidak meniru ternary `?:` atau arrow function dari bahasa lain.
 
 ---
 
@@ -88,16 +99,24 @@
 | **http**     | `import http from rupa`      | `server`, `stop`, `request`, `get`, `post`, `put`, `delete`, `patch`                                 | ✅   |
 | **datetime** | `import datetime from rupa`  | `now`, `nowMs`, `format`, `parse`, `diff`, `add`, `year`, `month`, `day`, `hour`, `minute`, `second` | ✅   |
 | **regex**    | `import regex from rupa`     | `match`, `find`, `findAll`, `replace`, `split`                                                       | ✅   |
-| **crypto**   | `import crypto from rupa`    | `hash`, `fnv1a`, `murmur3`, `xor`, `base64Encode`, `base64Decode`                                    | ✅   |
+| **crypto**   | `import crypto from rupa`    | `md5`, `sha1`, `sha256`, `sha512`, `hmac`, `base64Encode`, `base64Decode`                            | ✅   |
 | **net**      | `import net from rupa`       | `connect`, `send`, `receive`, `close`, `listen`, `accept`, `resolve`                                 | ✅   |
 
 ### ❌ Belum Tersedia
 
 | Module         | Deskripsi                                         |
 | -------------- | ------------------------------------------------- |
-| **database**   | SQL/NoSQL client (JSON-based atau wrapper)        |
-| **filesystem** | File read/write (beyond os)                       |
 | **ui/view**    | UI rendering (terencana di `docs/syntax/view.md`) |
+
+### 📦 Rupa Packages (stdlib)
+
+| Module         | Bentuk import                  | Deskripsi                                                              | Status |
+| -------------- | ------------------------------ | ---------------------------------------------------------------------- | ------ |
+| **sys**        | `import sys from rupa`         | Informasi sistem + utilitas path (facade `os`)                          | ✅     |
+| **fs**         | `import fs from rupa`          | Filesystem: read/write/lines/copy/move + path helpers (native `fsbase`) | ✅     |
+| **database**   | `import db from rupa`          | Penyedia koneksi: nosql, mariadb, mysql, psql, sqlite (registry + DSN)  | ✅     |
+| **collections**| `import collections from rupa` | Array/collection utilities                                              | ✅     |
+| **strings**    | `import strings from rupa`     | String utilities                                                        | ✅     |
 
 ---
 
@@ -121,7 +140,10 @@
 | Fitur                  | Status | Catatan                                                                                                                |
 | ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Multi-import from rupa | ✅     | `import http, thread, os from rupa` — grammar works                                                                    |
-| Design NODE_MOD        | 🔨     | Design selesai & factory siap (lihat `docs/grammar/import.md` § NODE_MOD), migrasi grammar/interpreter/formatter belum |
+| Design NODE_MOD        | ✅     | Migrasi selesai: grammar, formatter, printer, interpreter, loader memakai satu container `NODE_MOD` untuk import/export |
+
+> Standard Library = 11 modul native (C) + 5 Rupa packages (sys, fs,
+> database, collections, strings). Documentation mengikuti tabel bagian 7.
 
 ### ❌ Belum Tersedia
 
@@ -221,7 +243,7 @@ Internal pipeline:
 
 ## 6. Testing
 
-### ✅ Pass (43)
+### ✅ Pass (45/45 — `./build.sh test`)
 
 | Test                      | Deskripsi                    |
 | ------------------------- | ---------------------------- |
@@ -269,24 +291,14 @@ Internal pipeline:
 | `test_thread_async5.rp`   | Thread + async 5             |
 | `test_thread_async6.rp`   | Thread + async 6             |
 
-### ❌ Fail (15)
+### ❌ Fail (0)
 
-| Test                    | Error          | Kemungkinan Penyebab                                                                            |
-| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| `array.rp`              | Type mismatch  | `TypeError` raised (expected: `[1, "Hello"]` has string in number[] — correct behavior)         |
-| `assign.rp`             | ReferenceError | File test grammar — `primary`/`fallback` memang undefined (uji formatter, bukan runtime)        |
-| `assignment.rp`         | ReferenceError | File test grammar — `primary`/`fallback`/`default` memang undefined (uji parser, bukan runtime) |
-| `case.rp`               | Scope error    | Variable scope dalam case                                                                       |
-| `colon-context.rp`      | -              | Type annotation syntax                                                                          |
-| `expression.rp`         | -              | Expression tertentu belum didukung                                                              |
-| `test_http.rp`          | Timeout (124)  | Server test needs timeout adjustment                                                            |
-| `test_json_debug.rp`    | -              | Module resolution                                                                               |
-| `test_local_archive.rp` | -              | Archive package tidak ditemukan                                                                 |
-| `test_local_import.rp`  | -              | `stark` package tidak ditemukan                                                                 |
-| `test_minimal.rp`       | -              | `stark` package tidak ditemukan                                                                 |
-| `test_multi_import.rp`  | -              | Multi-import belum stabil                                                                       |
-| `test_rupa_stark.rp`    | -              | `rupa.stark` tidak tersedia                                                                     |
-| `test_stark_add.rp`     | -              | `stark` package tidak tersedia                                                                  |
+Tidak ada test yang fail. Catatan cakupan:
+
+- `tests/execution/` punya runner sendiri (`--test-exec`, 29 file) — di luar
+  hitungan test suite syntax.
+- Scan formatter `./build.sh fmt -` (110 file): 109 PASS; satu-satunya FAIL
+  `tests/stress/index.rp` by-design (isi hanya `.` untuk memicu LexerError).
 
 ---
 
@@ -323,6 +335,9 @@ Internal pipeline:
 | Module: Crypto (G)   | `docs/modules/grammar/crypto.md`   | ✅     |
 | Module: Net          | `docs/modules/syntax/net.md`       | ✅     |
 | Module: Net (G)      | `docs/modules/grammar/net.md`      | ✅     |
+| Module: Sys          | `docs/modules/syntax/sys.md`       | ✅     |
+| Module: Fs           | `docs/modules/syntax/fs.md`        | ✅     |
+| Module: Database     | `docs/modules/syntax/database.md`  | ✅     |
 
 ### ❌ Belum Dibuat
 
@@ -353,6 +368,6 @@ Internal pipeline:
 
 8. **Add for loop** — C-style `for (i=0; i<n; i++)`
 9. **Try/Catch error handling** — Error handling yang proper
-10. **Database module** — JSON-based atau wrapper (belum diimplementasi)
+10. ~~**Database module**~~ — ✅ Done `stdlib/database`: registry driver (nosql/mariadb/mysql/psql/sqlite) + parser DSN + `db.open()` validasi; I/O jaringan menyusul
 11. **UI/View module** — Rendering komponen UI
 12. **`-c` Compilation** — Transpile to C → native binary (design tersimpan)

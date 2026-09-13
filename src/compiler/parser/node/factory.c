@@ -22,6 +22,9 @@ int createAst(Node *node, AstNode n) {
     node->capacity = newCapacity;
   }
 
+  if (!n.token) n.token = g_parser_token;
+  if (n.line <= 0 && n.token) n.line = n.token->line;
+  if (n.row <= 0 && n.token) n.row = n.token->row;
   node->ast[node->length] = n;
   return node->length++;
 }
@@ -170,6 +173,18 @@ int createString(Node *root, char *value, NodeType nodeType) {
 /**
  * Membuat node binary expression.
  */
+int createNot(Node *root, int operandId) {
+  if (!root || operandId < 0)
+    return -1;
+  /* Node binary "!" (prefix): left dipakai sebagai operand tunggal, right -1 */
+  AstNode node = {.type = NODE_BINARY,
+                  .binary = {.type = BINARY_NONE,
+                             .op = gcstrdup("!"),
+                             .left = operandId,
+                             .right = -1}};
+  return createAst(root, node);
+}
+
 int createBinary(Node *root, DataToken *opToken, int leftId, int rightId) {
   if (!root || leftId < 0 || rightId < 0 || !opToken)
     return -1;

@@ -133,6 +133,14 @@ int parseBinary(Request *req, int start, int end) {
   }
 
   if (minIndex == -1) {
+    /* Unary NOT: `!expr` — operand adalah sisa ekspresi di kanannya */
+    if (isToken(tokens, start, EXCLAMATION)) {
+      int operand = parseBinary(req, start + 1, end);
+      if (operand >= 0)
+        return createNot(req->node, operand);
+      return -1;
+    }
+
     if (isToken(tokens, start, MINUS)) {
       int operand = parseBinary(req, start + 1, end);
       if (operand >= 0) {
@@ -157,6 +165,11 @@ int parseBinary(Request *req, int start, int end) {
     else if (isToken(tokens, start, LBLOCK)) {
       int k = findArr(tokens, start);
       if (k == end - 1) {
+        /* Array literal, bukan grouping: parseBinary(start+1, k) akan
+         * memakan koma sebagai binary dan merusak elemen ([3, 4] → 3). */
+        int arr = grammarParseArrayLiteral(req, start, end);
+        if (arr != GRAMMAR_NO_MATCH)
+          return arr;
         return parseBinary(req, start + 1, k);
       }
     }

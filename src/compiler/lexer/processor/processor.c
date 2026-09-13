@@ -26,12 +26,16 @@ static bool scan(State *state) {
       input->cursor = start;
       flags->isWaiting = true;
       flags->isComplete = false;
+      addSourceErrorAt(state->error, "LexerError", "incomplete input",
+                       input->content, start, ERR_UNEXPECTED_EOF);
       return false;
     }
     rollback(tokens, baseline);
     input->cursor = start;
     flags->isWaiting = false;
     flags->isComplete = false;
+    addSourceErrorAt(state->error, "LexerError", "invalid input",
+                     input->content, start, ERR_UNEXPECTED_CHAR);
     return false;
   }
 

@@ -1,7 +1,0 @@
-import db from ./database
-
-async db.getUser() => {
-    print("a\n")
-    print("b\n")
-    print("c\n")
-} -> 5000

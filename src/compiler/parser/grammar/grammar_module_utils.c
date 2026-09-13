@@ -36,9 +36,10 @@ int grammarModuleDetectFromRupa(Token *t, int from_pos, int limit) {
   return mod;
 }
 
-/* Detect general `from X.Y.Z` pattern (any module, not just rupa). */
+/* Detect general `from X.Y.Z` pattern (any module, not just rupa).
+ * Source minimal 1 token: `from rupa` di akhir baris juga valid. */
 int grammarModuleDetectFrom(Token *t, int from_pos, int limit, int *end) {
-  if ((from_pos + 2) >= limit) return -1;
+  if ((from_pos + 1) >= limit) return -1;
   if ((t->data[from_pos].type != IDENTIFIER && t->data[from_pos].type != KEYWORD &&
        t->data[from_pos].type != LITERAL_ID) ||
       strcmp(t->data[from_pos].value, "from"))

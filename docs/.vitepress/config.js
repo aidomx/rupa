@@ -99,7 +99,10 @@ export default defineConfig({
             { text: 'DateTime', link: '/modules/syntax/datetime' },
             { text: 'Regex', link: '/modules/syntax/regex' },
             { text: 'Crypto', link: '/modules/syntax/crypto' },
-            { text: 'Net', link: '/modules/syntax/net' }
+            { text: 'Net', link: '/modules/syntax/net' },
+            { text: 'Sys', link: '/modules/syntax/sys' },
+            { text: 'Fs', link: '/modules/syntax/fs' },
+            { text: 'Database', link: '/modules/syntax/database' }
           ]
         }
       ]

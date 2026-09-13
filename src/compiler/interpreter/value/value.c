@@ -289,6 +289,37 @@ bool valueEquals(RuntimeValue left, RuntimeValue right) {
   case VALUE_STRING:
     return left.as.string && right.as.string &&
            !strcmp(left.as.string, right.as.string);
+  case VALUE_ARRAY: {
+    /* Structural (deep) equality, element-wise. */
+    if (left.as.array.length != right.as.array.length)
+      return false;
+    for (int i = 0; i < left.as.array.length; i++)
+      if (!valueEquals(left.as.array.items[i], right.as.array.items[i]))
+        return false;
+    return true;
+  }
+  case VALUE_OBJECT: {
+    /* Structural equality: same key set with equal values. */
+    int leftCount = 0, rightCount = 0;
+    for (struct RuntimeObjectEntry *e = left.as.object.entries; e; e = e->next)
+      leftCount++;
+    for (struct RuntimeObjectEntry *e = right.as.object.entries; e; e = e->next)
+      rightCount++;
+    if (leftCount != rightCount)
+      return false;
+    for (struct RuntimeObjectEntry *e = left.as.object.entries; e; e = e->next) {
+      RuntimeValue rv;
+      if (!valueObjectGet(right, e->key, &rv))
+        return false;
+      if (!valueEquals(e->value, rv))
+        return false;
+    }
+    return true;
+  }
+  case VALUE_FUNCTION:
+    return left.as.function == right.as.function;
+  case VALUE_NATIVE_FUNCTION:
+    return left.as.nativeFunc == right.as.nativeFunc;
   default:
     return false;
   }

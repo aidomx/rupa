@@ -1,0 +1,39 @@
+// Test method array bawaan: push/pop (jalankan: ./bin/rupa --test-exec tests/execution/array_methods.rp)
+
+arr = [1, 2]
+r = arr.push(3)
+assertEq(arr, [1, 2, 3])
+assertEq(r, [1, 2, 3])
+
+// push beberapa nilai sekaligus
+b = [1]
+b.push(2, 3)
+assertEq(b, [1, 2, 3])
+
+// pop mengembalikan elemen terakhir & memendekkan array
+x = b.pop()
+assertEq(x, 3)
+assertEq(b, [1, 2])
+
+// pop pada array kosong -> null
+e = []
+assertEq(e.pop(), null)
+assertEq(e, [])
+
+// push -> pop round-trip
+c = []
+c.push("a")
+c.push("b")
+assertEq(c.pop(), "b")
+assertEq(c.pop(), "a")
+assertEq(c, [])
+
+// index assignment tetap bekerja (auto-grow)
+d = [1]
+d[1] = 2
+assertEq(d, [1, 2])
+
+// length property
+assertEq(b.length, 2)
+
+print("array_methods: all assertions passed")

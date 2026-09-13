@@ -1,6 +1,6 @@
 # Crypto Module
 
-Module `crypto` menyediakan fungsi hashing dan encoding.
+Module `crypto` menyediakan fungsi hashing dan encoding berbasis OpenSSL.
 
 ```rupa
 import crypto from rupa
@@ -8,63 +8,69 @@ import crypto from rupa
 
 ## Fungsi
 
-### crypto.hash(str)
-Hash string menggunakan DJB2 (non-cryptographic, sangat cepat).
+### crypto.md5(str)
+Hash string menggunakan MD5 (128-bit). Hanya untuk checksum, bukan keamanan.
 
 ```rupa
-print(crypto.hash("hello"))  // 310f923099
+print(crypto.md5("hello"))
 ```
 
-### crypto.fnv1a(str)
-Hash string menggunakan FNV-1a.
+### crypto.sha1(str)
+Hash string menggunakan SHA-1 (160-bit).
 
 ```rupa
-print(crypto.fnv1a("hello"))  // a430d84680aabd0b
+print(crypto.sha1("hello"))
 ```
 
-### crypto.murmur3(str, seed?)
-Hash string menggunakan MurmurHash3.
+### crypto.sha256(str)
+Hash string menggunakan SHA-256 (256-bit).
 
 ```rupa
-print(crypto.murmur3("hello"))     // 248bfa47
-print(crypto.murmur3("hello", 42)) // hash dengan seed
+print(crypto.sha256("hello"))
 ```
 
-### crypto.xor(str, key)
-XOR cipher — encrypt/decrypt dengan key yang sama.
+### crypto.sha512(str)
+Hash string menggunakan SHA-512 (512-bit).
 
 ```rupa
-encrypted = crypto.xor("secret", "key")
-decrypted = crypto.xor(encrypted, "key")
-print(decrypted)  // secret
+print(crypto.sha512("hello"))
+```
+
+### crypto.hmac(key, message)
+HMAC-SHA256: message authentication code dari `message` dengan `key`.
+
+```rupa
+print(crypto.hmac("secret-key", "hello"))
 ```
 
 ### crypto.base64Encode(str)
 Encode string ke Base64.
 
 ```rupa
-encoded = crypto.base64Encode("Hello Rupa!")
-print(encoded)  // SGVsbG8gUnVwYSEA
+print(crypto.base64Encode("Hello Rupa!"))
 ```
 
 ### crypto.base64Decode(str)
 Decode Base64 ke string.
 
 ```rupa
-print(crypto.base64Decode("SGVsbG8gUnVwYSEA"))  // Hello Rupa!
+print(crypto.base64Decode(crypto.base64Encode("Hello Rupa!")))
 ```
+
+## Ringkasan
 
 | Fungsi | Parameter | Return |
 |--------|-----------|--------|
-| `hash(str)` | string | string |
-| `fnv1a(str)` | string | string |
-| `murmur3(str, seed?)` | string, number? | string |
-| `xor(str, key)` | dua string | string |
+| `md5(str)` | string | string hex |
+| `sha1(str)` | string | string hex |
+| `sha256(str)` | string | string hex |
+| `sha512(str)` | string | string hex |
+| `hmac(key, message)` | dua string | string hex |
 | `base64Encode(str)` | string | string |
 | `base64Decode(str)` | string | string |
 
 ## Catatan
 
-- `hash`, `fnv1a`, `murmur3` adalah hash non-cryptographic untuk dedup/checksum.
-- `xor` adalah XOR cipher sederhana — untuk enkripsi ringan, bukan keamanan.
-- `base64Encode`/`base64Decode` untuk encoding data.
+- Semua hash mengembalikan string hex lowercase.
+- `md5`/`sha1` hanya untuk checksum kompatibilitas — untuk kebutuhan baru gunakan `sha256`/`sha512`.
+- `hmac` memakai SHA-256.

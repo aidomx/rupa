@@ -172,6 +172,7 @@ void test(const char *paths[], int length) {
       continue;
     }
     stdlibInit(env);
+    builtinsInit(env);
 
     InterpreterResult result = interpretNode(node, root, env, error);
 
@@ -347,6 +348,7 @@ void testExec(const char *paths[], int length) {
       continue;
     }
     stdlibInit(env);
+    builtinsInit(env);
     testHelperInit(env);
 
     InterpreterResult result = interpretNode(node, 0, env, error);
@@ -430,6 +432,7 @@ void testRepl(const char *paths[], int length) {
       continue;
     }
     stdlibInit(sharedEnv);
+    builtinsInit(sharedEnv);
     testHelperInit(sharedEnv);
     testHelperReset();
     setSourceFilePath(paths[i]);

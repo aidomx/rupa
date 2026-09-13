@@ -41,14 +41,26 @@ int run(const char *paths[], int length) {
   addToInput(state);
   lexer(state);
 
-  Error *error = createError(10);
   Flags *flags = state->input->flags;
   Token *tokens = state->tokens;
-  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) return 1;
+  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
+    if (!state->error || state->error->size == 0)
+      addSourceErrorAt(state->error, "LexerError", "incomplete or invalid input",
+                       state->input->content, state->input->cursor, ERR_UNEXPECTED_EOF);
+    printErrors(state->error);
+    return 1;
+  }
 
-  Request request = createRequest(tokens, 10);
+  Request request = createRequestWithError(tokens, 10, state->error);
   Node *node = processGenerate(&request);
-  if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) return 1;
+  Error *error = createError(10);
+  if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
+    if (!state->error || state->error->size == 0)
+      addSourceErrorAt(state->error, "ParserError", "no AST declarations produced",
+                       state->input->content, state->input->cursor, ERR_SYNTAX);
+    printErrors(state->error);
+    return 1;
+  }
 
   int root = -1;
   for (int j = 0; j < node->length; j++) {
@@ -57,7 +69,12 @@ int run(const char *paths[], int length) {
       break;
     }
   }
-  if (root < 0) return 1;
+  if (root < 0) {
+    addSourceErrorAt(state->error, "ParserError", "program root not found",
+                     state->input->content, state->input->cursor, ERR_SYNTAX);
+    printErrors(state->error);
+    return 1;
+  }
 
   RuntimeEnv *env = semCreateEnv(NULL);
   if (!env) return 1;

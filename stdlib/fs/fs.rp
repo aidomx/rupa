@@ -1,0 +1,144 @@
+// fs.rp — Filesystem utilities untuk modul fs.
+// Level primitive dibawa dari fsbase (native), level tinggi ditulis di sini.
+
+import fsbase from rupa
+
+/* ==================== Primitive passthrough ==================== */
+
+read(path) {
+  return fsbase.read(path)
+}
+
+write(path, content) {
+  return fsbase.write(path, content)
+}
+
+append(path, content) {
+  return fsbase.append(path, content)
+}
+
+remove(path) {
+  return fsbase.remove(path)
+}
+
+exists(path) {
+  return fsbase.exists(path)
+}
+
+size(path) {
+  return fsbase.size(path)
+}
+
+isDir(path) {
+  return fsbase.isDir(path)
+}
+
+/* ==================== Lines ==================== */
+
+// Baca file jadi array baris (tanpa "\n"). Baris terakhir kosong diabaikan.
+readLines(path) {
+  text = fsbase.read(path)
+  lines = []
+  acc = ""
+  i = 0
+  n = len(text)
+  while i < n {
+    c = text[i]
+    if c == "\n" {
+      lines[len(lines)] = acc
+      acc = ""
+    } else {
+      acc = acc + c
+    }
+    i = i + 1
+  }
+  if len(acc) > 0:
+    lines[len(lines)] = acc
+  return lines
+}
+
+// Tulis array baris jadi file, tiap baris diakhiri "\n".
+writeLines(path, lines) {
+  out = ""
+  i = 0
+  n = len(lines)
+  while i < n {
+    out = out + lines[i] + "\n"
+    i = i + 1
+  }
+  return fsbase.write(path, out)
+}
+
+/* ==================== Path helpers ==================== */
+
+// Gabung dua path: join("a", "b") -> "a/b"
+join(a, b) {
+  if len(a) > 0 && a[len(a) - 1] == "/":
+    return a + b
+  return a + "/" + b
+}
+
+// Nama file: "a/b/c.txt" -> "c.txt"
+base(path) {
+  cut = len(path)
+  while cut > 0 && path[cut - 1] != "/" {
+    cut = cut - 1
+  }
+  out = ""
+  i = cut
+  n = len(path)
+  while i < n {
+    out = out + path[i]
+    i = i + 1
+  }
+  return out
+}
+
+// Direktori: "a/b/c.txt" -> "a/b"
+dir(path) {
+  cut = len(path)
+  while cut > 0 && path[cut - 1] != "/" {
+    cut = cut - 1
+  }
+  out = ""
+  i = 0
+  while i < cut - 1 {
+    out = out + path[i]
+    i = i + 1
+  }
+  return out
+}
+
+// Ekstensi: "a/b/c.txt" -> "txt", tanpa titik -> ""
+ext(path) {
+  cut = len(path)
+  while cut > 0 && path[cut - 1] != "." && path[cut - 1] != "/" {
+    cut = cut - 1
+  }
+  if cut == 0:
+    return ""
+  if path[cut - 1] != ".":
+    return ""
+  out = ""
+  i = cut
+  n = len(path)
+  while i < n {
+    out = out + path[i]
+    i = i + 1
+  }
+  return out
+}
+
+/* ==================== High-level ==================== */
+
+copy(src, dst) {
+  if !fsbase.exists(src):
+    return false
+  return fsbase.write(dst, fsbase.read(src))
+}
+
+move(src, dst) {
+  if !copy(src, dst):
+    return false
+  return fsbase.remove(src)
+}

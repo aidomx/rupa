@@ -84,6 +84,7 @@ int createSubscript(struct Node *root, int posId, int index);
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
 int createBinary(struct Node *root, struct DataToken *opToken, int leftId, int rightId);
+int createNot(struct Node *root, int operandId);
 
 /**
  * @brief Membuat assignment node dalam AST.
@@ -107,7 +108,7 @@ int createStringInterp(struct Node *root, int *parts, int length);
 int createCall(struct Node *root, int callee, int *args, int length);
 int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);
-int createIf(struct Node *root, int condition, int thenBlock, int elseBlock);
+int createIf(struct Node *root, int condition, int thenBlock, int elseBlock, bool isBlock);
 int createLoop(struct Node *root, const char *kind, int condition, int body);
 int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body);
 int createStructDecl(struct Node *root, int name, int body);
@@ -168,6 +169,7 @@ int createModNamespace(struct Node *root, const char *name, int body);
  * @return Struktur Request yang terinisialisasi.
  */
 struct Request createRequest(struct Token *tokens, int capacity);
+Request createRequestWithError(struct Token *tokens, int capacity, struct Error *error);
 
 /**
  * @brief Menghapus seluruh node dan mengosongkan buffer.
@@ -177,3 +179,5 @@ struct Request createRequest(struct Token *tokens, int capacity);
 void clearNode(struct Node *node);
 
 #endif
+
+extern DataToken *g_parser_token;

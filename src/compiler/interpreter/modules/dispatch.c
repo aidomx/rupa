@@ -447,12 +447,17 @@ static bool interpretModNamespace(Node *n, int id, RuntimeEnv *e, Error *x) {
 InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   if (!n || id < 0 || id >= n->length) return resultNormal(valueNull());
 
+  setRuntimeErrorLocation(n->ast[id].line, n->ast[id].row);
+
   if (n->ast[id].type == NODE_PROGRAM) {
     RuntimeValue last = valueNull();
     for (AstDeclaration *d = n->ast[id].program.declarations; d; d = d->next) {
       InterpreterResult r = interpretNode(n, d->nodeId, e, x);
       last = r.value;
-      if (r.flow != FLOW_NORMAL) return r;
+      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE)
+        return r;
+      /* FLOW_ERROR is recoverable: the error is already recorded in x.
+       * Continue executing the remaining top-level declarations. */
     }
     return resultNormal(last);
   }

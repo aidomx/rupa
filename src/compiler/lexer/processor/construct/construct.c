@@ -69,6 +69,20 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
 
   while (p < end) {
     char c = s[p];
+    /* Keep token locations tied to the actual source cursor. The old
+     * input->line value is REPL-oriented and remains 0 for file input, which
+     * made every lexer/parser/runtime error lose its source line. */
+    int line = 1, row = 1;
+    for (int i = 0; i < p; i++) {
+      if (s[i] == '\n') {
+        line++;
+        row = 1;
+      } else {
+        row++;
+      }
+    }
+    state->input->line = line;
+    state->input->row = row;
 
     if (c == ' ' || c == '\t' || c == '\r') {
       p++;

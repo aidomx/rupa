@@ -1,0 +1,22 @@
+// drivers.rp — Tabel spesifikasi driver database.
+// Setiap spec: port default & apakah butuh user/password.
+
+specs = {
+  nosql: { name: "nosql", port: 9200, needsAuth: false },
+  mariadb: { name: "mariadb", port: 3306, needsAuth: true },
+  mysql: { name: "mysql", port: 3306, needsAuth: true },
+  psql: { name: "psql", port: 5432, needsAuth: true },
+  sqlite: { name: "sqlite", port: 0, needsAuth: false }
+}
+
+has(name) {
+  return specs[name] != null
+}
+
+get(name) {
+  return specs[name]
+}
+
+list() {
+  return ["nosql", "mariadb", "mysql", "psql", "sqlite"]
+}

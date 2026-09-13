@@ -213,6 +213,7 @@ struct AstIf {
   int condition;
   int thenBlock;
   int elseBlock;
+  bool isBlock;
 };
 
 struct AstLoop {
@@ -338,6 +339,9 @@ struct AstStringInterp {
  */
 struct AstNode {
   enum NodeType type;
+  int line;
+  int row;
+  struct DataToken *token;
   union {
     struct AstArray array;
     struct AstArrayType arrayType;
@@ -376,7 +380,6 @@ struct AstNode {
     struct AstUpdate update;
     struct AstMemberAssign memberAssign;
     struct AstStringInterp stringInterp;
-    struct DataToken *token; ///< Raw token data
   };
 };
 

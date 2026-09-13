@@ -115,7 +115,9 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     for (int i = 0; i < a->block.length; i++) {
       InterpreterResult r = interpretNode(n, a->block.statements[i], e, x);
       last = r.value;
-      if (r.flow != FLOW_NORMAL) return r;
+      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE)
+        return r;
+      /* Runtime errors are collected and do not abort the containing block. */
     }
     return resultNormal(last);
   }

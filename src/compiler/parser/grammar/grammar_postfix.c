@@ -28,11 +28,19 @@ int grammarParsePostfixExpr(Request *r, int a, int b) {
     a++;
   while (b > a && grammarIsWhitespace(t, b - 1))
     b--;
-  if (a >= b ||
-      (t->data[a].type != IDENTIFIER && t->data[a].type != LITERAL_ID))
+  if (a >= b)
     return GRAMMAR_NO_MATCH;
 
-  int current = createId(r->node, t->data[a].value);
+  /* Primary may be an identifier or a string literal:
+   * `"a,b".split(",")` is as valid as `s.split(",")`. */
+  int current;
+  if (t->data[a].type == STRING) {
+    current = createString(r->node, t->data[a].value, NODE_STRING);
+  } else if (t->data[a].type == IDENTIFIER || t->data[a].type == LITERAL_ID) {
+    current = createId(r->node, t->data[a].value);
+  } else {
+    return GRAMMAR_NO_MATCH;
+  }
   if (current < 0)
     return -1;
   int i = a + 1;

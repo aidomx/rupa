@@ -23,6 +23,7 @@ struct Request {
   int left;
   struct Position right;
   int programId;
+  struct Error *error;
 };
 
 /**

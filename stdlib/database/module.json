@@ -1,0 +1,6 @@
+{
+  "name": "database",
+  "author": "Aidomx",
+  "version": "1.0.0",
+  "description": "Database connection provider: nosql, mariadb, mysql, psql, sqlite"
+}

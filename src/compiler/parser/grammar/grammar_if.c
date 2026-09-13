@@ -50,7 +50,8 @@ int grammarParseIf(Request *r, int a, int b, int limit, int *pos) {
       return -1;
   }
 
-  int bodyStart = t->data[sep].type == COLON ? sep + 1 : sep;
+  bool isBlock = t->data[sep].type == LBRACE;
+  int bodyStart = isBlock ? sep : sep + 1;
   int next = bodyStart;
   int body = grammarParseKeywordBody(r, bodyStart, limit, &next);
   if (body < 0)
@@ -86,5 +87,5 @@ int grammarParseIf(Request *r, int a, int b, int limit, int *pos) {
   }
 
   *pos = next;
-  return createIf(r->node, condition, body, elseBlock);
+  return createIf(r->node, condition, body, elseBlock, isBlock);
 }

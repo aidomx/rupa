@@ -30,6 +30,41 @@ void fmtPrint(Formatter *f, Node *node, int id) {
   fmtChar(f, ')');
 }
 
+/* String interpolation: parts bergantian string literal & expression.
+ * {name} selalu di-parse sebagai NODE_IDENTIFIER → cetak `{name}`;
+ * expression lain (call, member, binary, …) → cetak `{{expr}}`. */
+void fmtStringInterp(Formatter *f, Node *node, int id) {
+  AstNode *n = &node->ast[id];
+  fmtChar(f, '"');
+  for (int i = 0; i < n->stringInterp.length; i++) {
+    int pid = n->stringInterp.parts[i];
+    if (pid < 0 || pid >= node->length) continue;
+    AstNode *p = &node->ast[pid];
+    if (p->type == NODE_STRING) {
+      const char *v = p->string.value;
+      if (v) {
+        size_t len = strlen(v);
+        if (len >= 2 && v[0] == '"' && v[len - 1] == '"') {
+          /* buang kutung pembuka/penutup, sisakan teks mentah */
+          for (size_t k = 1; k + 1 < len; k++)
+            fmtChar(f, v[k]);
+        } else {
+          fmtStr(f, v);
+        }
+      }
+    } else if (p->type == NODE_IDENTIFIER) {
+      fmtChar(f, '{');
+      fmtNode(f, node, pid);
+      fmtChar(f, '}');
+    } else {
+      fmtStr(f, "{{");
+      fmtNode(f, node, pid);
+      fmtStr(f, "}}");
+    }
+  }
+  fmtChar(f, '"');
+}
+
 void fmtArray(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtChar(f, '[');
