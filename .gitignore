@@ -14,3 +14,5 @@ tags
 rupa-*.tar.gz
 problem.txt
 shared
+modules/*.tar.gz
+!.gitkeep
