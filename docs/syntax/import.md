@@ -94,6 +94,36 @@ r.http.server(8080)
 r.thread.sleep(100)
 ```
 
+
+## 9. Import namespace dari stdlib
+
+Module stdlib dapat menyediakan namespace sebagai entry point public:
+
+```rupa
+// stdlib/database/index.rp
+namespace db {
+  export driver.*
+}
+```
+
+Import namespace tersebut menggunakan nama namespace, bukan nama directory:
+
+```rupa
+import db from rupa
+
+db.use(...)
+db.hasDriver(...)
+```
+
+`export driver.*` melakukan flatten sehingga API `driver` langsung menjadi
+property dari `db`. Jika terdapat namespace di dalam namespace, aksesnya tetap
+bertingkat:
+
+```text
+ns.ns    → namespace di dalam namespace
+ns.props → property/function langsung
+```
+
 ## Ringkasan
 
 | Syntax | Hasil |
@@ -103,7 +133,7 @@ r.thread.sleep(100)
 | `import X.* as alias from ./path` | `alias.func()` |
 | `import X.a, X.b from ./path` | `a()`, `b()` top-level |
 | `import X from ./path` | `X.func()` |
-| `import X from rupa` | Seluruh module |
+| `import X from rupa` | Namespace/module `X` dari stdlib |
 | `import X from rupa.Y` | Fungsi dari module |
 | `import X, Y from rupa.Y` | Beberapa fungsi |
 | `import X.*, Y.* from rupa as ns` | Wildcard + alias |

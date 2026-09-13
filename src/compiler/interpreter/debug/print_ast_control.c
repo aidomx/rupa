@@ -138,8 +138,56 @@ bool printControlAst(Node *node, int index, int level) {
     for (int i = 0; i < n->stringInterp.length; i++)
       printAst(node, n->stringInterp.parts[i], level + 1);
     return true;
-  case NODE_IMPORT:
-  case NODE_EXPORT:
+  case NODE_MOD: {
+    printIndent(level);
+
+    if (n->mod.type == NamespaceDecl) {
+      printf("Namespace Declaration:\n");
+      if (n->mod.source) {
+        printIndent(level + 1);
+        printf("Name: %s\n", n->mod.source);
+      }
+      if (n->mod.body >= 0) {
+        printIndent(level + 1);
+        printf("Body:\n");
+        printAst(node, n->mod.body, level + 2);
+      }
+      return true;
+    }
+
+    printf("%s Declaration:\n", n->mod.type == ImportDecl ? "Import" : "Export");
+    printIndent(level + 1);
+    printf("entries:\n");
+    for (int i = 0; i < n->mod.entryCount; i++) {
+      struct AstModEntry *e = &n->mod.entries[i];
+      printIndent(level + 2);
+      printf("%s", e->name ? e->name : "?");
+      if (e->type == MOD_WILD)
+        printf(".*");
+      for (struct AstModEntry *c = e->childrens; c; c = c->childrens)
+        printf(".%s", c->name ? c->name : "?");
+      if (e->key)
+        printf(" as %s", e->key);
+      printf("\n");
+    }
+    if (n->mod.source) {
+      printIndent(level + 1);
+      printf("from: %s", n->mod.source);
+      if (n->mod.sourceAlias)
+        printf(" as %s", n->mod.sourceAlias);
+      printf("\n");
+    }
+    if (n->mod.policyCount > 0 && n->mod.policies) {
+      printIndent(level + 1);
+      printf("policies:\n");
+      for (int i = 0; i < n->mod.policyCount; i++) {
+        printIndent(level + 2);
+        printf("%s: %s\n", n->mod.policies[i].name ? n->mod.policies[i].name : "?",
+               n->mod.policies[i].value ? n->mod.policies[i].value : "?");
+      }
+    }
+    return true;
+  }
   case NODE_EXTENDS:
     printIndent(level);
     printf("Module Declaration:\n");
@@ -148,66 +196,6 @@ bool printControlAst(Node *node, int index, int level) {
       printIndent(level + 1);
       printf("from: ");
       printAst(node, n->module.name, level + 1);
-    }
-    return true;
-  case NODE_EXPORT_DECL:
-    printIndent(level);
-    printf("Export Declaration:\n");
-    if (n->astExport.namespaceName >= 0) {
-      printIndent(level + 1);
-      printf("namespace: ");
-      printAst(node, n->astExport.namespaceName, level + 2);
-    }
-    if (n->astExport.selectiveItems >= 0) {
-      printIndent(level + 1);
-      printf("selective items: ");
-      printAst(node, n->astExport.selectiveItems, level + 2);
-    }
-    if (n->astExport.sourcePath >= 0) {
-      printIndent(level + 1);
-      printf("from: ");
-      printAst(node, n->astExport.sourcePath, level + 2);
-    }
-    if (n->astExport.policyCount > 0 && n->astExport.policies) {
-      printIndent(level + 1);
-      printf("policies:\n");
-      for (int i = 0; i < n->astExport.policyCount; i++) {
-        printIndent(level + 2);
-        printf("%s: %s\n",
-               n->astExport.policies[i].nameNode >= 0
-                   ? (node->ast[n->astExport.policies[i].nameNode].type == NODE_LITERAL_ID
-                          ? node->ast[n->astExport.policies[i].nameNode].string.value
-                          : "?")
-                   : "?",
-               n->astExport.policies[i].policy ? n->astExport.policies[i].policy : "?");
-      }
-    }
-    return true;
-  case NODE_MODULE_IMPORT:
-    printIndent(level);
-    printf("Module Import:\n");
-    printIndent(level + 1);
-    printf("base: ");
-    if (n->moduleImport.basePath >= 0)
-      printAst(node, n->moduleImport.basePath, level + 2);
-    else
-      printf("(null)");
-    for (int i = 0; i < n->moduleImport.entryCount; i++) {
-      struct AstModuleImportEntry *e = &n->moduleImport.entries[i];
-      printIndent(level + 1);
-      printf("entry: ");
-      if (e->pathNode >= 0) printAst(node, e->pathNode, level + 2);
-      if (e->aliasNode >= 0) {
-        printf(" as ");
-        printAst(node, e->aliasNode, level + 2);
-      }
-      if (e->isWildcard) printf(" (wildcard)");
-      printf("\n");
-    }
-    if (n->moduleImport.alias >= 0) {
-      printIndent(level + 1);
-      printf("alias: ");
-      printAst(node, n->moduleImport.alias, level + 2);
     }
     return true;
   default:

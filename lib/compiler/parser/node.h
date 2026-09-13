@@ -113,10 +113,8 @@ int createFunctionDecl(struct Node *root, int name, int *params, int paramLength
 int createStructDecl(struct Node *root, int name, int body);
 int createAnnotation(struct Node *root, int name, int type, int value);
 int createModule(struct Node *root, enum NodeType type, int value, int name);
-int createModuleImport(struct Node *root, int basePath, struct AstModuleImportEntry *entries,
-                       int entryCount, int alias);
 
-/* ---- Module design baru (NODE_MOD) — 1 container untuk import & export ----
+/* ---- Module design (NODE_MOD) — 1 container untuk import & export ----
  * Entry helpers — semua alokasi via GC (gccalloc/gcstrdup), tanpa free manual.
  */
 AstModEntry *modEntry(const char *name);
@@ -129,42 +127,38 @@ AstModEntry *modPolicy(const char *name, const char *value);
  * Membuat NODE_MOD dengan type ImportDecl.
  *
  * @param root Root node AST.
- * @param entries Array entry yang diimport (di-copy ke GC).
+ * @param entries Array pointer entry yang diimport (di-copy ke GC).
  * @param entryCount Jumlah entries.
  * @param source Path module ("../modules", "rupa.os"), atau NULL.
  * @param sourceAlias Alias `from X as m`, atau NULL.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createModImport(struct Node *root, AstModEntry *entries, int entryCount,
+int createModImport(struct Node *root, AstModEntry **entries, int entryCount,
                     const char *source, const char *sourceAlias);
 
 /**
  * Membuat NODE_MOD dengan type ExportDecl.
  *
  * @param root Root node AST.
- * @param entries Array entry yang diexport (di-copy ke GC).
+ * @param entries Array pointer entry yang diexport (di-copy ke GC).
  * @param entryCount Jumlah entries.
  * @param source Path module, atau NULL untuk export lokal (`export x`).
- * @param policies Array policy `{ a: private }`, atau NULL.
+ * @param policies Array pointer policy `{ a: private }`, atau NULL.
  * @param policyCount Jumlah policies.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createModExport(struct Node *root, AstModEntry *entries, int entryCount,
-                    const char *source, AstModEntry *policies, int policyCount);
+int createModExport(struct Node *root, AstModEntry **entries, int entryCount,
+                    const char *source, AstModEntry **policies, int policyCount);
 
 /**
- * Membuat export declaration node dengan optional policies.
+ * Membuat NODE_MOD dengan type NamespaceDecl (`namespace db { export ... }`).
  *
  * @param root Root node AST.
- * @param namespaceName node id untuk namespace name, atau -1 untuk selective export.
- * @param sourcePath node id untuk source path.
- * @param selectiveItems node id untuk array of names (selective export), atau -1.
- * @param policies Array of export policy entries, atau NULL.
- * @param policyCount Jumlah policies.
- * @return ID node yang dibuat.
+ * @param name Nama namespace (bind target, mis. "db").
+ * @param body ID node NODE_BLOCK berisi ExportDecl bersarang.
+ * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createExportDecl(struct Node *root, int namespaceName, int sourcePath, int selectiveItems,
-                     struct AstExportPolicyEntry *policies, int policyCount);
+int createModNamespace(struct Node *root, const char *name, int body);
 
 /**
  * @brief Membuat request baru untuk parser.

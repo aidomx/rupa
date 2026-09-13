@@ -25,7 +25,7 @@ print(sub(5, 2))  // 3
 // mul tidak bisa di-import — tidak di-export
 ```
 
-### 2. Namespace Export — `export name from ./path`
+### 2. Module Namespace Export — `export name from ./path`
 
 Mengekspor seluruh module sebagai namespace dengan nama custom:
 
@@ -67,12 +67,67 @@ auth.register("user", "456")    // ✅ works
 auth.hashPassword("secret")     // ❌ PrivateError: 'hashPassword' is private and cannot be called from outside
 ```
 
+
+### 3. Namespace Declaration — `namespace name { ... }`
+
+Namespace mengelompokkan export ke dalam satu object namespace. Namespace dapat
+berisi namespace lain atau export module.
+
+```rupa
+namespace db {
+  export driver.*
+}
+```
+
+Jika `driver` memiliki `hasDriver`, `getDriver`, dan `use`, wildcard `.*`
+melakukan **flatten** ke namespace `db`:
+
+```rupa
+db.hasDriver(...)
+db.getDriver(...)
+db.use(...)
+```
+
+`db.driver.use(...)` tidak digunakan karena `driver.*` sudah mengambil seluruh
+isi `driver` ke dalam `db`.
+
+Tanpa `.*`, namespace tetap bertingkat:
+
+```rupa
+namespace db {
+  namespace driver {
+    export use
+  }
+}
+```
+
+Akses mengikuti pola:
+
+```text
+ns.ns       → namespace di dalam namespace
+ns.props    → property/function langsung pada namespace
+```
+
+Namespace juga dapat digunakan sebagai public entry point module. Contohnya
+`stdlib/database/index.rp` dapat mendefinisikan `namespace db`, lalu digunakan
+dengan:
+
+```rupa
+import db from rupa
+
+db.use(...)
+```
+
+> Nama directory/package tidak harus sama dengan nama namespace yang diekspor.
+
 ## Aturan
 
 | Syntax | Keterangan |
 |--------|------------|
 | `export a, b from ./c` | Hanya `a` dan `b` yang di-export dari `c` |
 | `export c from ./c` | Seluruh binding di `c` di-export sebagai namespace `c` |
+| `namespace c { ... }` | Membentuk namespace `c` dari export di dalam body |
+| `export c.*` | Flatten seluruh isi namespace/module `c` ke namespace saat ini |
 | `export c from ./c -> { x: private }` | Namespace `c` di-export, tapi `x` tidak bisa diakses |
 | `export math` | Legacy — export semua binding (backward compatible) |
 

@@ -1,4 +1,0 @@
-import add, multiply from rupa.stark
-
-print(add(2, 3) + "\n")
-print(multiply(4, 5) + "\n")

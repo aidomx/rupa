@@ -41,38 +41,40 @@ AstModEntry *modPolicy(const char *name, const char *value) {
   return e;
 }
 
-/* Copy array entry ke GC — struktur rantai childrens ikut diduplikat. */
-static AstModEntry *modCopyEntries(AstModEntry *entries, int entryCount) {
+/* Copy array of entry pointers ke GC — struktur rantai childrens ikut diduplikat. */
+static AstModEntry *modCopyEntries(AstModEntry **entries, int entryCount) {
   if (!entries || entryCount <= 0) return NULL;
   AstModEntry *out = gccalloc(entryCount, sizeof(AstModEntry));
   if (!out) return NULL;
   for (int i = 0; i < entryCount; i++) {
-    out[i].type = entries[i].type;
-    out[i].name = entries[i].name ? gcstrdup(entries[i].name) : NULL;
-    out[i].key = entries[i].key ? gcstrdup(entries[i].key) : NULL;
-    out[i].value = entries[i].value ? gcstrdup(entries[i].value) : NULL;
-    /* Rantai childrens disalin rekursif (shallow per node, GC-owned). */
-    AstModEntry *src = entries[i].childrens;
+    AstModEntry *src = entries[i];
+    if (!src) continue;
+    out[i].type = src->type;
+    out[i].name = src->name ? gcstrdup(src->name) : NULL;
+    out[i].key = src->key ? gcstrdup(src->key) : NULL;
+    out[i].value = src->value ? gcstrdup(src->value) : NULL;
+    /* Rantai childrens disalin (shallow per node, GC-owned). */
+    AstModEntry *s = src->childrens;
     AstModEntry *dst = NULL;
-    while (src) {
+    while (s) {
       AstModEntry *c = gccalloc(1, sizeof(AstModEntry));
       if (!c) break;
-      c->type = src->type;
-      c->name = src->name ? gcstrdup(src->name) : NULL;
-      c->key = src->key ? gcstrdup(src->key) : NULL;
-      c->value = src->value ? gcstrdup(src->value) : NULL;
+      c->type = s->type;
+      c->name = s->name ? gcstrdup(s->name) : NULL;
+      c->key = s->key ? gcstrdup(s->key) : NULL;
+      c->value = s->value ? gcstrdup(s->value) : NULL;
       if (dst)
         dst->childrens = c;
       else
         out[i].childrens = c;
       dst = c;
-      src = src->childrens;
+      s = s->childrens;
     }
   }
   return out;
 }
 
-int createModImport(Node *root, AstModEntry *entries, int entryCount,
+int createModImport(Node *root, AstModEntry **entries, int entryCount,
                     const char *source, const char *sourceAlias) {
   if (!root) return -1;
   AstNode n = {.type = NODE_MOD};
@@ -83,11 +85,12 @@ int createModImport(Node *root, AstModEntry *entries, int entryCount,
   n.mod.sourceAlias = sourceAlias ? gcstrdup(sourceAlias) : NULL;
   n.mod.policies = NULL;
   n.mod.policyCount = 0;
+  n.mod.body = -1;
   return createAst(root, n);
 }
 
-int createModExport(Node *root, AstModEntry *entries, int entryCount,
-                    const char *source, AstModEntry *policies, int policyCount) {
+int createModExport(Node *root, AstModEntry **entries, int entryCount,
+                    const char *source, AstModEntry **policies, int policyCount) {
   if (!root) return -1;
   AstNode n = {.type = NODE_MOD};
   n.mod.type = ExportDecl;
@@ -97,6 +100,24 @@ int createModExport(Node *root, AstModEntry *entries, int entryCount,
   n.mod.sourceAlias = NULL;
   n.mod.policies = modCopyEntries(policies, policyCount);
   n.mod.policyCount = policies ? policyCount : 0;
+  n.mod.body = -1;
+  return createAst(root, n);
+}
+
+/* `namespace db { export ...; export ...; }` — body is a NODE_BLOCK id
+ * holding the nested export statements; name is reused via mod.source
+ * (the field already means "identity of what's being bound" for exports). */
+int createModNamespace(Node *root, const char *name, int body) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_MOD};
+  n.mod.type = NamespaceDecl;
+  n.mod.entries = NULL;
+  n.mod.entryCount = 0;
+  n.mod.source = name ? gcstrdup(name) : NULL;
+  n.mod.sourceAlias = NULL;
+  n.mod.policies = NULL;
+  n.mod.policyCount = 0;
+  n.mod.body = body;
   return createAst(root, n);
 }
 
@@ -256,41 +277,5 @@ int createStringInterp(Node *root, int *parts, int length) {
   AstNode n = {.type = NODE_STRING_INTERP};
   n.stringInterp.parts = copyIds(parts, length);
   n.stringInterp.length = length;
-  return createAst(root, n);
-}
-
-int createModuleImport(Node *root, int basePath, struct AstModuleImportEntry *entries,
-                       int entryCount, int alias) {
-  if (!root) return -1;
-  AstNode n = {.type = NODE_MODULE_IMPORT};
-  n.moduleImport.basePath = basePath;
-  n.moduleImport.entries = NULL;
-  n.moduleImport.entryCount = entryCount;
-  n.moduleImport.alias = alias;
-  if (entryCount > 0 && entries) {
-    n.moduleImport.entries = gcmall(sizeof(struct AstModuleImportEntry) * entryCount);
-    memcpy(n.moduleImport.entries, entries, sizeof(struct AstModuleImportEntry) * entryCount);
-  }
-  return createAst(root, n);
-}
-
-int createExportDecl(Node *root, int namespaceName, int sourcePath, int selectiveItems,
-                     struct AstExportPolicyEntry *policies, int policyCount) {
-  if (!root) return -1;
-  AstNode n = {.type = NODE_EXPORT_DECL};
-  n.astExport.namespaceName = namespaceName;
-  n.astExport.sourcePath = sourcePath;
-  n.astExport.selectiveItems = selectiveItems;
-  n.astExport.policies = NULL;
-  n.astExport.policyCount = policyCount;
-  if (policyCount > 0 && policies) {
-    n.astExport.policies = gcmall(sizeof(struct AstExportPolicyEntry) * policyCount);
-    if (n.astExport.policies) {
-      for (int i = 0; i < policyCount; i++) {
-        n.astExport.policies[i].nameNode = policies[i].nameNode;
-        n.astExport.policies[i].policy = policies[i].policy ? gcstrdup(policies[i].policy) : NULL;
-      }
-    }
-  }
   return createAst(root, n);
 }

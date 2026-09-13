@@ -4,8 +4,11 @@ import os from rupa
 import a.* as form, b.login, b.register from ../modules
 import d from ../modules
 import math from rupa
+import db from rupa
 
-// test exported functions
+print(db)
+
+
 print(math + "\n")
 print(math.add(1, 2) + "\n")
 

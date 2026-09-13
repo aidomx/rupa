@@ -53,9 +53,7 @@ extern void fmtIf(Formatter *f, Node *node, int id);
 extern void fmtLoop(Formatter *f, Node *node, int id);
 extern void fmtFunctionDecl(Formatter *f, Node *node, int id);
 extern void fmtStructDecl(Formatter *f, Node *node, int id);
-extern void fmtModule(Formatter *f, Node *node, int id);
-extern void fmtModuleImport(Formatter *f, Node *node, int id);
-extern void fmtExport(Formatter *f, Node *node, int id);
+extern void fmtMod(Formatter *f, Node *node, int id);
 extern void fmtAsync(Formatter *f, Node *node, int id);
 extern void fmtCase(Formatter *f, Node *node, int id);
 

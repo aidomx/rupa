@@ -3,4 +3,7 @@ x = 1 + 2 * 3
 x = (1 + 2)
 x = ((1 + 2) * (3 - 4))
 x = 5 % 2
+
+first = x == 2
+second = 3
 value = first | second

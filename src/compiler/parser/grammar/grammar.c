@@ -40,7 +40,7 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
     if ((id = grammarParseCase(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
     if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
     if ((id = grammarParseLoop(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
-    if ((id = grammarParseModule(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseModule(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
   }
 
   int id;

@@ -103,9 +103,10 @@ int loader(const char *args[], int length) {
       break;
     }
 
-    else if (strcmp(args[i], "add") == 0 || strcmp(args[i], "update") == 0 ||
-             strcmp(args[i], "delete") == 0 || strcmp(args[i], "remove") == 0 ||
-             strcmp(args[i], "list") == 0 || strcmp(args[i], "-g") == 0) {
+    else if (strcmp(args[i], "install") == 0 || strcmp(args[i], "add") == 0 ||
+             strcmp(args[i], "update") == 0 || strcmp(args[i], "delete") == 0 ||
+             strcmp(args[i], "remove") == 0 || strcmp(args[i], "list") == 0 ||
+             strcmp(args[i], "-g") == 0) {
       int result = stdlibManage(args + i, length - i);
       handled = true;
       autorun = false;

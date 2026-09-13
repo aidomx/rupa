@@ -22,6 +22,8 @@ static const char *keyword_name(KeywordType type) {
     return "export";
   case KEYWORD_EXTENDS:
     return "extends";
+  case KEYWORD_NAMESPACE:
+    return "namespace";
   case KEYWORD_RETURN:
     return "return";
   case KEYWORD_BREAK:

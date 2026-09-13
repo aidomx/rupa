@@ -1,0 +1,9 @@
+/**
+ * Database Manage
+ * Untuk mendukung penggunaan Database
+ * File ini hanya untuk re-export
+ */
+namespace db {
+  export driver.* -> { getDriver: private }
+}
+

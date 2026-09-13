@@ -3,7 +3,21 @@
 Module terdiri dari dua bagian:
 
 - [Import](import.md) — NODE_IMPORT dan NODE_MODULE_IMPORT
-- [Export](export.md) — NODE_EXPORT
+- [Export](export.md) — NODE_EXPORT dan namespace
+
+## Namespace
+
+`namespace name { ... }` membentuk namespace runtime dari deklarasi di dalam
+body. `export name.*` meratakan isi namespace/module tersebut ke namespace saat
+ini.
+
+```rupa
+namespace db {
+  export driver.*
+}
+```
+
+Hasil akses: `db.use(...)`, bukan `db.driver.use(...)`.
 
 ## Path Resolution
 

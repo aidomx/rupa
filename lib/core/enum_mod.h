@@ -22,4 +22,5 @@ enum ModEntryKind {
 enum ModType {
   ImportDecl = 0,
   ExportDecl = 1,
+  NamespaceDecl = 2, /* namespace db { export ... }  — see AstMod.body */
 };

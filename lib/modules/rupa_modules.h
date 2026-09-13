@@ -65,6 +65,7 @@ void stdlibLoaderInit(void);
 
 /* Find a stdlib module by name (returns file path or NULL) */
 const char *stdlibFindModule(const char *name);
+const char *stdlibFindNamespace(const char *name);
 
 /* Get the count of cached stdlib modules */
 int stdlibModuleCount(void);

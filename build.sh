@@ -18,23 +18,21 @@ export COMPDB_FILE="$APP_ROOT/compile_commands.json"
 
 main_build() {
   local args="$1"
-  local bootstrap="$BOOTSTRAP"
-  local extra="${2:-}"
   export compdb=false
 
   [[ -f $COMPDB_FILE ]] && export compdb=true
 
-  if $compdb || [[ "$args" == "test" ]]; then
-    . $bootstrap "$args" "$@"
+  if $compdb || [[ "$args" == "test" || "$args" == "fmt" ]]; then
+    . "$BOOTSTRAP" "$@"
     return
   fi
 
   if command -v intercept-build >/dev/null 2>&1; then
-    intercept-build $bootstrap "$args" "$extra"
+    intercept-build "$BOOTSTRAP" "$@"
   elif command -v bear >/dev/null 2>&1; then
-    bear -- $bootstrap "$args" "$extra"
+    bear -- "$BOOTSTRAP" "$@"
   else
-    . $bootstrap "$args" "$extra"
+    . "$BOOTSTRAP" "$@"
   fi
 }
 

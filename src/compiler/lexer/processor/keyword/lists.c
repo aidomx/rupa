@@ -11,6 +11,7 @@ const char *keywordList[] = {
     "import",   // import modul
     "export",   // export modul
     "extends",  // extends
+    "namespace", // namespace db { export ... }
     "return",   // return
     "break",    // keluar dari loop
     "continue", // lanjut iterasi loop
@@ -32,6 +33,7 @@ KeywordType keywordType[] = {
     KEYWORD_IMPORT,   // import
     KEYWORD_EXPORT,   // export
     KEYWORD_EXTENDS,  // extends
+    KEYWORD_NAMESPACE, // namespace
     KEYWORD_RETURN,   // return
     KEYWORD_BREAK,    // break
     KEYWORD_CONTINUE, // continue

@@ -75,13 +75,10 @@ static const char *getDeclNeedle(Node *node, int nodeId) {
     return getDeclNeedle(node, n->function.name);
   case NODE_STRUCT_DECL:
     return getDeclNeedle(node, n->asStruct.name);
-  case NODE_IMPORT:
-    return "import";
-  case NODE_MODULE_IMPORT:
-    return "import";
-  case NODE_EXPORT:
-  case NODE_EXPORT_DECL:
-    return "export";
+  case NODE_MOD:
+    return n->mod.type == ImportDecl ? "import" : "export";
+  case NODE_EXTENDS:
+    return "extends";
   case NODE_ASSIGN:
     return getDeclNeedle(node, n->assign.target);
   case NODE_CONDITIONAL_ASSIGN:

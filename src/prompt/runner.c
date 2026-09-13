@@ -41,13 +41,13 @@ int run(const char *paths[], int length) {
   addToInput(state);
   lexer(state);
 
+  Error *error = createError(10);
   Flags *flags = state->input->flags;
   Token *tokens = state->tokens;
   if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) return 1;
 
   Request request = createRequest(tokens, 10);
   Node *node = processGenerate(&request);
-  Error *error = createError(10);
   if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) return 1;
 
   int root = -1;

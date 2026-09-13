@@ -238,20 +238,20 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
 
   bool has_export = false;
   bool has_decl_export = false;
+  bool has_namespace = false;
   {
     AstNode *prog = &node->ast[root];
     for (AstDeclaration *d = prog->program.declarations; d; d = d->next) {
-      if (d->nodeId >= 0 && d->nodeId < node->length) {
-        AstNode *decl = &node->ast[d->nodeId];
-        if (decl->type == NODE_EXPORT) {
-          has_export = true;
-          break;
-        }
-        if (decl->type == NODE_EXPORT_DECL) {
-          has_export = true;
-          has_decl_export = true;
-          break;
-        }
+      if (d->nodeId < 0 || d->nodeId >= node->length) continue;
+      AstNode *decl = &node->ast[d->nodeId];
+      if (decl->type != NODE_MOD) continue;
+
+      if (decl->mod.type == ExportDecl) {
+        has_export = true;
+        if (decl->mod.source) has_decl_export = true;
+      } else if (decl->mod.type == NamespaceDecl) {
+        has_export = true;
+        has_namespace = true;
       }
     }
   }
@@ -261,10 +261,15 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
     return valueNull();
   }
 
-  if (!has_export && !require_export) {
+  if ((!has_export && !require_export) || (has_namespace && !has_decl_export)) {
     struct RuntimeObjectEntry *entries = NULL;
     for (RuntimeBinding *b = mod_env->bindings; b; b = b->next) {
-      if (b->value.type == VALUE_OBJECT) continue;
+      /* Runtime-only async status constants are implementation details,
+       * never module exports. Objects must remain here because namespaces
+       * are represented as RuntimeValue objects. */
+      if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
+          strcmp(b->name, "ERROR") == 0)
+        continue;
       if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
       struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
       e->key = strdup(b->name);
@@ -282,48 +287,27 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
     for (AstDeclaration *d = prog->program.declarations; d; d = d->next) {
       if (d->nodeId < 0 || d->nodeId >= node->length) continue;
       AstNode *decl = &node->ast[d->nodeId];
-      if (decl->type != NODE_EXPORT_DECL) continue;
-      struct AstExport *exp = &decl->astExport;
+      if (decl->type != NODE_MOD || decl->mod.type != ExportDecl) continue;
+      struct AstMod *mod = &decl->mod;
+      if (!mod->source) continue; /* local export: no re-export payload */
 
-      const char *src_path = NULL;
-      if (exp->sourcePath >= 0 && exp->sourcePath < node->length) {
-        AstNode *srcAst = &node->ast[exp->sourcePath];
-        if (srcAst->type == NODE_LITERAL_ID)
-          src_path = srcAst->string.value;
-        else if (srcAst->type == NODE_IDENTIFIER)
-          src_path = srcAst->identifier.name;
-      }
-      if (!src_path) continue;
-
-      RuntimeValue mod_val = loadModuleFile(src_path, false);
+      RuntimeValue mod_val = loadModuleFile(mod->source, false);
       if (mod_val.type != VALUE_OBJECT) continue;
 
-      if (exp->namespaceName >= 0 && exp->namespaceName < node->length) {
-        const char *ns_name = NULL;
-        AstNode *nsAst = &node->ast[exp->namespaceName];
-        if (nsAst->type == NODE_LITERAL_ID)
-          ns_name = nsAst->string.value;
-        else if (nsAst->type == NODE_IDENTIFIER)
-          ns_name = nsAst->identifier.name;
-        if (!ns_name) continue;
+      /* Namespace re-export: single plain entry */
+      if (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_ID &&
+          mod->entries[0].name) {
+        const char *ns_name = mod->entries[0].name;
 
-        if (exp->policyCount > 0 && exp->policies) {
+        if (mod->policyCount > 0 && mod->policies) {
           struct RuntimeObjectEntry *filtered = NULL;
           for (struct RuntimeObjectEntry *fe = mod_val.as.object.entries; fe; fe = fe->next) {
             bool is_private = false;
-            for (int pi = 0; pi < exp->policyCount; pi++) {
-              if (exp->policies[pi].nameNode >= 0 && exp->policies[pi].nameNode < node->length) {
-                AstNode *polAst = &node->ast[exp->policies[pi].nameNode];
-                const char *pol_name = NULL;
-                if (polAst->type == NODE_LITERAL_ID)
-                  pol_name = polAst->string.value;
-                else if (polAst->type == NODE_IDENTIFIER)
-                  pol_name = polAst->identifier.name;
-                if (pol_name && strcmp(fe->key, pol_name) == 0 && exp->policies[pi].policy &&
-                    strcmp(exp->policies[pi].policy, "private") == 0) {
-                  is_private = true;
-                  break;
-                }
+            for (int pi = 0; pi < mod->policyCount; pi++) {
+              if (mod->policies[pi].name && strcmp(fe->key, mod->policies[pi].name) == 0 &&
+                  mod->policies[pi].value && strcmp(mod->policies[pi].value, "private") == 0) {
+                is_private = true;
+                break;
               }
             }
             if (!is_private) {
@@ -335,22 +319,14 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
             }
           }
           struct RuntimeObjectEntry *priv_entries = NULL;
-          for (int pi = 0; pi < exp->policyCount; pi++) {
-            if (exp->policies[pi].nameNode >= 0 && exp->policies[pi].nameNode < node->length &&
-                exp->policies[pi].policy && strcmp(exp->policies[pi].policy, "private") == 0) {
-              AstNode *polAst = &node->ast[exp->policies[pi].nameNode];
-              const char *pol_name = NULL;
-              if (polAst->type == NODE_LITERAL_ID)
-                pol_name = polAst->string.value;
-              else if (polAst->type == NODE_IDENTIFIER)
-                pol_name = polAst->identifier.name;
-              if (pol_name) {
-                struct RuntimeObjectEntry *pe = calloc(1, sizeof(*pe));
-                pe->key = strdup(pol_name);
-                pe->value = valueNull();
-                pe->next = priv_entries;
-                priv_entries = pe;
-              }
+          for (int pi = 0; pi < mod->policyCount; pi++) {
+            if (mod->policies[pi].name && mod->policies[pi].value &&
+                strcmp(mod->policies[pi].value, "private") == 0) {
+              struct RuntimeObjectEntry *pe = calloc(1, sizeof(*pe));
+              pe->key = strdup(mod->policies[pi].name);
+              pe->value = valueNull();
+              pe->next = priv_entries;
+              priv_entries = pe;
             }
           }
           if (priv_entries) {
@@ -372,28 +348,20 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
           se->next = entries;
           entries = se;
         }
-      } else if (exp->selectiveItems >= 0 && exp->selectiveItems < node->length) {
-        AstNode *items_node = &node->ast[exp->selectiveItems];
-        if (items_node->type == NODE_ARRAY) {
-          for (int i = 0; i < items_node->array.length; i++) {
-            int nid = items_node->array.elements[i];
-            if (nid < 0 || nid >= node->length) continue;
-            AstNode *item = &node->ast[nid];
-            const char *item_name = NULL;
-            if (item->type == NODE_LITERAL_ID)
-              item_name = item->string.value;
-            else if (item->type == NODE_IDENTIFIER)
-              item_name = item->identifier.name;
-            if (!item_name) continue;
-            RuntimeValue item_val;
-            if (valueObjectGet(mod_val, item_name, &item_val)) {
-              struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-              se->key = strdup(item_name);
-              se->value = item_val;
-              se->next = entries;
-              entries = se;
-            }
-          }
+        continue;
+      }
+
+      /* Selective: bind each named member */
+      for (int i = 0; i < mod->entryCount; i++) {
+        AstModEntry *en = &mod->entries[i];
+        if (!en->name) continue;
+        RuntimeValue item_val;
+        if (valueObjectGet(mod_val, en->name, &item_val)) {
+          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
+          se->key = strdup(en->key ? en->key : en->name);
+          se->value = item_val;
+          se->next = entries;
+          entries = se;
         }
       }
     }
@@ -403,7 +371,9 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
 
   struct RuntimeObjectEntry *entries = NULL;
   for (RuntimeBinding *b = mod_env->bindings; b; b = b->next) {
-    if (b->value.type == VALUE_OBJECT) continue;
+    if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
+        strcmp(b->name, "ERROR") == 0)
+      continue;
     if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
     struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
     e->key = strdup(b->name);

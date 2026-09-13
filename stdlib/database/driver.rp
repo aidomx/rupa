@@ -1,0 +1,16 @@
+import sys from rupa
+
+hasDriver(name: string) {
+  return sys.driver.has(name)
+}
+
+getDriver(name: string) {
+  if !hasDriver(name):
+    print("Error: driver {name} is not supported!\n")
+
+  return sys.driver.get(name)
+}
+
+use(driver: string) {
+  return getDriver(driver)
+}

@@ -5,6 +5,28 @@ Module memungkinkan kode untuk diorganisir dan digunakan kembali dengan mengimpo
 - [Import](import.md) — mengimpor kode dari file lain
 - [Export](export.md) — mengekspor kode agar bisa di-import
 
+## Namespace
+
+Namespace adalah entry point bernama untuk sekumpulan export. Namespace dapat
+meratakan isi module dengan wildcard `.*`.
+
+```rupa
+namespace db {
+  export driver.*
+}
+
+import db from rupa
+
+db.use(...)
+```
+
+Pola akses:
+
+```text
+ns.ns    → namespace di dalam namespace
+ns.props → property/function langsung pada namespace
+```
+
 ## Path Resolution
 
 | Path | Resolves to |

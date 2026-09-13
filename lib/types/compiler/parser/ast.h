@@ -279,33 +279,14 @@ struct AstMod {
   char *sourceAlias;           /* `from X as m` → "m"; NULL */
   struct AstModEntry *policies;/* `-> { a: private }`; NULL */
   int policyCount;
+  int body; /* NamespaceDecl only: NODE_BLOCK id holding nested ExportDecl
+             * statements (`namespace db { export ...; export ...; }`).
+             * -1 for ImportDecl/ExportDecl. */
 };
 
 struct AstModule {
   int value;
   int name; // submodule index (-1 if not used, e.g. import X from rupa)
-};
-
-/**
- * Export policy entry: `a: private` or `a: public`
- */
-struct AstExportPolicyEntry {
-  int nameNode; /* node id for the name (e.g., "a") */
-  char *policy; /* "private" or "public" */
-};
-
-/**
- * Extended export statement with policies:
- *   export a, b from ./c
- *   export c from ./c
- *   export c from ./c -> { a: private }
- */
-struct AstExport {
-  int namespaceName; /* node id for namespace name (e.g., "c" in `export c from ./c`), or -1 for selective */
-  int sourcePath;     /* node id for source path (e.g., "./c") */
-  int selectiveItems; /* node id for array of names (for selective export), or -1 */
-  struct AstExportPolicyEntry *policies; /* array of policies, or NULL */
-  int policyCount;                       /* number of policies */
 };
 
 struct AstUpdate {
@@ -351,25 +332,6 @@ struct AstStringInterp {
 };
 
 /**
- * Single entry dalam flat import: `a.create`, `b.login as auth`, `d.*`
- */
-struct AstModuleImportEntry {
-  int pathNode;    /* node id untuk path (e.g., "a.create", "b.login") */
-  int aliasNode;   /* node id untuk alias setelah `as`, atau -1 */
-  bool isWildcard; /* true jika `d.*` */
-};
-
-/**
- * Import statement baru: `import a.create, b.login as auth, d.* from modules as m`
- */
-struct AstModuleImport {
-  int basePath;                         /* node id untuk base path ("modules") */
-  struct AstModuleImportEntry *entries; /* array of entries */
-  int entryCount;                       /* jumlah entries */
-  int alias;                            /* node id untuk `as m`, atau -1 */
-};
-
-/**
  * @brief Abstract Syntax Tree node.
  *
  * Union yang dapat menyimpan berbagai jenis AST node types.
@@ -409,8 +371,6 @@ struct AstNode {
     struct AstAnnotation annotation;
     struct AstMod mod;
     struct AstModule module;
-    struct AstExport astExport;
-    struct AstModuleImport moduleImport;
     struct AstObject object;
     struct AstCase asCase;
     struct AstUpdate update;

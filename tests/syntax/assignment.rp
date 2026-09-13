@@ -1,4 +1,8 @@
 # Assignment grammar
+primary = (1+2) < 3
+fallback = 1+2
+
 value = primary | fallback | default
-result ?= valid -> "Sukses"
-result ?= valid -> primary | fallback | "Unavailable"
+result ?= value -> primary | fallback | "Unavailable"
+
+print(result)

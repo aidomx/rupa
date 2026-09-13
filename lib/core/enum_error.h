@@ -42,9 +42,10 @@ enum ErrorType {
   WARN_POSSIBLE_NULL, // Potensi akses null
 
   // Internal/engine errors
-  ERR_INTERNAL,       // Kesalahan internal interpreter
+  ERR_INTERNAL,        // Kesalahan internal interpreter
   ERR_NOT_IMPLEMENTED, // Fitur belum diimplementasi
 
   // Test assertion errors
-  ERR_ASSERT_FAILED   // Assertion gagal dalam test
+  ERR_ASSERT_FAILED, // Assertion gagal dalam test
+  ERR_PARSE_FAILED
 };

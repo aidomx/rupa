@@ -10,4 +10,4 @@ delete() {
   print("a.delete called\n")
 }
 
-export a from 
+export a

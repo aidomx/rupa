@@ -59,6 +59,35 @@ Interpreter:
 1. Cari di stdlib modules → `os`
 2. Bind di top-level
 
+
+## Namespace import
+
+Namespace yang didefinisikan oleh module dapat di-import sebagai satu binding.
+Nama binding mengikuti nama namespace, sehingga nama package tidak harus sama
+dengan namespace tersebut.
+
+```rupa
+// stdlib/database/index.rp
+namespace db {
+  export driver.*
+}
+
+// pemakai
+import db from rupa
+db.use(...)
+```
+
+`export driver.*` melakukan flatten: member dari `driver` menjadi member
+langsung dari `db`. Dengan demikian `db.use` valid, sedangkan `db.driver.use`
+tidak diperlukan.
+
+Pola resolusi member:
+
+```text
+ns.ns    → namespace bertingkat
+ns.props → property/function langsung
+```
+
 ## NODE_MODULE_IMPORT
 
 Flat import — `import entries from path as alias`

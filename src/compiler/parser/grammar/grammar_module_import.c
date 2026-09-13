@@ -1,16 +1,51 @@
 #include <rupa.h>
 
 /*
- * Import grammar: handles both the new flat syntax and the old-style syntax.
+ * Import grammar — emits NODE_MOD (AstMod, ImportDecl) for all forms:
  *
  *   Flat:     import a.create, b.login as auth, d.* from modules as m
- *   Old:      import X, Y from rupa.MODULE
- *             import X, Y from path.to.file
+ *   Stdlib:   import X, Y from rupa.MODULE
+ *             import X from rupa
+ *   Old:      import X, Y from path.to.file
+ *   Bare:     import X            (bind module X directly)
  */
+
+/* Build an entry from a dotted path ("a", "a.create", "a.b.c").
+ * Wildcard entries keep the full path as name (formatter adds `.*`). */
+AstModEntry *modEntryFromPath(const char *path, bool wild) {
+  if (wild) return modEntryWild(path);
+
+  char parts[16][64];
+  int count = 0;
+  const char *p = path;
+  while (*p && count < 16) {
+    int i = 0;
+    while (*p && *p != '.' && i < 63)
+      parts[count][i++] = *p++;
+    parts[count][i] = '\0';
+    count++;
+    if (*p == '.') p++;
+  }
+  if (count == 0) return NULL;
+  if (count == 1) return modEntry(parts[0]);
+
+  AstModEntry *chain = NULL, *tail = NULL;
+  for (int i = 1; i < count; i++) {
+    AstModEntry *c = modEntry(parts[i]);
+    if (!c) continue;
+    if (tail)
+      tail->childrens = c;
+    else
+      chain = c;
+    tail = c;
+  }
+  return modEntryMember(parts[0], chain);
+}
 
 /* Parse flat import entries between baseIdx and fromPos. */
 static int parseFlatImportEntries(Request *r, Token *t, int baseIdx, int fromPos,
-                                  struct AstModuleImportEntry *entries, int *entryCount) {
+                                  AstModEntry **entries, int *entryCount) {
+  (void)r;
   int cur = baseIdx;
   *entryCount = 0;
 
@@ -32,77 +67,45 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx, int fromPos
       cur++;
     }
 
-    /* Wildcard: path.* [as alias] */
-    if (cur < fromPos && t->data[cur].type == STAR) {
-      char pathBuf[256] = {0};
-      for (int i = pathStart; i < cur; i++) {
-        if (t->data[i].type == DOT) continue;
-        if (pathBuf[0]) strcat(pathBuf, ".");
-        strcat(pathBuf, t->data[i].value);
-      }
-      entries[*entryCount].pathNode = createString(r->node, pathBuf, NODE_LITERAL_ID);
-      entries[*entryCount].aliasNode = -1;
-      entries[*entryCount].isWildcard = true;
-      cur++;
-
-      /* Optional `as alias` after wildcard */
-      if (cur < fromPos &&
-          (t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
-           t->data[cur].type == LITERAL_ID) &&
-          !strcmp(t->data[cur].value, "as")) {
-        cur++;
-        if (cur < fromPos && (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
-          entries[*entryCount].aliasNode =
-              createString(r->node, t->data[cur].value, NODE_LITERAL_ID);
-          cur++;
-        }
-      }
-      (*entryCount)++;
-      continue;
+    char pathBuf[256] = {0};
+    for (int i = pathStart; i < cur; i++) {
+      if (t->data[i].type == DOT) continue;
+      if (pathBuf[0]) strcat(pathBuf, ".");
+      strcat(pathBuf, t->data[i].value);
     }
 
-    /* Regular entry: path [as alias] */
-    {
-      char pathBuf[256] = {0};
-      for (int i = pathStart; i < cur; i++) {
-        if (t->data[i].type == DOT) continue;
-        if (pathBuf[0]) strcat(pathBuf, ".");
-        strcat(pathBuf, t->data[i].value);
+    /* Wildcard: path.* */
+    bool wild = false;
+    if (cur < fromPos && t->data[cur].type == STAR) {
+      wild = true;
+      cur++;
+    }
+
+    AstModEntry *e = modEntryFromPath(pathBuf, wild);
+    if (!e) break;
+    entries[(*entryCount)++] = e;
+
+    /* Optional `as alias` */
+    if (cur < fromPos &&
+        (t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
+         t->data[cur].type == LITERAL_ID) &&
+        !strcmp(t->data[cur].value, "as")) {
+      cur++;
+      if (cur < fromPos && (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
+        e->key = gcstrdup(t->data[cur].value);
+        cur++;
       }
-
-      entries[*entryCount].pathNode = createString(r->node, pathBuf, NODE_LITERAL_ID);
-      entries[*entryCount].isWildcard = false;
-      entries[*entryCount].aliasNode = -1;
-
-      int nextCur = cur;
-      if (nextCur < fromPos &&
-          (t->data[nextCur].type == KEYWORD || t->data[nextCur].type == IDENTIFIER ||
-           t->data[nextCur].type == LITERAL_ID) &&
-          !strcmp(t->data[nextCur].value, "as")) {
-        nextCur++;
-        if (nextCur < fromPos &&
-            (t->data[nextCur].type == IDENTIFIER || t->data[nextCur].type == LITERAL_ID)) {
-          entries[*entryCount].aliasNode =
-              createString(r->node, t->data[nextCur].value, NODE_LITERAL_ID);
-          nextCur++;
-        }
+      /* Trailing wildcard after alias: `a as form.*` → wildcard entry */
+      if (cur + 1 < fromPos && t->data[cur].type == DOT && t->data[cur + 1].type == STAR) {
+        e->type = MOD_WILD;
+        cur += 2;
       }
-
-      /* Trailing wildcard after alias: `a as form.*` */
-      if (nextCur + 1 < fromPos && t->data[nextCur].type == DOT &&
-          t->data[nextCur + 1].type == STAR) {
-        entries[*entryCount].isWildcard = true;
-        nextCur += 2;
-      }
-
-      (*entryCount)++;
-      cur = nextCur;
     }
   }
   return cur;
 }
 
-/* Handle flat import: `import a.create, b.login as auth, d.* from modules` */
+/* Handle flat import: `import a.create, b.login as auth, d.* from modules as m` */
 int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
   int fromPos = -1;
   /* `a` already points past the `import` keyword to the first entry.
@@ -111,7 +114,7 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
   int baseIdx = grammarModuleDetectFlatImport(t, a, b, &fromPos);
   if (baseIdx < 0 || fromPos < 0) return GRAMMAR_NO_MATCH;
 
-  struct AstModuleImportEntry entries[64];
+  AstModEntry *entries[64];
   int entryCount = 0;
   parseFlatImportEntries(r, t, baseIdx, fromPos, entries, &entryCount);
 
@@ -129,11 +132,9 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
   }
 
   char *fromPath = grammarModuleBuildPath(t, fromStart, fromPathEnd);
-  int basePath = fromPath ? createString(r->node, fromPath, NODE_LITERAL_ID) : -1;
-  free(fromPath);
 
   /* Optional `as alias` after from path */
-  int aliasIdx = -1;
+  char aliasBuf[128] = {0};
   int afterPath = fromPathEnd + 1;
   if (afterPath < b &&
       (t->data[afterPath].type == KEYWORD || t->data[afterPath].type == IDENTIFIER ||
@@ -142,13 +143,15 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
     afterPath++;
     if (afterPath < b &&
         (t->data[afterPath].type == IDENTIFIER || t->data[afterPath].type == LITERAL_ID)) {
-      aliasIdx = createString(r->node, t->data[afterPath].value, NODE_LITERAL_ID);
+      snprintf(aliasBuf, sizeof(aliasBuf), "%s", t->data[afterPath].value);
       afterPath++;
     }
   }
 
   *pos = afterPath;
-  return createModuleImport(r->node, basePath, entries, entryCount, aliasIdx);
+  int id = createModImport(r->node, entries, entryCount, fromPath, aliasBuf[0] ? aliasBuf : NULL);
+  free(fromPath);
+  return id;
 }
 
 /* Handle old-style import: `import X, Y from rupa.MODULE` or `from path` */
@@ -162,36 +165,24 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
     int rupaRoot = grammarModuleDetectFromRupaRoot(t, cur, b);
     if (rupaRoot >= 0) {
       if (nameCount == 0) break;
-      int nameIds[64];
+      AstModEntry *entries[64];
       for (int i = 0; i < nameCount; i++)
-        nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
-      int v = createArray(r->node, nameIds, nameCount);
-      int n = createString(r->node, "rupa", NODE_LITERAL_ID);
+        entries[i] = modEntry(t->data[names[i]].value);
       *pos = b;
-      return createModule(r->node, NODE_IMPORT, v, n);
+      return createModImport(r->node, entries, nameCount, "rupa", NULL);
     }
 
     /* Check for `from rupa.M` (stdlib with dot) */
     int modIdx = grammarModuleDetectFromRupa(t, cur, b);
     if (modIdx >= 0) {
       if (nameCount == 0) break;
-      if (nameCount == 1) {
-        int v = createString(r->node, t->data[names[0]].value, NODE_LITERAL_ID);
-        char fullPath[512];
-        snprintf(fullPath, sizeof(fullPath), "rupa.%s", t->data[modIdx].value);
-        int n = createString(r->node, fullPath, NODE_LITERAL_ID);
-        *pos = b;
-        return createModule(r->node, NODE_IMPORT, v, n);
-      }
-      int nameIds[64];
+      AstModEntry *entries[64];
       for (int i = 0; i < nameCount; i++)
-        nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
-      int v = createArray(r->node, nameIds, nameCount);
+        entries[i] = modEntry(t->data[names[i]].value);
       char fullPath[512];
       snprintf(fullPath, sizeof(fullPath), "rupa.%s", t->data[modIdx].value);
-      int n = createString(r->node, fullPath, NODE_LITERAL_ID);
       *pos = b;
-      return createModule(r->node, NODE_IMPORT, v, n);
+      return createModImport(r->node, entries, nameCount, fullPath, NULL);
     }
 
     /* Check for general `from X.Y.Z` (local file import) */
@@ -200,22 +191,14 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
       int pathStart = grammarModuleDetectFrom(t, cur, b, &pathEnd);
       if (pathStart >= 0 && pathEnd >= 0) {
         if (nameCount == 0) break;
-        char *fullPath = grammarModuleBuildPath(t, pathStart, pathEnd);
-        if (nameCount == 1) {
-          int v = createString(r->node, t->data[names[0]].value, NODE_LITERAL_ID);
-          int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID) : -1;
-          free(fullPath);
-          *pos = b;
-          return createModule(r->node, NODE_IMPORT, v, n);
-        }
-        int nameIds[64];
+        AstModEntry *entries[64];
         for (int i = 0; i < nameCount; i++)
-          nameIds[i] = createString(r->node, t->data[names[i]].value, NODE_LITERAL_ID);
-        int v = createArray(r->node, nameIds, nameCount);
-        int n = fullPath ? createString(r->node, fullPath, NODE_LITERAL_ID) : -1;
-        free(fullPath);
+          entries[i] = modEntry(t->data[names[i]].value);
+        char *fullPath = grammarModuleBuildPath(t, pathStart, pathEnd);
         *pos = b;
-        return createModule(r->node, NODE_IMPORT, v, n);
+        int id = createModImport(r->node, entries, nameCount, fullPath, NULL);
+        free(fullPath);
+        return id;
       }
     }
 
@@ -229,4 +212,19 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
   }
 
   return GRAMMAR_NO_MATCH;
+}
+
+/* Handle bare import: `import X` (no `from`) — bind module X directly. */
+int grammarParseBareImport(Request *r, Token *t, int a, int b, int *pos) {
+  int cur = a + 1;
+  if (cur >= b) return GRAMMAR_NO_MATCH;
+  if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID) return GRAMMAR_NO_MATCH;
+
+  AstModEntry *entries[64];
+  int entryCount = 0;
+  entries[entryCount++] = modEntry(t->data[cur].value);
+  cur++;
+
+  *pos = cur;
+  return createModImport(r->node, entries, entryCount, NULL, NULL);
 }

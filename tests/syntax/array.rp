@@ -36,4 +36,4 @@ for i < y1.length {
   print("y1: {{y1[i]}}\n")
 }
 
-x: number[] = [1, "Hello"]
+x: number[] = [1, 2]

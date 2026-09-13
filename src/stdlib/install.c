@@ -14,10 +14,10 @@ extern int listArchive(const char *archivePath, const char *label);
 static void showUsage(void) {
   fprintf(stderr, "Usage: rupa <command> [args]\n\n");
   fprintf(stderr, "Package management:\n");
-  fprintf(stderr, "  rupa add <package> <path>     Add to local archive\n");
-  fprintf(stderr, "  rupa add -g <package> <path>  Add to global archive\n");
-  fprintf(stderr, "  rupa add <directory>          Auto-detect name, local\n");
-  fprintf(stderr, "  rupa add -g <directory>       Auto-detect name, global\n");
+  fprintf(stderr, "  rupa add | install <package> <path>     Add to local archive\n");
+  fprintf(stderr, "  rupa add | install -g <package> <path>  Add to global archive\n");
+  fprintf(stderr, "  rupa add | install <directory>          Auto-detect name, local\n");
+  fprintf(stderr, "  rupa add | install -g <directory>       Auto-detect name, global\n");
   fprintf(stderr, "  rupa remove <package>         Remove from local archive\n");
   fprintf(stderr, "  rupa remove -g <package>      Remove from global archive\n");
   fprintf(stderr, "  rupa list                     List local packages\n");
@@ -180,15 +180,15 @@ int stdlibManage(const char *args[], int length) {
     }
   }
 
-  if (strcmp(command, "add") == 0) {
+  if (strcmp(command, "install") == 0 || strcmp(command, "add") == 0) {
     int argStart = 1;
     if (length > 1 && strcmp(args[1], "-g") == 0) {
       argStart = 2;
     }
 
     if (length - argStart < 1) {
-      fprintf(stderr, "Usage: rupa add [-g] <package> <path> [version]\n");
-      fprintf(stderr, "       rupa add [-g] <directory>\n");
+      fprintf(stderr, "Usage: rupa add | install [-g] <package> <path> [version]\n");
+      fprintf(stderr, "       rupa add | install [-g] <directory>\n");
       return 1;
     }
 
@@ -202,7 +202,7 @@ int stdlibManage(const char *args[], int length) {
       packageName = lastSlash ? lastSlash + 1 : sourcePath;
     } else {
       if (length - argStart < 2) {
-        fprintf(stderr, "Usage: rupa add <package> <path> [version]\n");
+        fprintf(stderr, "Usage: rupa add | install <package> <path> [version]\n");
         return 1;
       }
       packageName = args[argStart];

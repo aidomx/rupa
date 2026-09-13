@@ -169,7 +169,7 @@ int grammarParseControl(struct Request *r, int a, int b, int *pos);
  * @brief Grammar `import`/`export`/`extends`.
  * @return GRAMMAR_NO_MATCH jika token[a] bukan salah satu keyword tsb.
  */
-int grammarParseModule(struct Request *r, int a, int b, int *pos);
+int grammarParseModule(struct Request *r, int a, int b, int limit, int *pos);
 
 /* ====================== Module sub-grammars ============================== */
 
@@ -182,16 +182,28 @@ int grammarModuleDetectFrom(struct Token *t, int from_pos, int limit, int *end);
 char *grammarModuleBuildPath(struct Token *t, int start, int end);
 int grammarModuleDetectFlatImport(struct Token *t, int a, int b, int *fromPos);
 
+/** Build an entry from a dotted path ("a", "a.create", "a.b.c"). Shared by
+ * both import (`import a.create from Y`) and export (`export a.create as x`,
+ * `namespace db { export driver.connect as driverConnect }`). */
+AstModEntry *modEntryFromPath(const char *path, bool wild);
+
 /**
  * @brief Import grammar (grammar_module_import.c).
  */
 int grammarParseFlatImport(struct Request *r, struct Token *t, int a, int b, int *pos);
 int grammarParseOldImport(struct Request *r, struct Token *t, int a, int b, int *pos);
 
+/** Grammar `import X` tanpa `from` — bind module X langsung. */
+int grammarParseBareImport(struct Request *r, struct Token *t, int a, int b, int *pos);
+
 /**
  * @brief Export grammar (grammar_module_export.c).
  */
 int grammarParseExport(struct Request *r, struct Token *t, int a, int b, int *pos);
+
+/** Grammar `namespace name { export ...; export ...; }` (grammar_module_export.c).
+ * Uses `limit`, not just line-end `b`, since the body spans multiple lines. */
+int grammarParseNamespace(struct Request *r, struct Token *t, int a, int limit, int *pos);
 
 /* ====================== Grammar deklarasi ================================= */
 

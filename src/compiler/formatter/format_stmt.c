@@ -163,60 +163,64 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
   fmtStr(f, "}");
 }
 
-void fmtModule(Formatter *f, Node *node, int id) {
-  AstNode *n = &node->ast[id];
-  fmtStr(f, "import ");
+/* Entry path: "a.create" disimpan flat di name + childrens rantai. */
+static void fmtModEntryPath(Formatter *f, AstModEntry *e) {
+  if (!e) return;
+  fmtStr(f, e->name ? e->name : "?");
+  if (e->type == MOD_WILD) fmtStr(f, ".*");
+  for (AstModEntry *c = e->childrens; c; c = c->childrens) {
+    fmtChar(f, '.');
+    fmtStr(f, c->name ? c->name : "?");
+  }
+}
 
-  if (n->module.value >= 0 && n->module.value < node->length &&
-      node->ast[n->module.value].type == NODE_ARRAY) {
-    AstNode *array = &node->ast[n->module.value];
-    for (int i = 0; i < array->array.length; i++) {
-      if (i > 0) fmtStr(f, ", ");
-      fmtNode(f, node, array->array.elements[i]);
-    }
+/*
+ * NODE_MOD — 1 container untuk import & export.
+ *
+ * import a.create, b.login as auth, d.* from ../modules as m
+ * import X, Y from rupa.os
+ * import X
+ * export x
+ * export a, b from ./c
+ * export c from ./c -> { a: private }
+ */
+void fmtMod(Formatter *f, Node *node, int id) {
+  AstNode *n = &node->ast[id];
+  struct AstMod *mod = &n->mod;
+
+  if (mod->type == ExportDecl) {
+    fmtStr(f, "export ");
   } else {
-    fmtNode(f, node, n->module.value);
+    fmtStr(f, "import ");
   }
 
-  fmtStr(f, " from ");
-  fmtNode(f, node, n->module.name);
-}
-
-void fmtModuleImport(Formatter *f, Node *node, int id) {
-  AstNode *n = &node->ast[id];
-  fmtStr(f, "import ");
-  for (int i = 0; i < n->moduleImport.entryCount; i++) {
+  for (int i = 0; i < mod->entryCount; i++) {
     if (i > 0) fmtStr(f, ", ");
-    fmtNode(f, node, n->moduleImport.entries[i].pathNode);
-    if (n->moduleImport.entries[i].isWildcard) fmtStr(f, ".*");
-    if (n->moduleImport.entries[i].aliasNode >= 0) {
+    AstModEntry *e = &mod->entries[i];
+    fmtModEntryPath(f, e);
+    if (e->key) {
       fmtStr(f, " as ");
-      fmtNode(f, node, n->moduleImport.entries[i].aliasNode);
+      fmtStr(f, e->key);
     }
   }
-  fmtStr(f, " from ");
-  fmtNode(f, node, n->moduleImport.basePath);
-  if (n->moduleImport.alias >= 0) {
-    fmtStr(f, " as ");
-    fmtNode(f, node, n->moduleImport.alias);
+
+  if (mod->source) {
+    fmtStr(f, " from ");
+    fmtStr(f, mod->source);
+    if (mod->sourceAlias) {
+      fmtStr(f, " as ");
+      fmtStr(f, mod->sourceAlias);
+    }
   }
-}
 
-void fmtExport(Formatter *f, Node *node, int id) {
-  AstNode *n = &node->ast[id];
-  fmtStr(f, "export ");
-
-  if (n->astExport.namespaceName >= 0) fmtNode(f, node, n->astExport.namespaceName);
-  fmtStr(f, " from ");
-  fmtNode(f, node, n->astExport.sourcePath);
-  if (n->astExport.policyCount > 0) {
+  if (mod->policyCount > 0 && mod->policies) {
     fmtStr(f, " -> { ");
-    for (int i = 0; i < n->astExport.policyCount; i++) {
+    for (int i = 0; i < mod->policyCount; i++) {
       if (i > 0) fmtStr(f, ", ");
-      fmtNode(f, node, n->astExport.policies[i].nameNode);
-      if (n->astExport.policies[i].policy) {
+      fmtStr(f, mod->policies[i].name ? mod->policies[i].name : "?");
+      if (mod->policies[i].value) {
         fmtStr(f, ": ");
-        fmtStr(f, n->astExport.policies[i].policy);
+        fmtStr(f, mod->policies[i].value);
       }
     }
     fmtStr(f, " }");

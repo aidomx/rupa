@@ -86,15 +86,8 @@ void fmtNode(Formatter *f, Node *node, int id) {
   case NODE_STRUCT_DECL:
     fmtStructDecl(f, node, id);
     break;
-  case NODE_IMPORT:
-    fmtModule(f, node, id);
-    break;
-  case NODE_MODULE_IMPORT:
-    fmtModuleImport(f, node, id);
-    break;
-  case NODE_EXPORT:
-  case NODE_EXPORT_DECL:
-    fmtExport(f, node, id);
+  case NODE_MOD:
+    fmtMod(f, node, id);
     break;
   case NODE_ASYNC:
     fmtAsync(f, node, id);

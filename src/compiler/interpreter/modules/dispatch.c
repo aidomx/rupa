@@ -4,6 +4,446 @@
 /* Interpreter Dispatch — the main interpretNode switch/case dispatcher.
  * Module loading utilities are in loader.c. */
 
+/* ==================== NODE_MOD helpers ==================== */
+
+/* Flatten an entry to its dotted path string: "a.create", "b.*". */
+static const char *modEntryPathStr(AstModEntry *e, char *buf, int size) {
+  if (!e || !e->name) return NULL;
+  snprintf(buf, size, "%s", e->name);
+  if (e->type == MOD_WILD) strncat(buf, ".*", size - (int)strlen(buf) - 1);
+  for (AstModEntry *c = e->childrens; c && c->name; c = c->childrens) {
+    strncat(buf, ".", size - (int)strlen(buf) - 1);
+    strncat(buf, c->name, size - (int)strlen(buf) - 1);
+  }
+  return buf;
+}
+
+/* Resolve a source string to a module object.
+ *   "./x.y" / "../x"  → local file load (whole env, export not required)
+ *   "rupa.M"          → stdlib module M
+ *   "rupa"            → handled per-entry by caller
+ *   "name"            → stdlib lookup first, then local file
+ */
+static RuntimeValue modLoadSource(const char *source) {
+  RuntimeValue v = valueNull();
+  if (!source) return v;
+
+  if (hasDotSlash(source)) return loadModuleFile(source, false);
+
+  if (strncmp(source, "rupa.", 5) == 0) {
+    const char *pkg = source + 5;
+    const char *ext = stdlibFindModule(pkg);
+    if (ext) {
+      v = loadModuleFile(ext, false);
+      if (v.type == VALUE_OBJECT) return v;
+    }
+    if (stdlibGetModule(pkg, &v)) return v;
+    return valueNull();
+  }
+
+  const char *ext = stdlibFindModule(source);
+  if (ext) {
+    v = loadModuleFile(ext, false);
+    if (v.type == VALUE_OBJECT) return v;
+  }
+  if (stdlibGetModule(source, &v)) return v;
+  return loadModuleFile(source, false);
+}
+
+static void modAppendEntry(struct RuntimeObjectEntry **list, const char *key, RuntimeValue v) {
+  struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
+  se->key = strdup(key);
+  se->value = v;
+  se->next = *list;
+  *list = se;
+}
+
+/* Build a filtered copy of module object entries per `-> { name: private }`. */
+static RuntimeValue modFilterPolicies(struct AstMod *mod, RuntimeValue mv) {
+  struct RuntimeObjectEntry *filtered = NULL;
+  for (struct RuntimeObjectEntry *fe = mv.as.object.entries; fe; fe = fe->next) {
+    bool is_private = false;
+    for (int pi = 0; pi < mod->policyCount; pi++) {
+      if (mod->policies[pi].name && strcmp(fe->key, mod->policies[pi].name) == 0 &&
+          mod->policies[pi].value && strcmp(mod->policies[pi].value, "private") == 0) {
+        is_private = true;
+        break;
+      }
+    }
+    if (!is_private) modAppendEntry(&filtered, fe->key, fe->value);
+  }
+  return valueObject(filtered);
+}
+
+/* Interpret ImportDecl: bind entries from source into env.
+ * With sourceAlias, bindings collect into a namespace object instead. */
+static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
+  struct AstMod *mod = &n->ast[id].mod;
+
+  /* Bare import `import X` (no source) → bind module X directly. */
+  if (!mod->source) {
+    for (int i = 0; i < mod->entryCount; i++) {
+      char buf[512];
+      const char *name = modEntryPathStr(&mod->entries[i], buf, sizeof(buf));
+      if (!name) continue;
+      RuntimeValue v = modLoadSource(name);
+      if (v.type == VALUE_OBJECT) semSet(e, name, v);
+    }
+    return resultNormal(valueNull());
+  }
+
+  bool rupa_root = strcmp(mod->source, "rupa") == 0;
+  struct RuntimeObjectEntry *nsEntries = NULL;
+
+  for (int i = 0; i < mod->entryCount; i++) {
+    AstModEntry *en = &mod->entries[i];
+    char pathBuf[512];
+    const char *pathStr = modEntryPathStr(en, pathBuf, sizeof(pathBuf));
+    if (!pathStr) continue;
+    const char *bindName = en->key ? en->key : en->name;
+    if (!en->key && en->type == MOD_MEMBER && en->childrens) {
+      /* `b.login` (no alias) → bind under the last segment's name
+       * ("login"), not the module prefix ("b"). */
+      AstModEntry *last = en->childrens;
+      while (last->childrens) last = last->childrens;
+      if (last->name) bindName = last->name;
+    }
+
+    /* `import X from rupa` → load each name as its own stdlib module */
+    if (rupa_root) {
+      RuntimeValue pkg = valueNull();
+      bool ok = false;
+      bool namespace_pkg = false;
+      const char *pkg_path = stdlibFindModule(en->name);
+      if (pkg_path) {
+        pkg = loadModuleFile(pkg_path, false);
+        ok = (pkg.type == VALUE_OBJECT);
+      }
+      if (!ok) {
+        const char *ns_path = stdlibFindNamespace(en->name);
+        if (ns_path) {
+          pkg = loadModuleFile(ns_path, false);
+          ok = (pkg.type == VALUE_OBJECT);
+          namespace_pkg = ok;
+        }
+      }
+      if (!ok) ok = stdlibGetModule(en->name, &pkg);
+      if (ok) {
+        /* A package index may expose a namespace whose public name differs
+         * from the package directory, e.g. database/index.rp -> namespace db.
+         * loadModuleFile() returns the index environment, so unwrap that
+         * namespace before binding `db`. */
+        RuntimeValue bindValue = pkg;
+        if (namespace_pkg) {
+          RuntimeValue ns;
+          if (valueObjectGet(pkg, en->name, &ns)) bindValue = ns;
+        }
+
+        if (mod->sourceAlias)
+          modAppendEntry(&nsEntries, bindName, bindValue);
+        else
+          semSet(e, bindName, bindValue);
+      }
+      continue;
+    }
+
+    /* Wildcard: `d.*` → load d.rp and bind it / flatten its entries. */
+    if (en->type == MOD_WILD) {
+      RuntimeValue mv = valueNull();
+      {
+        char fileBuf[512];
+        snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
+        mv = loadModuleFile(fileBuf, true);
+      }
+      if (mv.type != VALUE_OBJECT) mv = modLoadSource(mod->source);
+      if (mv.type != VALUE_OBJECT) continue;
+
+      if (en->key) {
+        /* `a.* as form` → bind whole module object */
+        if (mod->sourceAlias)
+          modAppendEntry(&nsEntries, bindName, mv);
+        else
+          semSet(e, bindName, mv);
+      } else {
+        /* `d.*` → flatten module entries into env/namespace */
+        for (struct RuntimeObjectEntry *fe = mv.as.object.entries; fe; fe = fe->next) {
+          if (mod->sourceAlias)
+            modAppendEntry(&nsEntries, fe->key, fe->value);
+          else
+            semSet(e, fe->key, fe->value);
+        }
+      }
+      continue;
+    }
+
+    /* ID / MEMBER entries */
+    RuntimeValue mv = valueNull();
+    bool loaded = false;
+
+    /* Entry with alias or sub-path prefers `<source>/<name>` file first:
+     * `a as form` → a.rp, `b.login` → b.rp. */
+    if (en->key || en->type == MOD_MEMBER) {
+      char fileBuf[512];
+      snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
+      mv = loadModuleFile(fileBuf, true);
+      loaded = (mv.type == VALUE_OBJECT);
+    }
+    if (!loaded) {
+      mv = modLoadSource(mod->source);
+      loaded = (mv.type == VALUE_OBJECT);
+    }
+    if (!loaded) {
+      /* `import d from ../modules` → try ../modules.d (d.rp) */
+      char fileBuf[512];
+      snprintf(fileBuf, sizeof(fileBuf), "%s.%s", mod->source, en->name);
+      mv = loadModuleFile(fileBuf, true);
+      loaded = (mv.type == VALUE_OBJECT);
+    }
+    if (!loaded) continue;
+
+    if (en->type == MOD_MEMBER && en->childrens) {
+      /* `b.login` → dig into childrens chain */
+      RuntimeValue cur = mv;
+      bool found = true;
+      for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
+        RuntimeValue nv;
+        if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
+          cur = nv;
+        } else {
+          found = false;
+          break;
+        }
+      }
+      if (found) {
+        if (mod->sourceAlias)
+          modAppendEntry(&nsEntries, bindName, cur);
+        else
+          semSet(e, bindName, cur);
+      }
+    } else if (en->key) {
+      /* `a as form` → bind whole module object */
+      if (mod->sourceAlias)
+        modAppendEntry(&nsEntries, bindName, mv);
+      else
+        semSet(e, bindName, mv);
+    } else {
+      /* plain `X from path` → member X, fallback whole module for local */
+      RuntimeValue fn_val;
+      if (valueObjectGet(mv, en->name, &fn_val)) {
+        if (mod->sourceAlias)
+          modAppendEntry(&nsEntries, bindName, fn_val);
+        else
+          semSet(e, bindName, fn_val);
+      } else if (hasDotSlash(mod->source)) {
+        if (mod->sourceAlias)
+          modAppendEntry(&nsEntries, bindName, mv);
+        else
+          semSet(e, bindName, mv);
+      }
+    }
+  }
+
+  if (mod->sourceAlias) semSet(e, mod->sourceAlias, valueObject(nsEntries));
+  return resultNormal(valueNull());
+}
+
+/* Resolve one implicit-file export entry (no `from` on the AstMod): the
+ * entry's own name is a file relative to the current directory (same
+ * resolution loadModuleFile already does via g_source_file_path), reusing
+ * modLoadSource so implicit lookups behave identically to explicit `from`
+ * ones. MOD_MEMBER entries drill into en->childrens (mirrors the
+ * member-chain walk on the import side); MOD_ID/MOD_WILD bind the whole
+ * loaded file. Appends (bindName, value) to *out instead of binding
+ * anywhere, so callers decide where it lands (env directly, or merged into
+ * a namespace object first). */
+static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntry **out) {
+  if (!en || !en->name) return;
+  RuntimeValue mv = modLoadSource(en->name);
+  if (mv.type != VALUE_OBJECT) return;
+
+  if (en->type == MOD_MEMBER && en->childrens) {
+    RuntimeValue cur = mv;
+    bool found = true;
+    for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
+      RuntimeValue nv;
+      if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
+        cur = nv;
+      } else {
+        found = false;
+        break;
+      }
+    }
+    if (!found) return;
+    /* Bind name defaults to the last chain segment ("connect"), not the
+     * file name ("driver") — same rule as the import-side fix. */
+    AstModEntry *last = en->childrens;
+    while (last->childrens) last = last->childrens;
+    const char *bindName = en->key ? en->key : (last->name ? last->name : en->name);
+    modAppendEntry(out, bindName, cur);
+    return;
+  }
+
+  modAppendEntry(out, en->key ? en->key : en->name, mv);
+}
+
+/* Compute (bindName, value) pairs for one ExportDecl without binding them
+ * anywhere — shared by top-level export (bound straight to env) and
+ * namespace blocks (merged, deduped, then bound once under the namespace
+ * name).
+ *
+ * `insideNamespace` controls bare MOD_ID entries with no `from`: at top
+ * level, `export x` (bare, no dot) stays a pure local marker — a contract
+ * for the loader (see loader.c), not something with any own runtime value —
+ * so it's skipped, preserving existing behavior. Inside a `namespace`
+ * block, every bare name is implicitly a sibling file
+ * (`namespace db { export driver }` → load ./driver.rp, bind as "driver"),
+ * since referencing other files is the entire point of the block. */
+static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
+                                  struct RuntimeObjectEntry **out) {
+  if (!mod->source) {
+    for (int i = 0; i < mod->entryCount; i++) {
+      AstModEntry *en = &mod->entries[i];
+      if (en->type == MOD_ID && !insideNamespace) continue; /* local marker, no-op */
+      resolveImplicitExportEntry(en, out);
+    }
+    return;
+  }
+
+  RuntimeValue mv = modLoadSource(mod->source);
+  if (mv.type != VALUE_OBJECT) return;
+
+  /* Single plain entry = namespace re-export (any alias, whole module) */
+  bool namespace_mode =
+      (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_ID);
+
+  if (namespace_mode) {
+    const char *ns = mod->entries[0].name;
+    if (ns) {
+      RuntimeValue obj = (mod->policyCount > 0 && mod->policies) ? modFilterPolicies(mod, mv) : mv;
+      modAppendEntry(out, ns, obj);
+    }
+    return;
+  }
+
+  /* Selective: bind each entry member (dotted chains included) */
+  for (int i = 0; i < mod->entryCount; i++) {
+    AstModEntry *en = &mod->entries[i];
+    if (!en->name) continue;
+
+    if (en->type == MOD_MEMBER && en->childrens) {
+      RuntimeValue cur = mv;
+      bool found = true;
+      for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
+        RuntimeValue nv;
+        if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
+          cur = nv;
+        } else {
+          found = false;
+          break;
+        }
+      }
+      if (found) {
+        AstModEntry *last = en->childrens;
+        while (last->childrens) last = last->childrens;
+        modAppendEntry(out, en->key ? en->key : (last->name ? last->name : en->name), cur);
+      }
+      continue;
+    }
+
+    RuntimeValue item;
+    if (valueObjectGet(mv, en->name, &item))
+      modAppendEntry(out, en->key ? en->key : en->name, item);
+  }
+}
+
+/* Free a RuntimeObjectEntry list's spine (keys/nodes only — values are
+ * shared RuntimeValue payloads owned elsewhere, e.g. GC'd module objects). */
+static void freeBindingList(struct RuntimeObjectEntry *list) {
+  while (list) {
+    struct RuntimeObjectEntry *next = list->next;
+    free(list->key);
+    free(list);
+    list = next;
+  }
+}
+
+/* Interpret ExportDecl at top level: compute bindings and set them directly
+ * into env. `export x` (bare, no `from`) stays a no-op marker for the
+ * loader; everything else (re-export, or an implicit-file dotted/wildcard
+ * export) actually binds. */
+static void interpretModExport(Node *n, int id, RuntimeEnv *e) {
+  struct AstMod *mod = &n->ast[id].mod;
+  struct RuntimeObjectEntry *out = NULL;
+  computeExportBindings(mod, /*insideNamespace=*/false, &out);
+  for (struct RuntimeObjectEntry *o = out; o; o = o->next) semSet(e, o->key, o->value);
+  freeBindingList(out);
+}
+
+/* Interpret NamespaceDecl: `namespace db { export ...; export ...; }`.
+ * Runs each nested ExportDecl in the block (as an implicit-file export —
+ * see computeExportBindings), merges the results into one object, and binds
+ * it once under the namespace name. Errors on duplicate bind-names within
+ * the same block: since bare names nest by construction (`db.driver`,
+ * `db.table` never collide), a collision only happens when the user
+ * explicitly chose the same alias/name twice at the same level. */
+static bool interpretModNamespace(Node *n, int id, RuntimeEnv *e, Error *x) {
+  struct AstMod *mod = &n->ast[id].mod;
+  const char *nsName = mod->source;
+  if (!nsName || mod->body < 0 || mod->body >= n->length) return false;
+
+  AstNode *block = &n->ast[mod->body];
+  if (block->type != NODE_BLOCK) return false;
+
+  struct RuntimeObjectEntry *merged = NULL;
+  bool hadError = false;
+
+  for (int i = 0; i < block->block.length; i++) {
+    int stmtId = block->block.statements[i];
+    if (stmtId < 0 || stmtId >= n->length) continue;
+    AstNode *stmt = &n->ast[stmtId];
+    if (stmt->type != NODE_MOD || stmt->mod.type != ExportDecl) continue;
+
+    struct RuntimeObjectEntry *out = NULL;
+    computeExportBindings(&stmt->mod, /*insideNamespace=*/true, &out);
+
+    struct RuntimeObjectEntry *o = out;
+    while (o) {
+      struct RuntimeObjectEntry *next = o->next;
+      bool dup = false;
+      for (struct RuntimeObjectEntry *m = merged; m; m = m->next) {
+        if (strcmp(m->key, o->key) == 0) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        hadError = true;
+        if (x) {
+          static char message[256];
+          snprintf(message, sizeof(message), "Duplicate export '%s' in namespace '%s'", o->key,
+                   nsName);
+          addError(x, (ErrorInfo){.code = "ExportError",
+                                  .message = message,
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_REDECLARED_VAR});
+        }
+        free(o->key);
+        free(o);
+      } else {
+        o->next = merged;
+        merged = o;
+      }
+      o = next;
+    }
+  }
+
+  semSet(e, nsName, valueObject(merged));
+  return hadError;
+}
+
+/* ==================== Main dispatch ==================== */
+
 InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   if (!n || id < 0 || id >= n->length) return resultNormal(valueNull());
 
@@ -18,396 +458,20 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   }
 
   switch (n->ast[id].type) {
-  case NODE_IMPORT: {
-    int expr_id = n->ast[id].module.value;
-    int name_id = n->ast[id].module.name;
-
-    if (name_id >= 0 && expr_id >= 0 && expr_id < n->length) {
-      AstNode *mod_ast = &n->ast[name_id];
-      const char *mod_name = NULL;
-      if (mod_ast->type == NODE_LITERAL_ID)
-        mod_name = mod_ast->string.value;
-      else if (mod_ast->type == NODE_IDENTIFIER)
-        mod_name = mod_ast->identifier.name;
-
-      if (!mod_name) return resultNormal(valueNull());
-
-      bool local_path = hasDotSlash(mod_name);
-      RuntimeValue module_val;
-      bool found = false;
-
-      if (local_path) {
-        module_val = loadModuleFile(mod_name, true);
-        found = (module_val.type == VALUE_OBJECT);
-        if (!found && n->ast[expr_id].type != NODE_ARRAY) {
-          AstNode *tmp_ast = &n->ast[expr_id];
-          const char *tmp_func = NULL;
-          if (tmp_ast->type == NODE_LITERAL_ID)
-            tmp_func = tmp_ast->string.value;
-          else if (tmp_ast->type == NODE_IDENTIFIER)
-            tmp_func = tmp_ast->identifier.name;
-          if (tmp_func) {
-            char combined[512];
-            snprintf(combined, sizeof(combined), "%s.%s", mod_name, tmp_func);
-            module_val = loadModuleFile(combined, true);
-            if (module_val.type == VALUE_OBJECT) {
-              found = true;
-              semSet(e, tmp_func, module_val);
-            }
-          }
-        }
-      } else {
-        if (strcmp(mod_name, "rupa") == 0) {
-          if (n->ast[expr_id].type == NODE_ARRAY) {
-            int len = n->ast[expr_id].array.length;
-            for (int i = 0; i < len; i++) {
-              int nid = n->ast[expr_id].array.elements[i];
-              if (nid < 0 || nid >= n->length) continue;
-              AstNode *na = &n->ast[nid];
-              const char *fn = NULL;
-              if (na->type == NODE_LITERAL_ID)
-                fn = na->string.value;
-              else if (na->type == NODE_IDENTIFIER)
-                fn = na->identifier.name;
-              if (!fn) continue;
-
-              RuntimeValue pkg_val = valueNull();
-              bool pkg_found = false;
-
-              const char *pkg_path = stdlibFindModule(fn);
-              if (pkg_path) {
-                pkg_val = loadModuleFile(pkg_path, true);
-                pkg_found = (pkg_val.type == VALUE_OBJECT);
-              }
-              if (!pkg_found) pkg_found = stdlibGetModule(fn, &pkg_val);
-
-              if (pkg_found) semSet(e, fn, pkg_val);
-            }
-            return resultNormal(valueNull());
-          }
-          AstNode *root_ast = &n->ast[expr_id];
-          const char *root_name = NULL;
-          if (root_ast->type == NODE_LITERAL_ID)
-            root_name = root_ast->string.value;
-          else if (root_ast->type == NODE_IDENTIFIER)
-            root_name = root_ast->identifier.name;
-
-          if (root_name) {
-            const char *root_path = stdlibFindModule(root_name);
-            if (root_path) {
-              module_val = loadModuleFile(root_path, true);
-              found = (module_val.type == VALUE_OBJECT);
-            }
-            if (!found) found = stdlibGetModule(root_name, &module_val);
-          }
-        }
-
-        if (!found) {
-          found = stdlibGetModule(mod_name, &module_val);
-          if (!found) {
-            module_val = loadModuleFile(mod_name, true);
-            found = (module_val.type == VALUE_OBJECT);
-          }
-        }
-        if (!found && n->ast[expr_id].type != NODE_ARRAY) {
-          AstNode *tmp_ast = &n->ast[expr_id];
-          const char *tmp_func = NULL;
-          if (tmp_ast->type == NODE_LITERAL_ID)
-            tmp_func = tmp_ast->string.value;
-          else if (tmp_ast->type == NODE_IDENTIFIER)
-            tmp_func = tmp_ast->identifier.name;
-          if (tmp_func) {
-            char combined[512];
-            snprintf(combined, sizeof(combined), "%s.%s", mod_name, tmp_func);
-            module_val = loadModuleFile(combined, true);
-            if (module_val.type == VALUE_OBJECT) {
-              found = true;
-              semSet(e, tmp_func, module_val);
-            }
-          }
-        }
-        if (!found && strncmp(mod_name, "rupa.", 5) == 0) {
-          const char *pkg_name = mod_name + 5;
-          const char *ext_path = stdlibFindModule(pkg_name);
-          if (ext_path) {
-            module_val = loadModuleFile(ext_path, true);
-            found = (module_val.type == VALUE_OBJECT);
-          }
-        }
-        if (!found) {
-          const char *ext_path = stdlibFindModule(mod_name);
-          if (ext_path) {
-            module_val = loadModuleFile(ext_path, true);
-            found = (module_val.type == VALUE_OBJECT);
-          }
-        }
-      }
-
-      if (!found) return resultNormal(valueNull());
-
-      bool rupa_root_import = strcmp(mod_name, "rupa") == 0;
-
-      if (n->ast[expr_id].type == NODE_ARRAY) {
-        int len = n->ast[expr_id].array.length;
-        for (int i = 0; i < len; i++) {
-          int nid = n->ast[expr_id].array.elements[i];
-          if (nid < 0 || nid >= n->length) continue;
-          AstNode *na = &n->ast[nid];
-          const char *fn = NULL;
-          if (na->type == NODE_LITERAL_ID)
-            fn = na->string.value;
-          else if (na->type == NODE_IDENTIFIER)
-            fn = na->identifier.name;
-          if (!fn) continue;
-
-          if (rupa_root_import) {
-            RuntimeValue pkg_val = valueNull();
-            bool pkg_found = false;
-
-            const char *pkg_path = stdlibFindModule(fn);
-            if (pkg_path) {
-              pkg_val = loadModuleFile(pkg_path, true);
-              pkg_found = (pkg_val.type == VALUE_OBJECT);
-            }
-            if (!pkg_found) pkg_found = stdlibGetModule(fn, &pkg_val);
-
-            if (pkg_found) semSet(e, fn, pkg_val);
-          } else {
-            RuntimeValue fn_val;
-            if (valueObjectGet(module_val, fn, &fn_val)) semSet(e, fn, fn_val);
-          }
-        }
-      } else {
-        AstNode *func_ast = &n->ast[expr_id];
-        const char *func_name = NULL;
-        if (func_ast->type == NODE_LITERAL_ID)
-          func_name = func_ast->string.value;
-        else if (func_ast->type == NODE_IDENTIFIER)
-          func_name = func_ast->identifier.name;
-        if (func_name) {
-          RuntimeValue fn_val;
-          if (rupa_root_import) {
-            semSet(e, func_name, module_val);
-          } else if (valueObjectGet(module_val, func_name, &fn_val)) {
-            semSet(e, func_name, fn_val);
-          } else if (hasDotSlash(mod_name)) {
-            semSet(e, func_name, module_val);
-          }
-        }
-      }
-    } else if (expr_id >= 0 && expr_id < n->length) {
-      AstNode *expr = &n->ast[expr_id];
-      const char *module_name = NULL;
-      if (expr->type == NODE_LITERAL_ID)
-        module_name = expr->string.value;
-      else if (expr->type == NODE_IDENTIFIER)
-        module_name = expr->identifier.name;
-
-      if (module_name) {
-        RuntimeValue module_val;
-        if (stdlibGetModule(module_name, &module_val)) {
-          semSet(e, module_name, module_val);
-        } else {
-          const char *ext_path = stdlibFindModule(module_name);
-          if (ext_path) {
-            module_val = loadModuleFile(ext_path, true);
-            if (module_val.type == VALUE_OBJECT) semSet(e, module_name, module_val);
-          } else {
-            module_val = loadModuleFile(module_name, true);
-            if (module_val.type == VALUE_OBJECT) semSet(e, module_name, module_val);
-          }
-        }
-      }
+  case NODE_MOD: {
+    AstNode *self = &n->ast[id];
+    if (self->mod.type == ImportDecl) return interpretModImport(n, id, e);
+    if (self->mod.type == NamespaceDecl) {
+      bool hadError = interpretModNamespace(n, id, e, x);
+      if (hadError) return resultFlow(FLOW_ERROR, valueNull());
+      return resultNormal(valueNull());
     }
+    interpretModExport(n, id, e);
     return resultNormal(valueNull());
   }
-  case NODE_MODULE_IMPORT: {
-    AstNode *importNode = &n->ast[id];
-    int basePathId = importNode->moduleImport.basePath;
-    struct AstModuleImportEntry *entries = importNode->moduleImport.entries;
-    int entryCount = importNode->moduleImport.entryCount;
-    int aliasId = importNode->moduleImport.alias;
-
-    if (basePathId < 0 || basePathId >= n->length) return resultNormal(valueNull());
-
-    const char *base_path = NULL;
-    AstNode *baseAst = &n->ast[basePathId];
-    if (baseAst->type == NODE_LITERAL_ID)
-      base_path = baseAst->string.value;
-    else if (baseAst->type == NODE_IDENTIFIER)
-      base_path = baseAst->identifier.name;
-    if (!base_path) return resultNormal(valueNull());
-
-    const char *ns_name = base_path;
-    if (aliasId >= 0 && aliasId < n->length) {
-      AstNode *aliasAst = &n->ast[aliasId];
-      if (aliasAst->type == NODE_LITERAL_ID)
-        ns_name = aliasAst->string.value;
-      else if (aliasAst->type == NODE_IDENTIFIER)
-        ns_name = aliasAst->identifier.name;
-    }
-
-    struct RuntimeObjectEntry *nsEntries = NULL;
-    for (int i = 0; i < entryCount; i++) {
-      struct AstModuleImportEntry *e = &entries[i];
-
-      const char *path_str = NULL;
-      if (e->pathNode >= 0 && e->pathNode < n->length) {
-        AstNode *pathAst = &n->ast[e->pathNode];
-        if (pathAst->type == NODE_LITERAL_ID)
-          path_str = pathAst->string.value;
-        else if (pathAst->type == NODE_IDENTIFIER)
-          path_str = pathAst->identifier.name;
-      }
-      if (!path_str) continue;
-
-      const char *alias_str = NULL;
-      if (e->aliasNode >= 0 && e->aliasNode < n->length) {
-        AstNode *aliasAst = &n->ast[e->aliasNode];
-        if (aliasAst->type == NODE_LITERAL_ID)
-          alias_str = aliasAst->string.value;
-        else if (aliasAst->type == NODE_IDENTIFIER)
-          alias_str = aliasAst->identifier.name;
-      }
-
-      char file_path[512];
-      const char *dot = strchr(path_str, '.');
-      if (dot && !e->isWildcard) {
-        int prefix_len = (int)(dot - path_str);
-        snprintf(file_path, sizeof(file_path), "%s/%.*s", base_path, prefix_len, path_str);
-      } else {
-        snprintf(file_path, sizeof(file_path), "%s/%s", base_path, path_str);
-      }
-
-      RuntimeValue mod_val = loadModuleFile(file_path, true);
-      if (mod_val.type != VALUE_OBJECT) continue;
-
-      const char *key_name = alias_str ? alias_str : path_str;
-      if (dot && !e->isWildcard) {
-        key_name = alias_str ? alias_str : dot + 1;
-      }
-
-      if (e->isWildcard) {
-        if (alias_str) {
-          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-          se->key = strdup(alias_str);
-          se->value = mod_val;
-          se->next = nsEntries;
-          nsEntries = se;
-        } else {
-          for (struct RuntimeObjectEntry *fe = mod_val.as.object.entries; fe; fe = fe->next) {
-            struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-            se->key = strdup(fe->key);
-            se->value = fe->value;
-            se->next = nsEntries;
-            nsEntries = se;
-          }
-        }
-      } else {
-        const char *func_name = dot ? dot + 1 : path_str;
-        RuntimeValue fn_val;
-        if (valueObjectGet(mod_val, func_name, &fn_val)) {
-          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-          se->key = strdup(key_name);
-          se->value = fn_val;
-          se->next = nsEntries;
-          nsEntries = se;
-        }
-      }
-    }
-
-    if (aliasId >= 0) {
-      semSet(e, ns_name, valueObject(nsEntries));
-    } else {
-      struct RuntimeObjectEntry *se = nsEntries;
-      while (se) {
-        semSet(e, se->key, se->value);
-        se = se->next;
-      }
-    }
+  case NODE_EXTENDS:
+    /* Reserved for future inheritance (warisan class/activity). */
     return resultNormal(valueNull());
-  }
-  case NODE_EXPORT: {
-    return resultNormal(valueNull());
-  }
-  case NODE_EXPORT_DECL: {
-    {
-      AstNode *expNode = &n->ast[id];
-      struct AstExport *exp = &expNode->astExport;
-
-      const char *src_path = NULL;
-      if (exp->sourcePath >= 0 && exp->sourcePath < n->length) {
-        AstNode *srcAst = &n->ast[exp->sourcePath];
-        if (srcAst->type == NODE_LITERAL_ID)
-          src_path = srcAst->string.value;
-        else if (srcAst->type == NODE_IDENTIFIER)
-          src_path = srcAst->identifier.name;
-      }
-      if (!src_path) return resultNormal(valueNull());
-
-      RuntimeValue mod_val = loadModuleFile(src_path, false);
-
-      if (exp->namespaceName >= 0 && exp->namespaceName < n->length) {
-        const char *ns_name = NULL;
-        AstNode *nsAst = &n->ast[exp->namespaceName];
-        if (nsAst->type == NODE_LITERAL_ID)
-          ns_name = nsAst->string.value;
-        else if (nsAst->type == NODE_IDENTIFIER)
-          ns_name = nsAst->identifier.name;
-        if (ns_name && mod_val.type == VALUE_OBJECT) {
-          if (exp->policyCount > 0 && exp->policies) {
-            struct RuntimeObjectEntry *filtered = NULL;
-            for (struct RuntimeObjectEntry *fe = mod_val.as.object.entries; fe; fe = fe->next) {
-              bool is_private = false;
-              for (int pi = 0; pi < exp->policyCount; pi++) {
-                if (exp->policies[pi].nameNode >= 0 && exp->policies[pi].nameNode < n->length) {
-                  AstNode *polAst = &n->ast[exp->policies[pi].nameNode];
-                  const char *pol_name = NULL;
-                  if (polAst->type == NODE_LITERAL_ID)
-                    pol_name = polAst->string.value;
-                  else if (polAst->type == NODE_IDENTIFIER)
-                    pol_name = polAst->identifier.name;
-                  if (pol_name && strcmp(fe->key, pol_name) == 0 && exp->policies[pi].policy &&
-                      strcmp(exp->policies[pi].policy, "private") == 0) {
-                    is_private = true;
-                    break;
-                  }
-                }
-              }
-              if (!is_private) {
-                struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-                se->key = strdup(fe->key);
-                se->value = fe->value;
-                se->next = filtered;
-                filtered = se;
-              }
-            }
-            semSet(e, ns_name, valueObject(filtered));
-          } else {
-            semSet(e, ns_name, mod_val);
-          }
-        }
-      } else if (exp->selectiveItems >= 0 && exp->selectiveItems < n->length) {
-        AstNode *items_node = &n->ast[exp->selectiveItems];
-        if (items_node->type == NODE_ARRAY && mod_val.type == VALUE_OBJECT) {
-          for (int i = 0; i < items_node->array.length; i++) {
-            int nid = items_node->array.elements[i];
-            if (nid < 0 || nid >= n->length) continue;
-            AstNode *item = &n->ast[nid];
-            const char *item_name = NULL;
-            if (item->type == NODE_LITERAL_ID)
-              item_name = item->string.value;
-            else if (item->type == NODE_IDENTIFIER)
-              item_name = item->identifier.name;
-            if (!item_name) continue;
-            RuntimeValue item_val;
-            if (valueObjectGet(mod_val, item_name, &item_val)) semSet(e, item_name, item_val);
-          }
-        }
-      }
-    }
-    return resultNormal(valueNull());
-  }
   case NODE_ASSIGN:
   case NODE_CONDITIONAL_ASSIGN:
   case NODE_ANNOTATION:

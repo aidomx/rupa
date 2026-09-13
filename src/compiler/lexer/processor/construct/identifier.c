@@ -8,8 +8,7 @@ static int word_end(const char *s, int p, int end) {
 
 static bool object_property(State *state) {
   StateContext *ctx = state ? state->context : NULL;
-  if (!ctx || ctx->objectDepth <= 0 || ctx->brace < ctx->objectDepth)
-    return false;
+  if (!ctx || ctx->objectDepth <= 0 || ctx->brace < ctx->objectDepth) return false;
 
   /* Inside an object literal, an identifier followed by ':' is always a
      property separator. Type annotations belong to declarations/parameters,
@@ -17,15 +16,12 @@ static bool object_property(State *state) {
   return true;
 }
 
-int processIdentifier(State *state, int start, int end, bool literal,
-                      int *next) {
-  if (!state || !state->input || !state->tokens || !next)
-    return -1;
+int processIdentifier(State *state, int start, int end, bool literal, int *next) {
+  if (!state || !state->input || !state->tokens || !next) return -1;
 
   const char *s = state->input->content;
   int p = word_end(s, start, end);
-  if (p == start)
-    return -1;
+  if (p == start) return -1;
 
   int q = p;
   while (q < end && (s[q] == ' ' || s[q] == '\t' || s[q] == '\r'))
@@ -42,14 +38,11 @@ int processIdentifier(State *state, int start, int end, bool literal,
   bool control_header = false;
   for (int i = state->tokens->length - 1; i >= 0; i--) {
     DataToken *token = &state->tokens->data[i];
-    if (token->type == NEWLINE || token->type == LBRACE ||
-        token->type == RBRACE)
-      break;
-    if (token->type != KEYWORD || !token->value)
-      continue;
+    if (token->type == NEWLINE || token->type == LBRACE || token->type == RBRACE) break;
+    if (token->type != KEYWORD || !token->value) continue;
     if (!strcmp(token->value, "for") || !strcmp(token->value, "rev") ||
         !strcmp(token->value, "while") || !strcmp(token->value, "if") ||
-        !strcmp(token->value, "elseif") || !strcmp(token->value, "else")) {
+        !strcmp(token->value, "else if") || !strcmp(token->value, "else")) {
       control_header = true;
       break;
     }
@@ -60,15 +53,13 @@ int processIdentifier(State *state, int start, int end, bool literal,
     while (t < end && (s[t] == ' ' || s[t] == '\t' || s[t] == '\r'))
       t++;
     int te = word_end(s, t, end);
-    if (te == t)
-      return -1;
+    if (te == t) return -1;
 
     /* Consume array-type postfixes as part of the annotation token. This
      * keeps `x: number[] = []` in the same shape as `x: number = 1` while
      * preserving nested types such as `number[][]`. */
     int typeEnd = te;
-    while (typeEnd + 1 < end && s[typeEnd] == '[' &&
-           s[typeEnd + 1] == ']')
+    while (typeEnd + 1 < end && s[typeEnd] == '[' && s[typeEnd + 1] == ']')
       typeEnd += 2;
 
     char *id = substring(s, start, p);
@@ -79,9 +70,8 @@ int processIdentifier(State *state, int start, int end, bool literal,
       return -1;
     }
 
-    DataToken data = createDataToken(
-        id, type, literal ? LITERAL_ID : IDENTIFIER,
-        state->input->line, start);
+    DataToken data =
+        createDataToken(id, type, literal ? LITERAL_ID : IDENTIFIER, state->input->line, start);
 
     addToken(state->tokens, data);
     state->input->flags->isAnnotionType = true;
@@ -92,13 +82,10 @@ int processIdentifier(State *state, int start, int end, bool literal,
   }
 
   char *value = substring(s, start, p);
-  if (!value)
-    return -1;
+  if (!value) return -1;
   TokenType type = gettype(value);
-  if (literal && !object_property(state) && type == IDENTIFIER)
-    type = LITERAL_ID;
-  DataToken data =
-      createDataToken(value, NULL, type, state->input->line, start);
+  if (literal && !object_property(state) && type == IDENTIFIER) type = LITERAL_ID;
+  DataToken data = createDataToken(value, NULL, type, state->input->line, start);
   addToken(state->tokens, data);
   gcfree(value);
   *next = p;

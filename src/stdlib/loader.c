@@ -370,6 +370,38 @@ const char *stdlibFindModule(const char *name) {
   return NULL;
 }
 
+/* Find a package index by its public namespace name. A package directory
+ * and its namespace do not have to share the same name, e.g.
+ * `stdlib/database/index.rp` exposes `namespace db`. */
+const char *stdlibFindNamespace(const char *name) {
+  if (!name) return NULL;
+
+  for (int i = 0; i < stdlibCacheCount; i++) {
+    const char *path = stdlibCache[i].path;
+    size_t len = strlen(path);
+    if (len < 10 || strcmp(path + len - 9, "/index.rp") != 0) continue;
+
+    FILE *f = fopen(path, "r");
+    if (!f) continue;
+
+    char line[1024];
+    bool found = false;
+    while (fgets(line, sizeof(line), f)) {
+      char ns[128];
+      if (sscanf(line, " namespace %127[^ {\t\r\n]", ns) == 1 &&
+          strcmp(ns, name) == 0) {
+        found = true;
+        break;
+      }
+    }
+    fclose(f);
+
+    if (found) return path;
+  }
+
+  return NULL;
+}
+
 /**
  * Get the count of cached stdlib modules.
  */

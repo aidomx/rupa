@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-import "build debug release run"
+import "build debug release run fmt"
 
 [[ $# -eq 0 ]] && print_warning "Argument is required"
 
@@ -11,7 +11,7 @@ local_has_target=false
 for ((i = 1; i <= $#; i++)); do
   arg="${!i}"
   case "$arg" in
-  debug | release | test | docs)
+  debug | release | test | fmt | docs)
     [[ -z "$local_action" ]] && local_action="$arg"
     ;;
   --target | -t)
@@ -28,6 +28,7 @@ case "$local_action" in
 debug) build_debug "$@" ;;
 release) build_release "$local_target" "$@" ;;
 test) run_test "$@" ;;
+fmt) run_fmt "$@" ;;
 docs)
   cd "$APP_ROOT/docs"
   case "${2:-}" in

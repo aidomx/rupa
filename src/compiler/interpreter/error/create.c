@@ -24,8 +24,7 @@ Error *createError(int capacity) {
 }
 
 void addError(Error *error, ErrorInfo info) {
-  if (!error || !error->info || error->size >= error->capacity)
-    return;
+  if (!error || !error->info || error->size >= error->capacity) return;
 
   /* ErrorInfo hanya di-shallow-copy di sini; kalau caller mengirim
    * `.message` dari buffer yang dipakai ulang (mis. `static char
@@ -36,22 +35,18 @@ void addError(Error *error, ErrorInfo info) {
    * isi error kedua ("second is not defined") saat keduanya baru benar-
    * benar dibaca/dicetak belakangan. Duplikasi di sini supaya setiap
    * entry punya salinannya sendiri yang tidak berubah lagi setelahnya. */
-  if (info.message)
-    info.message = gcstrdup(info.message);
+  if (info.message) info.message = gcstrdup(info.message);
 
   error->info[error->size++] = info;
 }
 
-void addRuntimeError(Error *error, ErrorType type, const char *expected,
-                     const char *actual) {
-  if (!error || error->size >= error->capacity)
-    return;
+void addRuntimeError(Error *error, ErrorType type, const char *expected, const char *actual) {
+  if (!error || error->size >= error->capacity) return;
 
   static char message[256];
   snprintf(message, sizeof(message), "Type mismatch: expected '%s', got '%s'",
            expected ? expected : "unknown", actual ? actual : "unknown");
-  ErrorInfo info = {.code = "TypeError", .message = message, .line = 0,
-                    .row = 0, .type = type};
+  ErrorInfo info = {.code = "TypeError", .message = message, .line = 0, .row = 0, .type = type};
   addError(error, info);
 }
 
@@ -59,7 +54,16 @@ void printErrors(const Error *error) {
   if (!error) return;
   for (int i = 0; i < error->size; i++) {
     const ErrorInfo *info = &error->info[i];
-    fprintf(stderr, "%s: %s\n", info->code ? info->code : "Error",
-            info->message ? info->message : "unknown error");
+    switch (info->type) {
+    case ERR_SYNTAX:
+      fprintf(stderr, "[%d/%d] Error: %s\nCode: %s\n", info->line, info->row, info->message,
+              info->code);
+      break;
+    default:
+      fprintf(stderr, "%s: %s\n", info->code ? info->code : "Error",
+              info->message ? info->message : "unknown error");
+
+      break;
+    }
   }
 }

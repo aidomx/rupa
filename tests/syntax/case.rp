@@ -1,3 +1,6 @@
+username = "budi"
+status = 200
+
 case username => {
     "budi": print("true\n")
     "arman": print("true\n")
