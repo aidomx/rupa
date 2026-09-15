@@ -137,10 +137,10 @@ static InterpreterResult fsRemove(int argc, RuntimeValue *argv,
 /* ==================== Module init ==================== */
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
-  struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
   if (!e)
     return;
-  e->key = strdup(name);
+  e->key = gcstrdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
   e->next = *head;
   *head = e;

@@ -10,8 +10,8 @@ bool pathExists(const char *path) {
 }
 
 bool readJsonString(const char *json, const char *key, char *out, size_t outSize) {
-  char pattern[256];
-  snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+  char *pattern = gccalloc(MAX_PATTERN_LENGTH, sizeof(char));
+  snprintf(pattern, MAX_PATTERN_LENGTH, "\"%s\"", key);
 
   const char *pos = strstr(json, pattern);
   if (!pos) return false;
@@ -36,8 +36,8 @@ bool readJsonString(const char *json, const char *key, char *out, size_t outSize
 
 bool readModuleJson(const char *dir, char *name, size_t nameSize, char *version, size_t versionSize,
                     char *author, size_t authorSize, char *description, size_t descSize) {
-  char path[1024];
-  snprintf(path, sizeof(path), "%s/module.json", dir);
+  char *path = gccalloc(MAX_PATH_LENGTH, sizeof(char));
+  snprintf(path, MAX_PATH_LENGTH, "%s/module.json", dir);
 
   FILE *f = fopen(path, "r");
   if (!f) return false;
@@ -71,19 +71,19 @@ int listArchive(const char *archivePath, const char *label) {
     return 0;
   }
 
-  char extractDir[1024];
-  snprintf(extractDir, sizeof(extractDir), "/tmp/rupa-pkg-%d", getpid());
+  char *extractDir = gccalloc(MAX_EXTRACT_LENGTH, sizeof(char));
+  snprintf(extractDir, MAX_EXTRACT_LENGTH, "/tmp/rupa-pkg-%d", getpid());
 
-  char cmd[2048];
-  snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", extractDir,
-           archivePath, extractDir);
+  char *cmd = gccalloc(MAX_CMD_LENGTH, sizeof(char));
+  snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null",
+           extractDir, archivePath, extractDir);
   system(cmd);
 
   printf("%s:\n", label);
-  snprintf(cmd, sizeof(cmd), "ls -1 \"%s\"", extractDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "ls -1 \"%s\"", extractDir);
   int ret = system(cmd);
 
-  snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", extractDir);
+  snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", extractDir);
   system(cmd);
 
   return ret;

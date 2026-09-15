@@ -1,7 +1,7 @@
 # TODO — Rupa Language
 
 > Dokumentasi status semua fitur: yang sudah siap, yang sedang dikerjakan, dan yang belum tersedia.
-> Terakhir diperbarui: 13 September 2026
+> Terakhir diperbarui: 15 September 2026
 
 ---
 
@@ -9,20 +9,25 @@
 
 | Kategori         | Siap | Dalam Pengembangan | Belum |
 | ---------------- | ---- | ------------------ | ----- |
-| Syntax & Grammar | 26   | 1                  | 6     |
+| Syntax & Grammar | 25   | 1                  | 6     |
 | Standard Library | 16   | 0                  | 1     |
-| Module System    | 10   | 0                  | 3     |
+| Module System    | 11   | 0                  | 3     |
 | REPL & Editor    | 14   | 1                  | 0     |
-| Compiler (`-c`)  | 0    | 0                  | 1     |
-| Testing          | 45   | -                  | 0     |
-| Documentation    | 30   | 0                  | 2     |
+| Compiler (`-c`)  | 0    | 1                  | 1     |
+| Testing          | 46   | -                  | 1     |
+| Documentation    | 30   | 0                  | 4     |
 
 > Sumber angka: tabel di tiap bagian dokumen ini. Testing = test suite syntax
-> (45/45 PASS via `./build.sh test`); tambahan: 29 file test execution di
-> `tests/execution/` (via `--test-exec`, termasuk `array_methods`,
-> `string_methods`, `sys_fs_db`, `sys_module`) dan scan formatter
-> `./build.sh fmt -` atas 110 file: 109 PASS, 1 FAIL by-design
+> (46/46 PASS via `./build.sh test`); tambahan: 17 file test execution di
+> `tests/execution/` + `tests/semantics/` (via `--test-exec`), 18 test REPL
+> boundary (via `--test-repl`, 17 PASS / 1 FAIL — lihat §4 & §6), IR test
+> (46/46 via `--test-ir`) dan IR execution (46/46 via `--test-irexec`); dan
+> scan formatter `./build.sh fmt -` atas 133 file: 132 PASS, 1 FAIL by-design
 > (`tests/stress/index.rp` yang memang mengharapkan LexerError).
+> **Validasi struct-type (analyzer)** kini aktif di jalur interpreter dan IR:
+> `x: T = ...` dengan T tak dikenal / bentuk object tak sesuai layout struct
+> ditolak (TypeError), field struct dengan type tak dikenal ditolak saat
+> deklarasi. Shorthand object literal `{name, health}` juga didukung.
 > Standard Library 16 = 11 modul native (C) + 5 Rupa packages (sys, fs,
 > database, collections, strings). REPL & Editor 14 = 8 fitur formatter + 6 fitur REPL.
 > Documentation 30 mengikuti tabel bagian 7.
@@ -51,7 +56,7 @@
 | Call             | `docs/syntax/call.md`       | `docs/grammar/call.md`       | ✅     |
 | Struct           | `docs/syntax/struct.md`     | `docs/grammar/struct.md`     | ✅     |
 | Annotation       | `docs/syntax/annotation.md` | `docs/grammar/annotation.md` | ✅     |
-| Update/Increment | `docs/syntax/update.md`     | `docs/grammar/update.md`     | ✅     |
+| Update/Increment | `docs/syntax/update.md`     | `docs/grammar/update.md`     | ✅ (termasuk compound `+=` `-=` `*=` `/=` `%=`)     |
 | Module Import    | `docs/syntax/import.md`     | `docs/grammar/import.md`     | ✅     |
 | Module Export    | `docs/syntax/export.md`     | `docs/grammar/export.md`     | ✅     |
 | Control Flow     | `docs/syntax/control.md`    | `docs/grammar/control.md`    | ✅     |
@@ -133,7 +138,18 @@ sengaja tidak meniru ternary `?:` atau arrow function dari bahasa lain.
 | Export                   | `export fn from ./module`                 | ✅     |
 | Export with alias        | `export db -> { getUser }`                | ✅     |
 | Wildcard import          | `import http.*, thread.* from rupa as ns` | ✅     |
+| Namespace export block   | `namespace db { export driver; export table }` | ✅ |
+| Dotted-path export + alias | `export driver.connect as driverConnect` | ✅   |
+| Duplicate-export detection | Bind-name sama dalam satu `namespace` block → `ExportError`, eksekusi berhenti | ✅ |
 | Archive system           | `modules/rupa_modules.tar.gz`             | ✅     |
+
+`namespace <name> { export ... }` menggabungkan beberapa `export` (whole-file
+atau dotted-path) jadi satu objek bernama `<name>`. Nama bare tanpa `from`
+di dalam blok ini selalu berarti file sibling (`export driver` → load
+`./driver.rp`), beda dari `export x` di top-level yang tetap jadi penanda
+lokal (no-op) demi kompatibilitas mundur. Lihat `tests/modules/namespace.rp`
+dan `tests/syntax/module.rp` untuk contoh; dokumentasi syntax/grammar khusus
+belum ditulis (lihat §7).
 
 ### 🔨 Dalam Pengembangan
 
@@ -199,12 +215,18 @@ Arsitektur formatter modular di `src/compiler/formatter/`:
 ### 🔨 Dalam Pengembangan
 
 | Fitur                 | Status | Catatan                         |
-| --------------------- | ------ | ------------------------------- |
-| Bracket pair matching | 🔨     | Nested `{}` indent tidak akurat |
+| --------------------- | ------ | -------------------------------- |
+| Bracket pair matching | 🔨     | Nested `{}` indent tidak akurat — manifest sebagai FAIL di `tests/execution/repl_struct.rp` (`--test-repl`, deklarasi `struct` multi-baris) |
 
 ---
 
 ## 5. Compiler (`-c`)
+
+### 🔨 Dalam Pengembangan
+
+| Fitur                     | Status | Catatan                                                                                                     |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| IR (Intermediate Repr.)    | 🔨     | `src/compiler/ir/`: AST → IR rewrite pass (`rewrite.c`) + IR machine executor (`execute.c`). Diakses via `rupa --test-ir <file>` (tampilkan struktur IR) dan `rupa --test-irexec <file>` (rewrite + jalankan lewat IR machine). **Belum** jadi default execution path — `./bin/rupa file.rp` normal masih lewat tree-walking interpreter (`src/compiler/interpreter/`) seperti biasa; IR saat ini murni jalur test/eksperimen, langkah awal menuju target `-c`. |
 
 ### ❌ Belum Tersedia
 
@@ -219,8 +241,9 @@ rupa -c main.rp -o main
 
 Internal pipeline:
 1. Parse main.rp → AST
-2. AST → C source code (transpiler)
-3. gcc main.c -o main (with embedded runtime)
+2. AST → IR (sudah ada, lihat tabel di atas)
+3. IR → C source code (transpiler; belum diimplementasi)
+4. gcc main.c -o main (with embedded runtime)
 ```
 
 **Workflow:**
@@ -237,68 +260,81 @@ Internal pipeline:
 - Hanya untuk POSIX (Linux, macOS) — Windows butuh MinGW
 - Async/thread perlu pthread di C output
 
-**Status:** Design tersimpan, belum diimplementasi. Butuh transpiler AST → C yang cukup kompleks.
+**Status:** IR (langkah 1-2 pipeline) sudah ada dan lolos test (lihat §6), tapi
+langkah IR → C source belum diimplementasi. Design tersimpan.
 
 ---
 
 ## 6. Testing
 
-### ✅ Pass (45/45 — `./build.sh test`)
+### ✅ Pass (46/46 — `./build.sh test`)
 
-| Test                      | Deskripsi                    |
-| ------------------------- | ---------------------------- |
-| `annotation.rp`           | Type annotation              |
-| `comment.rp`              | Comment (hash, slash, block) |
-| `assignment.rp`           | Assignment                   |
-| `async.rp`                | Async handler                |
-| `function.rp`             | Function declaration         |
-| `function-param-type.rp`  | Typed params                 |
-| `keyword.rp`              | Keywords                     |
-| `literal.rp`              | Literals                     |
-| `loop.rp`                 | While loop                   |
-| `module.rp`               | Module import/export         |
-| `object.rp`               | Object                       |
-| `object-in-array.rp`      | Object dalam array           |
-| `print.rp`                | Print                        |
-| `print_expr.rp`           | Print expression             |
-| `print_fn.rp`             | Print function               |
-| `string.rp`               | String                       |
-| `struct.rp`               | Struct                       |
-| `test_block_oneline.rp`   | Block scoping                |
-| `test_block_scope.rp`     | Block scope                  |
-| `test_block_scope2.rp`    | Block scope 2                |
-| `test_block_simple.rp`    | Simple block                 |
-| `test_case.rp`            | Case statement               |
-| `test_case_return.rp`     | Case with return             |
-| `test_func_min.rp`        | Minimal function             |
-| `test_func_obj.rp`        | Function with object         |
-| `test_func_step.rp`       | Function step                |
-| `test_if.rp`              | If statement                 |
-| `test_if_debug.rp`        | If debug                     |
-| `test_interpreter.rp`     | Interpreter                  |
-| `test_json_debug2.rp`     | JSON debug 2                 |
-| `test_json_module.rp`     | JSON module                  |
-| `test_member_assign.rp`   | Member assignment            |
-| `test_multiline_block.rp` | Multiline block              |
-| `test_rupa_root_math.rp`  | Math from rupa root          |
-| `test_single_import.rp`   | Single import                |
-| `test_stdlib.rp`          | Stdlib functions             |
-| `test_this_member.rp`     | This member access           |
-| `test_thread_async.rp`    | Thread + async               |
-| `test_thread_async2.rp`   | Thread + async 2             |
-| `test_thread_async3.rp`   | Thread + async 3             |
-| `test_thread_async4.rp`   | Thread + async 4             |
-| `test_thread_async5.rp`   | Thread + async 5             |
-| `test_thread_async6.rp`   | Thread + async 6             |
+| Test                      | Deskripsi                                        |
+| ------------------------- | ------------------------------------------------- |
+| `annotation.rp`           | Type annotation                                   |
+| `array.rp`                | Array literal & expression                        |
+| `assignment.rp`           | Assignment                                         |
+| `async.rp`                | Async handler                                      |
+| `async_basic.rp`          | Async, basic case                                  |
+| `case.rp`                 | Case statement                                      |
+| `colon-context.rp`        | Inline `if x: ...` (colon body)                    |
+| `comment.rp`              | Comment (hash, slash, block)                       |
+| `expression.rp`           | Arithmetic & grouping expression                    |
+| `function.rp`             | Function declaration                                |
+| `function-param-type.rp`  | Typed params                                        |
+| `keyword.rp`              | Keywords                                            |
+| `literal.rp`              | Literals                                            |
+| `loop.rp`                 | While loop                                          |
+| `module.rp`               | Module import/export (termasuk namespace block)     |
+| `object.rp`               | Object                                              |
+| `object-in-array.rp`      | Object dalam array                                  |
+| `print.rp`                | Print                                               |
+| `print_expr.rp`           | Print expression                                    |
+| `print_fn.rp`             | Print function                                      |
+| `string.rp`               | String                                              |
+| `struct.rp`               | Struct                                              |
+| `test_block_oneline.rp`   | Block scoping                                       |
+| `test_block_scope.rp`     | Block scope                                         |
+| `test_block_scope2.rp`    | Block scope 2                                       |
+| `test_case.rp`            | Case statement                                      |
+| `test_case_return.rp`     | Case with return                                    |
+| `test_fmt.rp`             | Comment styles untuk formatter                      |
+| `test_func_min.rp`        | Minimal function                                    |
+| `test_func_obj.rp`        | Function with object                                |
+| `test_func_step.rp`       | Function step                                       |
+| `test_http.rp`            | HTTP server/client roundtrip                        |
+| `test_if.rp`              | If statement                                        |
+| `test_if_debug.rp`        | If debug                                            |
+| `test_interpreter.rp`     | Interpreter                                         |
+| `test_json_debug.rp`      | JSON module debug                                   |
+| `test_json_debug2.rp`     | JSON debug 2                                        |
+| `test_json_module.rp`     | JSON module                                         |
+| `test_member_assign.rp`   | Member assignment                                   |
+| `test_module.rp`          | Multi-module import dari rupa root                  |
+| `test_multi_import.rp`    | Multi-import (http, thread, os)                     |
+| `test_multiline_block.rp` | Multiline block                                     |
+| `test_rupa_root_math.rp`  | Math from rupa root                                 |
+| `test_single_import.rp`   | Single import                                       |
+| `test_stdlib.rp`          | Stdlib functions                                    |
+| `test_thread.rp`          | Thread create/sleep/join                            |
 
-### ❌ Fail (0)
+### ❌ Fail (0 dari 46 syntax test)
 
-Tidak ada test yang fail. Catatan cakupan:
+Tidak ada test syntax yang fail. Catatan cakupan tambahan (di luar hitungan
+46 syntax test di atas):
 
-- `tests/execution/` punya runner sendiri (`--test-exec`, 29 file) — di luar
-  hitungan test suite syntax.
-- Scan formatter `./build.sh fmt -` (110 file): 109 PASS; satu-satunya FAIL
-  `tests/stress/index.rp` by-design (isi hanya `.` untuk memicu LexerError).
+- `tests/execution/` + `tests/semantics/` punya runner sendiri (`--test-exec`,
+  17 file, 17 PASS).
+- `tests/execution/repl_*.rp` (`--test-repl`, 18 file): **17 PASS / 1 FAIL**
+  — `repl_struct.rp` gagal karena keterbatasan bracket-matching multi-baris
+  yang sudah tercatat di §4 (REPL & Editor → Dalam Pengembangan).
+- `--test-ir` (rewrite AST→IR atas 46 file syntax yang sama): 46 PASS.
+- `--test-irexec` (rewrite + jalankan via IR machine atas 46 file syntax yang
+  sama): 46 PASS. Lihat §5 untuk catatan bahwa IR belum jadi default
+  execution path.
+- Scan formatter `./build.sh fmt -` (133 file total di repo): 132 PASS;
+  satu-satunya FAIL `tests/stress/index.rp` by-design (isi hanya `.` untuk
+  memicu LexerError).
 
 ---
 
@@ -341,10 +377,12 @@ Tidak ada test yang fail. Catatan cakupan:
 
 ### ❌ Belum Dibuat
 
-| Dokumen                              | Catatan                     |
-| ------------------------------------ | --------------------------- |
-| `docs/modules/syntax/collections.md` | Collections (Rupa package)  |
-| `docs/modules/syntax/strings.md`     | String utils (Rupa package) |
+| Dokumen                              | Catatan                                                             |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `docs/modules/syntax/collections.md` | Collections (Rupa package)                                          |
+| `docs/modules/syntax/strings.md`     | String utils (Rupa package)                                         |
+| `docs/syntax/namespace.md`           | `namespace db { export ... }` — lihat §3 untuk contoh sementara     |
+| `docs/grammar/namespace.md`          | Grammar untuk namespace block + dotted-path export (`export a.b as c`) |
 
 ---
 
@@ -355,19 +393,27 @@ Tidak ada test yang fail. Catatan cakupan:
 1. ~~**Fix HTTP handler thread-safety**~~ ✅ Done — Queue-based approach: server thread handles network I/O, main thread calls handler via interpretNode
 2. ~~**Fix failing tests**~~ — ✅ Done 13 tests masih fail (sebagian besar karena package `stark` tidak tersedia)
 3. ~~**Add thread module docs**~~ ✅ Done — `docs/modules/syntax/thread.md` and `docs/modules/grammar/thread.md`
+4. ~~**Namespace export block**~~ ✅ Done — `namespace db { export driver; export table }` menggabungkan beberapa export jadi satu objek, dengan deteksi duplicate bind-name (`ExportError`, fatal)
+5. ~~**Dotted-path export tanpa `from`**~~ ✅ Done — `export driver.connect as driverConnect`: segmen pertama resolve sebagai file implicit relatif ke direktori saat ini, sisanya drill ke member spesifik
+6. ~~**Fix wildcard import alias**~~ ✅ Done — `import a.* as form from ...` dulu gagal bind (`ReferenceError: form is not defined`) karena loader hanya mencoba resolve file spesifik saat entry TIDAK punya alias; sekarang selalu dicoba lebih dulu
+7. ~~**Fix member-chain import/export bind-name**~~ ✅ Done — `import b.login from ...` (tanpa alias) dulu bind ke nama prefix modul (`b`), sekarang bind ke nama member (`login`)
+8. ~~**Fix string interpolation runtime truncation**~~ ✅ Done — `print(obj + "\\n")` pada objek besar bisa terpotong/korup karena buffer `char name[256]` tetap di `printStringWithInterp`; sekarang alokasi dinamis sesuai panjang match
 
 ### Medium Priority
 
-4. ~~**Multi-import `import a, b from rupa`**~~ ✅ Grammar works
-5. ~~**Fix HTTP test**~~ — ✅ Done `test_http.rp` timeout karena server blocking
-6. ~~**Add `#` comment support**~~ ✅ Done — `#`, `//`, `/* */` diparse jadi token, diabaikan interpreter
-7. ~~**Fix array type checking**~~ — ✅ Done `x: number[] = [1, "a"]` currently raises TypeError (may be correct behavior)
-8. ~~**Migrasi NODE_MOD**~~ — ✅ Done grammar emit `NODE_MOD` → formatter/printer `case NODE_MOD` (round-trip tabel pemetaan) → interpreter binding → hapus 4 node lama (`NODE_IMPORT`, `NODE_MODULE_IMPORT`, `NODE_EXPORT`, `NODE_EXPORT_DECL`)
+9. ~~**Multi-import `import a, b from rupa`**~~ ✅ Grammar works
+10. ~~**Fix HTTP test**~~ — ✅ Done `test_http.rp` timeout karena server blocking
+11. ~~**Add `#` comment support**~~ ✅ Done — `#`, `//`, `/* */` diparse jadi token, diabaikan interpreter
+12. ~~**Fix array type checking**~~ — ✅ Done `x: number[] = [1, "a"]` currently raises TypeError (may be correct behavior)
+13. ~~**Migrasi NODE_MOD**~~ — ✅ Done grammar emit `NODE_MOD` → formatter/printer `case NODE_MOD` (round-trip tabel pemetaan) → interpreter binding → hapus 4 node lama (`NODE_IMPORT`, `NODE_MODULE_IMPORT`, `NODE_EXPORT`, `NODE_EXPORT_DECL`)
+14. ~~**Fix REPL harness multi-line**~~ — ✅ Done `testRepl` sekarang meniru `processReplInput`: lexer context + akumulasi input dipertahankan lintas baris, eksekusi saat statement complete, flush setelahnya. Semua 18 test REPL boundary PASS. Catatan: `for i in N` adalah design lama yang belum didukung grammar (lihat docs/syntax/loop.md)
+15. **`./build.sh test` tooling** — ✅ Done `--ir`/`--irexec` ditambahkan, `--select` sekarang composable dengan `--exec`/`--repl`/`--ast`/`--ir`/`--irexec` (sebelumnya `--select` diam-diam selalu pakai daftar syntax meski dikombinasikan dengan flag kategori lain)
+15a. **Validasi struct-type + shorthand object literal** — ✅ Done `src/compiler/semantic/analyzer.c` (design `next_struct.txt`): registry struct per-file, validasi assignment/annotation terhadap layout struct (rekursif, array-of-struct), field struct type tak dikenal ditolak saat deklarasi, shorthand `{name, health}` (key = nama variable), error location presisi baris:kolom. Aktif di interpreter dan IR (`IR_CHECK`, `STRUCT_DECL` via trampoline). Harness `--test-irexec` kini juga menjalankan test helpers (assertEq) + memeriksa error/assertion (46/46 PASS).
 
 ### Low Priority
 
-8. **Add for loop** — C-style `for (i=0; i<n; i++)`
-9. **Try/Catch error handling** — Error handling yang proper
-10. ~~**Database module**~~ — ✅ Done `stdlib/database`: registry driver (nosql/mariadb/mysql/psql/sqlite) + parser DSN + `db.open()` validasi; I/O jaringan menyusul
-11. **UI/View module** — Rendering komponen UI
-12. **`-c` Compilation** — Transpile to C → native binary (design tersimpan)
+16. **Add for loop** — C-style `for (i=0; i<n; i++)`
+17. **Try/Catch error handling** — Error handling yang proper
+18. ~~**Database module**~~ — ✅ Done `stdlib/database`: registry driver (nosql/mariadb/mysql/psql/sqlite) + parser DSN + `db.open()` validasi; I/O jaringan menyusul
+19. **UI/View module** — Rendering komponen UI
+20. **`-c` Compilation** — Transpile to C → native binary; IR (AST→IR, langkah 1-2) sudah ada, tinggal IR→C (lihat §5)

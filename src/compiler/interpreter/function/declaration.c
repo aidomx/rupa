@@ -5,7 +5,7 @@ InterpreterResult interpretFunction(Node *node, AstNode *ast, RuntimeEnv *env, E
   if (!node || !ast || ast->type != NODE_FUNCTION_DECL)
     return resultNormal(valueNull());
 
-  RuntimeFunction *function = calloc(1, sizeof(*function));
+  RuntimeFunction *function = gccalloc(1, sizeof(*function));
   if (!function) return resultFlow(FLOW_ERROR, valueNull());
 
   function->node = node;

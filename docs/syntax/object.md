@@ -24,6 +24,14 @@ Array of objects:
 people = [{ name: "A", score: 90 }, { name: "B", score: 85 }]
 ```
 
+Shorthand — key diambil dari nama variable:
+
+```rupa
+name = "Rupa"
+age = 1
+person = { name, age }   # sama dengan { name: name, age: age }
+```
+
 ## Kapan digunakan?
 
 Gunakan object untuk mengelompokkan data dengan key-value pairs. Akses member menggunakan dot notation.

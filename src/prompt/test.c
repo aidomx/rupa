@@ -197,6 +197,149 @@ void test(const char *paths[], int length) {
 }
 
 /* ================================================================
+ * IR test: lex + parse + rewrite (AST -> IR), show IR structure.
+ * ================================================================ */
+
+void testIR(const char *paths[], int length) {
+  if (!paths || length <= 0) {
+    printf("No test files.\n");
+    return;
+  }
+
+  State *state = createGlobalState(length, false);
+  if (!state || !state->buffer) {
+    fprintf(stderr, "Failed to create test state.\n");
+    return;
+  }
+
+  int passed = 0;
+  int failed = 0;
+
+  for (int i = 0; i < length; i++) {
+    Buffer *buffer;
+    Token *tokens;
+    Node *node;
+
+    if (!lexParse(state, paths[i], &buffer, &tokens, &node)) {
+      printf("FAIL | %s\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    IRModule *ir = createIR();
+    if (!ir || !rewrite(node, -1, ir)) {
+      printf("FAIL | %s (rewrite failed)\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    printf("\n--- %s ---\n", paths[i]);
+    debugIRModule(ir);
+    printf("PASS\n");
+    passed++;
+    irModuleFree(ir);
+  }
+
+  printf("\n> IR test summary\n");
+  printf("Passed : %d\n", passed);
+  printf("Failed : %d\n", failed);
+  printf("Status : %s\n", failed == 0 ? "Success" : "Failed");
+}
+
+/* ================================================================
+ * IR execution test: rewrite (AST -> IR) lalu jalankan IR machine.
+ * ================================================================ */
+
+void testIRExec(const char *paths[], int length) {
+  if (!paths || length <= 0) {
+    printf("No test files.\n");
+    return;
+  }
+
+  State *state = createGlobalState(length, false);
+  if (!state || !state->buffer) {
+    fprintf(stderr, "Failed to create test state.\n");
+    return;
+  }
+
+  int passed = 0;
+  int failed = 0;
+
+  printf("> IR execution tests\n");
+
+  for (int i = 0; i < length; i++) {
+    if (state->repl) clearReplState(state->repl);
+    clearInput(state->input);
+    clearStateToken(state->tokens);
+    clearStateContext(state->context);
+    state->size = 0;
+    if (state->history) {
+      state->history->size = 0;
+      state->history->currentIndex = -1;
+    }
+
+    Buffer *buffer = state->buffer;
+    if (!readfile(paths[i], buffer)) {
+      printf("FAIL | %s (file not found)\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    addToHistory(state);
+    addToInput(state);
+    lexer(state);
+
+    Flags *flags = state->input->flags;
+    Token *tokens = state->tokens;
+    if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
+      printf("FAIL | %s (lex failed)\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    Request request = createRequest(tokens, 10);
+    Node *node = processGenerate(&request);
+    if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
+      printf("FAIL | %s (parse failed)\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    setSourceFilePath(paths[i]);
+
+    IRModule *ir = createIR();
+    if (!ir || !rewrite(node, -1, ir)) {
+      printf("FAIL | %s (rewrite failed)\n", paths[i]);
+      failed++;
+      continue;
+    }
+
+    testHelperReset();
+    analyzerReset(); /* registry struct per-file */
+
+    printf("\n--- %s ---\n", paths[i]);
+    Error *execError = createError(10);
+    int execStatus = executeIRErrorWithEnv(ir, node, execError, executeIRRegisterHelpers);
+    irModuleFree(ir);
+
+    if (execStatus != 0) {
+      printf("FAIL | %s\n", paths[i]);
+      if (execError && execError->size > 0) printErrors(execError);
+      failed++;
+      continue;
+    }
+
+    printf("PASS | %s\n", paths[i]);
+    passed++;
+  }
+
+  printf("\n> IR execution test summary\n");
+  printf("Passed : %d\n", passed);
+  printf("Failed : %d\n", failed);
+  printf("Status : %s\n", failed == 0 ? "Success" : "Failed");
+}
+
+/* ================================================================
  * AST test: lex + parse, show source + AST structure.
  * ================================================================ */
 
@@ -341,6 +484,7 @@ void testExec(const char *paths[], int length) {
 
     testHelperReset();
     setSourceFilePath(paths[i]);
+    analyzerReset(); /* registry struct per-file */
     RuntimeEnv *env = semCreateEnv(NULL);
     if (!env) {
       printf("FAIL | %s (env alloc failed)\n", paths[i]);
@@ -436,9 +580,21 @@ void testRepl(const char *paths[], int length) {
     testHelperInit(sharedEnv);
     testHelperReset();
     setSourceFilePath(paths[i]);
+    analyzerReset(); /* registry struct per-file */
 
     bool test_failed = false;
     int line_num = 0;
+
+    /* Mirror the interactive REPL (see processReplInput): lexer context and
+     * accumulated input must survive across lines so multi-line constructs
+     * (struct, object literal, function) hold via isWaiting and only execute
+     * once complete. Resetting context/size per line broke every multi-line
+     * REPL boundary test and made later lines execute stale tokens. */
+    clearReplState(state->repl);
+    clearInput(state->input);
+    clearStateToken(state->tokens);
+    clearStateContext(state->context);
+    state->size = 0;
 
     Node **all_nodes = NULL;
     int node_count = 0;
@@ -456,17 +612,15 @@ void testRepl(const char *paths[], int length) {
         continue;
       }
 
-      if (state->buffer->value) state->buffer->value[0] = '\0';
+      state->buffer->value[0] = '\0';
       state->buffer->length = 0;
-      state->repl->size = 0;
-      clearStateContext(state->context);
-      state->size = 0;
 
       size_t len = strlen(line);
-      if ((int)len >= state->buffer->capacity) {
+      if ((int)len >= state->buffer->capacity ||
+          (int)(state->input->length + len + 2) >= MAX_BUFFER_SIZE) {
+        printf("  FAIL line %d (buffer overflow)\n", line_num);
         test_failed = true;
-        line = strtok_r(NULL, "\n", &saveptr);
-        continue;
+        break;
       }
       memcpy(state->buffer->value, line, len);
       state->buffer->value[len] = '\0';
@@ -475,13 +629,34 @@ void testRepl(const char *paths[], int length) {
       printf("  %2d> %s\n", line_num, line);
 
       addToHistory(state);
-      addToInput(state);
+
+      /* Build input content: append while multiline is in progress, replace
+       * on fresh statement — same contract as processReplInput. */
+      Input *input = state->input;
+      if (input->length > 0) {
+        memcpy(input->content + input->length, line, len);
+        input->length += (int)len;
+      } else {
+        input->cursor = 0;
+        memcpy(input->content, line, len);
+        input->length = (int)len;
+      }
+      if (input->length > 0 && input->content[input->length - 1] != '\n')
+        input->content[input->length++] = '\n';
+      input->content[input->length] = '\0';
+
       lexer(state);
 
       Flags *flags = state->input->flags;
       Token *tokens = state->tokens;
 
-      if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
+      /* Multiline in progress — keep accumulated input, wait for more lines */
+      if (flags && flags->isWaiting) {
+        line = strtok_r(NULL, "\n", &saveptr);
+        continue;
+      }
+
+      if (!tokens || tokens->length == 0) {
         line = strtok_r(NULL, "\n", &saveptr);
         continue;
       }
@@ -492,6 +667,9 @@ void testRepl(const char *paths[], int length) {
         Error *error = createError(10);
 
         if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
+          state->input->length = 0;
+          clearStateToken(state->tokens);
+          if (flags) resetFlags(flags);
           test_failed = true;
           line = strtok_r(NULL, "\n", &saveptr);
           continue;
@@ -511,12 +689,20 @@ void testRepl(const char *paths[], int length) {
           }
         }
         if (root < 0) {
+          state->input->length = 0;
+          clearStateToken(state->tokens);
+          if (flags) resetFlags(flags);
           test_failed = true;
           line = strtok_r(NULL, "\n", &saveptr);
           continue;
         }
 
         InterpreterResult result = interpretNode(node, root, sharedEnv, error);
+
+        /* Statement complete — flush accumulated input like the REPL does */
+        state->input->length = 0;
+        clearStateToken(state->tokens);
+        if (flags) resetFlags(flags);
 
         if (result.flow == FLOW_ERROR || (error && error->size > 0)) {
           printf("  FAIL line %d\n", line_num);

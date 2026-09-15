@@ -43,8 +43,11 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     const char *k = nameOf(n, a->assign.target);
     InterpreterResult r = interpretNode(n, a->assign.value, e, x);
     if (r.flow != FLOW_NORMAL) return r;
-    if (a->assign.type >= 0 && !validateAnnotation(n, a->assign.type, r.value, x))
-      return resultFlow(FLOW_ERROR, valueNull());
+    if (a->assign.type >= 0) {
+      analyzerSetErrorLocation(n, a->assign.type);
+      if (!validateAnnotation(n, a->assign.type, r.value, x))
+        return resultFlow(FLOW_ERROR, valueNull());
+    }
     if (k) {
       /* Preserve the explicit type on the binding so later assignments are
        * checked too (`x: number[] = []; x = [1]`). */
@@ -76,6 +79,7 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
 
     InterpreterResult r = interpretNode(n, a->annotation.value, e, x);
     if (r.flow != FLOW_NORMAL) return r;
+    analyzerSetErrorLocation(n, a->annotation.type);
     if (!validateAnnotation(n, a->annotation.type, r.value, x))
       return resultFlow(FLOW_ERROR, valueNull());
     if (k) {
@@ -115,8 +119,7 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     for (int i = 0; i < a->block.length; i++) {
       InterpreterResult r = interpretNode(n, a->block.statements[i], e, x);
       last = r.value;
-      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE)
-        return r;
+      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE) return r;
       /* Runtime errors are collected and do not abort the containing block. */
     }
     return resultNormal(last);

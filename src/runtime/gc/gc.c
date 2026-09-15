@@ -24,6 +24,11 @@ void gcinit(int capacity) {
   pthread_mutexattr_destroy(&attr);
 }
 
+void gccpy(void *dest, const void *src, size_t n) {
+  if (!dest || !src || n <= 0) return;
+  memcpy(dest, src, n);
+}
+
 void *gcrealloc(void *ptr, size_t new_size) {
   if (!gc) return realloc(ptr, new_size);
 
@@ -148,6 +153,11 @@ char *gcstrdup(const char *str) {
   return dup;
 }
 
+// short gcstrdup
+char *gcdup(const char *str) {
+  return gcstrdup(str);
+}
+
 char *gcstrndup(const char *str, size_t n) {
   if (!str) return NULL;
 
@@ -157,6 +167,11 @@ char *gcstrndup(const char *str, size_t n) {
     dup[n] = '\0';
   }
   return dup;
+}
+
+// short gcstrndup
+char *gcndup(const char *str, size_t n) {
+  return gcstrndup(str, n);
 }
 
 void **gcarray(size_t count, size_t element_size) {

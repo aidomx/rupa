@@ -16,3 +16,5 @@ problem.txt
 shared
 modules/*.tar.gz
 !.gitkeep
+build-report.txt
+design

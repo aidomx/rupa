@@ -13,7 +13,7 @@
     <link rel="preload" href="/rupa/assets/inter-roman-latin.Di8DUHzh.woff2" as="font" type="font/woff2" crossorigin="">
     <link rel="modulepreload" href="/rupa/assets/chunks/theme.W5EwhRIZ.js">
     <link rel="modulepreload" href="/rupa/assets/chunks/framework.BpJS36ta.js">
-    <link rel="modulepreload" href="/rupa/assets/structure.md.Bi8zNaUp.lean.js">
+    <link rel="modulepreload" href="/rupa/assets/structure.md.yGZm-4ba.lean.js">
     <link rel="icon" type="image/svg+xml" href="/rupa/logo.svg">
     <script id="check-dark-mode">(()=>{const e=localStorage.getItem("vitepress-theme-appearance")||"auto",a=window.matchMedia("(prefers-color-scheme: dark)").matches;(!e||e==="auto"?a:e==="dark")&&document.documentElement.classList.add("dark")})();</script>
     <script id="check-mac-os">document.documentElement.classList.toggle("mac",/Mac|iPhone|iPod|iPad/i.test(navigator.platform));</script>
@@ -28,7 +28,7 @@
 <span class="line"><span>│</span></span>
 <span class="line"><span>├── lib/                          # Headers &amp; type definitions</span></span>
 <span class="line"><span>│   ├── intl.h                    # Central include hub (includes all lib/)</span></span>
-<span class="line"><span>│   ├── forward.h                 # Forward declarations</span></span>
+<span class="line"><span>│   ├── forward.h                 # Forward declarations (enum, struct)</span></span>
 <span class="line"><span>│   ├── stdlib.h                  # Standard library C headers</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── core/                     # Enums, constants, macros</span></span>
@@ -38,15 +38,16 @@
 <span class="line"><span>│   │   ├── enum_context.h        # Runtime context types</span></span>
 <span class="line"><span>│   │   ├── enum_debug.h          # Debug mode flags</span></span>
 <span class="line"><span>│   │   ├── enum_editor.h         # Editor mode types</span></span>
-<span class="line"><span>│   │   ├── enum_error.h          # Error code types</span></span>
+<span class="line"><span>│   │   ├── enum_error.h         # Error code types</span></span>
 <span class="line"><span>│   │   ├── enum_except.h         # Exception types</span></span>
 <span class="line"><span>│   │   ├── enum_flag.h           # Runtime flag types</span></span>
 <span class="line"><span>│   │   ├── enum_interpreter.h    # Interpreter state types</span></span>
+<span class="line"><span>│   │   ├── enum_ir.h             # IR opcode &amp; value types</span></span>
 <span class="line"><span>│   │   ├── enum_keyword.h        # Keyword token types</span></span>
 <span class="line"><span>│   │   ├── enum_mod.h            # Module design baru (ModEntryKind, ModType)</span></span>
 <span class="line"><span>│   │   ├── enum_node.h           # AST node types</span></span>
 <span class="line"><span>│   │   ├── enum_program.h        # Program phase types</span></span>
-<span class="line"><span>│   │   ├── enum_token.h          # Token types</span></span>
+<span class="line"><span>│   │   ├── enum_token.h          # Token types (termasuk compound +=, -=, dst)</span></span>
 <span class="line"><span>│   │   ├── enum_value.h          # Runtime value types</span></span>
 <span class="line"><span>│   │   ├── enum_variable.h       # Variable scope types</span></span>
 <span class="line"><span>│   │   ├── keys.h                # Keyboard key definitions</span></span>
@@ -55,93 +56,85 @@
 <span class="line"><span>│   │   ├── manifest.h            # Version &amp; build info</span></span>
 <span class="line"><span>│   │   └── platform.h            # Platform detection</span></span>
 <span class="line"><span>│   │</span></span>
-<span class="line"><span>│   ├── types/                    # Type struct definitions</span></span>
-<span class="line"><span>│   │   ├── compiler/             # Compiler types</span></span>
-<span class="line"><span>│   │   │   ├── compiler.h</span></span>
-<span class="line"><span>│   │   │   ├── parser/           # ast.h (termasuk AstMod design baru), node.h</span></span>
-<span class="line"><span>│   │   │   ├── interpreter/      # Runtime interpreter types</span></span>
-<span class="line"><span>│   │   │   ├── lexer/            # Lexer types</span></span>
-<span class="line"><span>│   │   │   └── semantic/         # Symbol &amp; eventloop types</span></span>
-<span class="line"><span>│   │   ├── debug/debug.h</span></span>
-<span class="line"><span>│   │   ├── editor/editor.h</span></span>
-<span class="line"><span>│   │   ├── repl/repl.h</span></span>
-<span class="line"><span>│   │   ├── runtime/</span></span>
-<span class="line"><span>│   │   │   ├── context.h</span></span>
-<span class="line"><span>│   │   │   ├── flags.h</span></span>
-<span class="line"><span>│   │   │   ├── function.h</span></span>
-<span class="line"><span>│   │   │   ├── gc.h</span></span>
-<span class="line"><span>│   │   │   ├── input.h</span></span>
-<span class="line"><span>│   │   │   ├── io.h</span></span>
-<span class="line"><span>│   │   │   ├── keyword.h</span></span>
-<span class="line"><span>│   │   │   └── validation.h</span></span>
-<span class="line"><span>│   │   ├── state/state.h</span></span>
-<span class="line"><span>│   │   └── support/</span></span>
-<span class="line"><span>│   │       ├── atom.h</span></span>
-<span class="line"><span>│   │       ├── posix.h</span></span>
-<span class="line"><span>│   │       ├── symbol.h</span></span>
-<span class="line"><span>│   │       └── system.h</span></span>
-<span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── compiler/                 # Compiler header interfaces</span></span>
-<span class="line"><span>│   │   ├── compiler.h</span></span>
-<span class="line"><span>│   │   ├── formatter/formatter.h</span></span>
-<span class="line"><span>│   │   ├── interpreter/</span></span>
-<span class="line"><span>│   │   │   ├── annotation.h</span></span>
-<span class="line"><span>│   │   │   ├── eval.h</span></span>
+<span class="line"><span>│   │   ├── compiler.h            # Master include compiler</span></span>
+<span class="line"><span>│   │   ├── interpreter/          # Struct + fn decl interpreter</span></span>
+<span class="line"><span>│   │   │   ├── value.h           # RuntimeValue, RuntimeArray, NativeFn</span></span>
+<span class="line"><span>│   │   │   ├── result.h          # InterpreterResult &amp; flow</span></span>
+<span class="line"><span>│   │   │   ├── function.h        # RuntimeFunction (closure AST)</span></span>
+<span class="line"><span>│   │   │   ├── eval.h            # interpretNode &amp; eval API</span></span>
+<span class="line"><span>│   │   │   ├── text.h            # valueTextOf, valueBinaryApply (dipakai IR)</span></span>
 <span class="line"><span>│   │   │   ├── interpreter.h</span></span>
 <span class="line"><span>│   │   │   ├── runtime.h</span></span>
-<span class="line"><span>│   │   │   ├── debug/debug_ast.h, print_ast.h, print_ast_shared.h</span></span>
+<span class="line"><span>│   │   │   ├── annotation.h</span></span>
+<span class="line"><span>│   │   │   ├── debug/            # debug_ast.h, print_ast.h, print_ast_shared.h</span></span>
 <span class="line"><span>│   │   │   ├── error/error.h</span></span>
 <span class="line"><span>│   │   │   └── statement/loop.h</span></span>
-<span class="line"><span>│   │   ├── lexer/lexer.h</span></span>
-<span class="line"><span>│   │   │   └── processor/processor.h</span></span>
+<span class="line"><span>│   │   ├── ir/                   # IR pipeline (AST → IR → Execute)</span></span>
+<span class="line"><span>│   │   │   ├── ir.h              # IRModule, IRInstruction, IRValue</span></span>
+<span class="line"><span>│   │   │   ├── rewrite.h         # rewrite() AST → IR</span></span>
+<span class="line"><span>│   │   │   ├── execute.h         # executeIR() mesin IR</span></span>
+<span class="line"><span>│   │   │   └── debug.h           # IR printer</span></span>
+<span class="line"><span>│   │   ├── lexer/lexer.h         # DataToken, LexerState</span></span>
 <span class="line"><span>│   │   ├── parser/</span></span>
-<span class="line"><span>│   │   │   ├── ast/ast.h, assignment.h, expression.h, operator.h, processor.h</span></span>
-<span class="line"><span>│   │   │   ├── grammar/grammar.h, array/array.h</span></span>
-<span class="line"><span>│   │   │   ├── node.h</span></span>
+<span class="line"><span>│   │   │   ├── ast/ast.h         # AstNode &amp; semua struct Ast* (nempel fn decl)</span></span>
+<span class="line"><span>│   │   │   ├── node.h, node_type.h</span></span>
 <span class="line"><span>│   │   │   ├── parser.h</span></span>
+<span class="line"><span>│   │   │   ├── grammar/grammar.h, array/array.h</span></span>
 <span class="line"><span>│   │   │   └── token/token.h</span></span>
-<span class="line"><span>│   │   └── semantic/symbol.h</span></span>
+<span class="line"><span>│   │   └── semantic/</span></span>
+<span class="line"><span>│   │       ├── symbol.h          # RuntimeEnv, RuntimeBinding</span></span>
+<span class="line"><span>│   │       ├── analyzer.h        # Registry struct + validasi type (struct-first)</span></span>
+<span class="line"><span>│   │       ├── value.h</span></span>
+<span class="line"><span>│   │       └── eventloop.h       # EventLoop async</span></span>
 <span class="line"><span>│   │</span></span>
+<span class="line"><span>│   ├── formatter/formatter.h     # Formatter struct + API</span></span>
 <span class="line"><span>│   ├── runtime/                  # Runtime header interfaces</span></span>
 <span class="line"><span>│   │   ├── runtime.h</span></span>
 <span class="line"><span>│   │   ├── context/context.h</span></span>
-<span class="line"><span>│   │   ├── gc/gc.h</span></span>
-<span class="line"><span>│   │   ├── input/flags.h, input.h</span></span>
-<span class="line"><span>│   │   ├── keyword/keyword.h</span></span>
-<span class="line"><span>│   │   └── validation/validation.h</span></span>
+<span class="line"><span>│   │   ├── gc/gc.h               # GC allocator (gcmall, gcstrdup, ...)</span></span>
+<span class="line"><span>│   │   └── io/io.h</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── editor/                   # Editor header interfaces</span></span>
-<span class="line"><span>│   │   ├── editor.h</span></span>
+<span class="line"><span>│   │   ├── editor.h, editor_type.h</span></span>
 <span class="line"><span>│   │   ├── core/buffer.h, cursor.h, mode.h</span></span>
 <span class="line"><span>│   │   ├── display/drawer.h, refresh.h, terminal.h</span></span>
 <span class="line"><span>│   │   └── operations/editorState.h, history.h, indent.h, reset.h</span></span>
 <span class="line"><span>│   │</span></span>
-<span class="line"><span>│   ├── stdlib/                   # Stdlib header interfaces</span></span>
-<span class="line"><span>│   │   ├── io.h, os.h, string.h, test_helper.h</span></span>
+<span class="line"><span>│   ├── state/                    # State header interfaces</span></span>
+<span class="line"><span>│   │   ├── state.h</span></span>
+<span class="line"><span>│   │   ├── types/state.h, input.h, flags.h</span></span>
+<span class="line"><span>│   │   └── input/input.h, flags.h</span></span>
 <span class="line"><span>│   │</span></span>
-<span class="line"><span>│   ├── modules/rupa_modules.h    # Module system header</span></span>
-<span class="line"><span>│   ├── prompt/prompt.h           # Prompt header</span></span>
-<span class="line"><span>│   ├── repl/repl.h               # REPL header</span></span>
-<span class="line"><span>│   ├── debug/debug.h             # Debug header</span></span>
-<span class="line"><span>│   ├── state/state.h             # State header</span></span>
+<span class="line"><span>│   ├── modules/                  # Module headers (per modul native)</span></span>
+<span class="line"><span>│   │   ├── rupa_modules.h        # Master include modul</span></span>
+<span class="line"><span>│   │   ├── crypto.h, datetime.h, io.h, net.h</span></span>
+<span class="line"><span>│   │   ├── os.h, regex.h, string.h, test_helper.h</span></span>
+<span class="line"><span>│   │</span></span>
+<span class="line"><span>├── prompt/prompt.h           # Prompt header</span></span>
+<span class="line"><span>│   ├── repl/repl.h, repl_type.h  # REPL header</span></span>
+<span class="line"><span>│   ├── debug/debug.h, debug_type.h</span></span>
 <span class="line"><span>│   └── utils/                    # Utility headers</span></span>
+<span class="line"><span>│       ├── utils.h</span></span>
 <span class="line"><span>│       ├── atom.h, identifier.h, numbers.h, strings.h</span></span>
+<span class="line"><span>│       └── types/atom.h, posix.h, symbol.h, support.h, system.h</span></span>
 <span class="line"><span>│</span></span>
 <span class="line"><span>├── src/                          # Implementation (C source)</span></span>
 <span class="line"><span>│   ├── main.c                    # Entry point</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── bootstrap/                # File loading &amp; bootstrapping</span></span>
 <span class="line"><span>│   │   └── loader.c</span></span>
-<span class="line"><span>││   │   ├── compiler/                 # Compiler pipeline</span></span>
-<span class="line"><span>│   │   ├── formatter/               # Code formatter (modular)</span></span>
-<span class="line"><span>│   │   │   ├── formatter.c          # Entry points (formatFile/String/Stdin)</span></span>
-<span class="line"><span>│   │   │   ├── format_helpers.c     # fmtIndent, fmtStr, fmtChar, fmtNewline</span></span>
-<span class="line"><span>│   │   │   ├── format_node.c        # Atom nodes</span></span>
-<span class="line"><span>│   │   │   ├── format_expr.c        # Expressions</span></span>
-<span class="line"><span>│   │   │   ├── format_stmt.c        # Statements (incl. import/export)</span></span>
-<span class="line"><span>│   │   │   ├── format_dispatch.c    # fmtNode main switch</span></span>
-<span class="line"><span>│   │   │   └── format_comment.c     # Comment formatting</span></span>
-<span class="line"><span>│   │   │</span></span>
+<span class="line"><span>│   │</span></span>
+<span class="line"><span>│   ├── formatter/                # Code formatter (modular, top-level)</span></span>
+<span class="line"><span>│   │   ├── formatter.c             # Entry points (formatFile/String/Stdin)</span></span>
+<span class="line"><span>│   │   ├── format_helpers.c        # fmtIndent, fmtStr, fmtChar, fmtNewline</span></span>
+<span class="line"><span>│   │   ├── format_node.c           # Atom nodes</span></span>
+<span class="line"><span>│   │   ├── format_expr.c           # Expressions (incl. compound +=, -=, dst)</span></span>
+<span class="line"><span>│   │   ├── format_stmt.c           # Statements (incl. import/export/namespace)</span></span>
+<span class="line"><span>│   │   ├── format_dispatch.c       # fmtNode main switch</span></span>
+<span class="line"><span>│   │   └── format_comment.c        # Comment formatting</span></span>
+<span class="line"><span>│   │</span></span>
+<span class="line"><span>│   ├── compiler/                 # Compiler pipeline</span></span>
 <span class="line"><span>│   │   ├── lexer/                # Tokenizer</span></span>
 <span class="line"><span>│   │   │   ├── lexer.c, factory.c, operations.c, support.c</span></span>
 <span class="line"><span>│   │   │   └── processor/</span></span>
@@ -185,7 +178,7 @@
 <span class="line"><span>│   │   │   │   ├── grammar_print.c         # print()</span></span>
 <span class="line"><span>│   │   │   │   ├── grammar_return.c        # return</span></span>
 <span class="line"><span>│   │   │   │   ├── grammar_struct.c        # struct</span></span>
-<span class="line"><span>│   │   │   │   ├── grammar_update.c        # ++, --</span></span>
+<span class="line"><span>│   │   │   │   ├── grammar_update.c        # ++, -- dan compound +=, -=, *=, /=, %=</span></span>
 <span class="line"><span>│   │   │   │   └── array/array.c           # Array grammar</span></span>
 <span class="line"><span>│   │   │   │</span></span>
 <span class="line"><span>│   │   │   ├── node/             # AST node utilities</span></span>
@@ -197,6 +190,12 @@
 <span class="line"><span>│   │   │   │   ├── save.c, symbol.c, type.c</span></span>
 <span class="line"><span>│   │   │   │</span></span>
 <span class="line"><span>│   │   │   └── parser.h          # Parser entry</span></span>
+<span class="line"><span>│   │   │</span></span>
+<span class="line"><span>│   │   ├── ir/                   # IR pipeline (AST → IR → Execute)</span></span>
+<span class="line"><span>│   │   │   ├── ir.c              # IR builders &amp; module</span></span>
+<span class="line"><span>│   │   │   ├── rewrite.c         # rewrite() AST → IR</span></span>
+<span class="line"><span>│   │   │   ├── execute.c         # executeIR() mesin IR (stack machine)</span></span>
+<span class="line"><span>│   │   │   └── debug.c           # IR printer (--test-ir)</span></span>
 <span class="line"><span>│   │   │</span></span>
 <span class="line"><span>│   │   ├── interpreter/          # AST interpreter</span></span>
 <span class="line"><span>│   │   │   ├── interpreter.c             # Main dispatch</span></span>
@@ -218,7 +217,7 @@
 <span class="line"><span>│   │   │   │   ├── object.c              # Object literal</span></span>
 <span class="line"><span>│   │   │   │   ├── string_interp.c       # String interpolation</span></span>
 <span class="line"><span>│   │   │   │   ├── subscript.c           # arr[i]</span></span>
-<span class="line"><span>│   │   │   │   └── update.c              # ++, --</span></span>
+<span class="line"><span>│   │   │   │   └── update.c              # ++, -- dan compound +=, -=, dst</span></span>
 <span class="line"><span>│   │   │   ├── function/                 # Function handling</span></span>
 <span class="line"><span>│   │   │   │   ├── call.c                # Function call</span></span>
 <span class="line"><span>│   │   │   │   └── declaration.c         # Function declaration</span></span>
@@ -232,7 +231,9 @@
 <span class="line"><span>│   │   │</span></span>
 <span class="line"><span>│   │   └── semantic/             # Semantic analysis</span></span>
 <span class="line"><span>│   │       ├── eventloop.c       # Async event loop</span></span>
-<span class="line"><span>│   │       └── symbol.c          # Symbol table</span></span>
+<span class="line"><span>│   │       ├── symbol.c          # Symbol table</span></span>
+<span class="line"><span>│   │       └── analyzer.c        # Registry struct + validasi assignment/annotation</span></span>
+<span class="line"><span>│   │                             # + shorthand object literal {name, health}</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── editor/                   # TUI editor</span></span>
 <span class="line"><span>│   │   ├── editor.c</span></span>
@@ -289,24 +290,24 @@
 <span class="line"><span>│   └── utils/strings.c           # String utilities</span></span>
 <span class="line"><span>│</span></span>
 <span class="line"><span>├── tests/                        # Test files</span></span>
-<span class="line"><span>│   ├── syntax/                   # Syntax tests (53 files)</span></span>
+<span class="line"><span>│   ├── syntax/                   # Syntax tests (46 files)</span></span>
 <span class="line"><span>│   │   ├── annotation.rp, array.rp, assignment.rp, async.rp, ...</span></span>
-<span class="line"><span>│   │   ├── database/             # DB test modules</span></span>
 <span class="line"><span>│   │   └── modules/              # Test module files (a.rp, b.rp, ...)</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── ast/                      # AST structure tests (8 files)</span></span>
 <span class="line"><span>│   │   ├── async.rp, binary_chain.rp, complex_array.rp, ...</span></span>
 <span class="line"><span>│   │</span></span>
-<span class="line"><span>│   ├── execution/                # Execution tests (26 files)</span></span>
+<span class="line"><span>│   ├── execution/                # Execution tests (29 files)</span></span>
 <span class="line"><span>│   │   ├── array_ops.rp, basic_arithmetic.rp, ...</span></span>
-<span class="line"><span>│   │   └── repl_*.rp             # REPL-specific tests</span></span>
+<span class="line"><span>│   │   └── repl_*.rp             # REPL-specific tests (18 files)</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── semantics/                # Semantic analysis tests (6 files)</span></span>
 <span class="line"><span>│   │   ├── function_param_types.rp, type_annotation_basic.rp, ...</span></span>
 <span class="line"><span>│   │</span></span>
-<span class="line"><span>│   ├── modules/                  # Module tests</span></span>
+<span class="line"><span>│   ├── formatter/                # Formatter tests</span></span>
+<span class="line"><span>│   ├── modules/                  # Module tests (20 files)</span></span>
 <span class="line"><span>│   │   ├── math/, json/, collections/, strings/, thread/</span></span>
-<span class="line"><span>│   │   ├── dbtest/, crypto/, datetime/, net/, regex/</span></span>
+<span class="line"><span>│   │   └── dbtest/, crypto/, datetime/, net/, regex/</span></span>
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   └── stress/stress tests</span></span>
 <span class="line"><span>│</span></span>
@@ -398,6 +399,13 @@
 <span class="line"><span>            └──────────┬──────────┘</span></span>
 <span class="line"><span>                       ▼</span></span>
 <span class="line"><span>            ┌─────────────────────┐</span></span>
+<span class="line"><span>            │    IR Pipeline      │</span></span>
+<span class="line"><span>            │ src/compiler/ir/    │</span></span>
+<span class="line"><span>            │  rewrite.c (AST→IR) │</span></span>
+<span class="line"><span>            │  execute.c (mesin)  │</span></span>
+<span class="line"><span>            └──────────┬──────────┘</span></span>
+<span class="line"><span>                       ▼</span></span>
+<span class="line"><span>            ┌─────────────────────┐</span></span>
 <span class="line"><span>            │   Runtime System    │</span></span>
 <span class="line"><span>            │  src/runtime/       │</span></span>
 <span class="line"><span>            │  GC, Context, IO    │</span></span>
@@ -408,8 +416,8 @@
 <span class="line"><span>            │  src/stdlib/        │</span></span>
 <span class="line"><span>            │  http, json, math,  │</span></span>
 <span class="line"><span>            │  os, thread, string │</span></span>
-<span class="line"><span>            └─────────────────────┘</span></span></code></pre></div><h2 id="key-directories" tabindex="-1">Key Directories <a class="header-anchor" href="#key-directories" aria-label="Permalink to &quot;Key Directories&quot;">​</a></h2><table tabindex="0"><thead><tr><th>Directory</th><th>Purpose</th></tr></thead><tbody><tr><td><code>include/</code></td><td>Public API (<code>#include &lt;rupa&gt;</code>)</td></tr><tr><td><code>lib/</code></td><td>Header files &amp; type definitions</td></tr><tr><td><code>lib/intl.h</code></td><td>Central include hub</td></tr><tr><td><code>lib/core/</code></td><td>Enums, constants, macros</td></tr><tr><td><code>lib/types/</code></td><td>Struct definitions</td></tr><tr><td><code>lib/modules/</code></td><td>Module system header</td></tr><tr><td><code>src/</code></td><td>Implementation files</td></tr><tr><td><code>src/compiler/</code></td><td>Lexer → Parser → Interpreter pipeline</td></tr><tr><td><code>src/stdlib/</code></td><td>C-implemented standard library modules</td></tr><tr><td><code>src/runtime/</code></td><td>GC, context, input, validation</td></tr><tr><td><code>src/editor/</code></td><td>TUI editor (buffer, cursor, display)</td></tr><tr><td><code>src/repl/</code></td><td>Interactive REPL mode</td></tr><tr><td><code>tests/</code></td><td>Test suites (syntax, ast, execution, semantics, modules)</td></tr><tr><td><code>modules/</code></td><td>Packaged Rupa modules (tar.gz)</td></tr><tr><td><code>docs/</code></td><td>Documentation (syntax, grammar, modules)</td></tr><tr><td><code>commands/</code></td><td>Build &amp; development scripts</td></tr></tbody></table></div></div></main><footer class="VPDocFooter" data-v-e6f2a212 data-v-1bcd8184><!--[--><!--]--><!----><!----></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><footer class="VPFooter" data-v-d8b57b2d data-v-566314d4><div class="container" data-v-566314d4><p class="message" data-v-566314d4>Dirilis di bawah Lisensi MIT.</p><p class="copyright" data-v-566314d4>© 2026 Rupa Language</p></div></footer><!--[--><!--]--></div></div>
-    <script>window.__VP_HASH_MAP__=JSON.parse("{\"about.md\":\"ByWEmhHV\",\"grammar_annotation.md\":\"CLThsc3b\",\"grammar_array.md\":\"ijRTLjZ7\",\"grammar_assignment.md\":\"Drh1zveY\",\"grammar_async.md\":\"B15W-JOy\",\"grammar_await.md\":\"CtrB2t_U\",\"grammar_block.md\":\"Coe5UBy9\",\"grammar_call.md\":\"DzEPsORe\",\"grammar_case.md\":\"BoALwBJE\",\"grammar_comment.md\":\"B8hL7uQT\",\"grammar_control.md\":\"D3nJiSmF\",\"grammar_export.md\":\"D94j9B_u\",\"grammar_expression.md\":\"Dt1ilK8g\",\"grammar_fallback.md\":\"BaHFVaql\",\"grammar_function.md\":\"BFvq870W\",\"grammar_grammar.md\":\"B1ft7a9u\",\"grammar_http.md\":\"CJOKDnto\",\"grammar_if.md\":\"DDv8y45o\",\"grammar_import.md\":\"qIbJL0f-\",\"grammar_index.md\":\"DbNca6fM\",\"grammar_literal.md\":\"C0Yt5-8e\",\"grammar_loop.md\":\"CfQFfavV\",\"grammar_member.md\":\"BiSepmX0\",\"grammar_module.md\":\"CowYe0pl\",\"grammar_object.md\":\"CHlybaOJ\",\"grammar_print.md\":\"lyzekpfN\",\"grammar_return.md\":\"BgpGDMLj\",\"grammar_struct.md\":\"yzkRpgZ2\",\"grammar_then.md\":\"DmHUTiNc\",\"grammar_update.md\":\"ZPpZphiG\",\"guide_getting-started.md\":\"DX9xlDC1\",\"index.md\":\"BJH2XwDD\",\"instruction.md\":\"BRm-W5Sa\",\"mission.md\":\"D8pQFiCW\",\"modules_grammar_crypto.md\":\"Cowvp3KQ\",\"modules_grammar_datetime.md\":\"BLmPemP_\",\"modules_grammar_http.md\":\"p4snJ-dZ\",\"modules_grammar_io.md\":\"BqISdqES\",\"modules_grammar_json.md\":\"CD2OwjKR\",\"modules_grammar_math.md\":\"BN3U8lNU\",\"modules_grammar_net.md\":\"Dz0JasGA\",\"modules_grammar_os.md\":\"DGQ6ILth\",\"modules_grammar_regex.md\":\"BKNL2l0Z\",\"modules_grammar_string.md\":\"CvbyK29w\",\"modules_grammar_thread.md\":\"DcX2rfbO\",\"modules_syntax_crypto.md\":\"CsH1Isfu\",\"modules_syntax_database.md\":\"Brf76816\",\"modules_syntax_datetime.md\":\"PWRFLX0G\",\"modules_syntax_fs.md\":\"B7djn-mW\",\"modules_syntax_http.md\":\"CFoxe8zN\",\"modules_syntax_io.md\":\"Di0_bBEC\",\"modules_syntax_json.md\":\"Cx5RO1I0\",\"modules_syntax_math.md\":\"RFYc-54U\",\"modules_syntax_net.md\":\"DEpep9Ux\",\"modules_syntax_os.md\":\"Clva2KMp\",\"modules_syntax_regex.md\":\"ClcwDUG7\",\"modules_syntax_string.md\":\"ozFrCVYS\",\"modules_syntax_sys.md\":\"pi0iK9Wg\",\"modules_syntax_thread.md\":\"Ctp7JKs7\",\"readme.md\":\"CJ8ihPp2\",\"structure.md\":\"Bi8zNaUp\",\"syntax_annotation.md\":\"DahDzcCC\",\"syntax_array.md\":\"4m6PvhPO\",\"syntax_assignment.md\":\"CZv3Tzdw\",\"syntax_async.md\":\"EcLW_Lfy\",\"syntax_await.md\":\"DrubQi1i\",\"syntax_block.md\":\"CgaWtqSh\",\"syntax_builtins.md\":\"DBUXKfSe\",\"syntax_call.md\":\"C65_HA6E\",\"syntax_case.md\":\"BvADIUVo\",\"syntax_comment.md\":\"CqKcWjt_\",\"syntax_control.md\":\"HL3O-Jnn\",\"syntax_export.md\":\"CjVyN_e8\",\"syntax_expression.md\":\"BoTnWWRf\",\"syntax_fallback.md\":\"CndauNjB\",\"syntax_function.md\":\"6RNeqqlU\",\"syntax_if.md\":\"TR4zAOXl\",\"syntax_import.md\":\"Be9dccOs\",\"syntax_index.md\":\"CbnbBK0y\",\"syntax_literal.md\":\"D8geeSGZ\",\"syntax_loop.md\":\"DF5N-Dhe\",\"syntax_main.md\":\"D6BHWUr2\",\"syntax_module.md\":\"BIOU2IcO\",\"syntax_object.md\":\"DjFst0o9\",\"syntax_print.md\":\"BCZxHwJN\",\"syntax_return.md\":\"mNIWU8IA\",\"syntax_string.md\":\"Bp36FZDs\",\"syntax_struct.md\":\"Cck-5li4\",\"syntax_syntax.md\":\"DkWw7xCp\",\"syntax_then.md\":\"DFBzPkI3\",\"syntax_update.md\":\"CzU36KAH\",\"syntax_view.md\":\"CDbGJ0qa\",\"todo.md\":\"MF-LZqmb\",\"vision.md\":\"l3_0FG1U\"}");window.__VP_SITE_DATA__=JSON.parse("{\"lang\":\"en-US\",\"dir\":\"ltr\",\"title\":\"Rupa\",\"description\":\"Satu Bahasa, Banyak Cara Bicara\",\"base\":\"/rupa/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Beranda\",\"link\":\"/\"},{\"text\":\"Panduan\",\"link\":\"/guide/getting-started\"},{\"text\":\"Syntax\",\"link\":\"/syntax/\"},{\"text\":\"Grammar\",\"link\":\"/grammar/\"},{\"text\":\"Modules\",\"link\":\"/modules/syntax/\"},{\"text\":\"TODO\",\"link\":\"/TODO\"}],\"sidebar\":{\"/guide/\":[{\"text\":\"Panduan\",\"items\":[{\"text\":\"Memulai\",\"link\":\"/guide/getting-started\"}]}],\"/syntax/\":[{\"text\":\"Syntax\",\"items\":[{\"text\":\"Index\",\"link\":\"/syntax/\"},{\"text\":\"Main\",\"link\":\"/syntax/main\"},{\"text\":\"Literal\",\"link\":\"/syntax/literal\"},{\"text\":\"Print\",\"link\":\"/syntax/print\"},{\"text\":\"Assignment\",\"link\":\"/syntax/assignment\"},{\"text\":\"Expression\",\"link\":\"/syntax/expression\"},{\"text\":\"String\",\"link\":\"/syntax/string\"},{\"text\":\"Array\",\"link\":\"/syntax/array\"},{\"text\":\"Object\",\"link\":\"/syntax/object\"},{\"text\":\"If/Else\",\"link\":\"/syntax/if\"},{\"text\":\"Block\",\"link\":\"/syntax/block\"},{\"text\":\"Function\",\"link\":\"/syntax/function\"},{\"text\":\"Return\",\"link\":\"/syntax/return\"},{\"text\":\"Loop\",\"link\":\"/syntax/loop\"},{\"text\":\"Case\",\"link\":\"/syntax/case\"},{\"text\":\"Call\",\"link\":\"/syntax/call\"},{\"text\":\"Struct\",\"link\":\"/syntax/struct\"},{\"text\":\"Annotation\",\"link\":\"/syntax/annotation\"},{\"text\":\"Update\",\"link\":\"/syntax/update\"},{\"text\":\"Control\",\"link\":\"/syntax/control\"},{\"text\":\"Fallback\",\"link\":\"/syntax/fallback\"},{\"text\":\"Then\",\"link\":\"/syntax/then\"},{\"text\":\"Async\",\"link\":\"/syntax/async\"},{\"text\":\"Builtins\",\"link\":\"/syntax/builtins\"},{\"text\":\"Module\",\"link\":\"/syntax/module\"},{\"text\":\"Import\",\"link\":\"/syntax/import\"},{\"text\":\"Export\",\"link\":\"/syntax/export\"}]}],\"/grammar/\":[{\"text\":\"Grammar\",\"items\":[{\"text\":\"Index\",\"link\":\"/grammar/\"},{\"text\":\"Module\",\"link\":\"/grammar/module\"},{\"text\":\"Import\",\"link\":\"/grammar/import\"},{\"text\":\"Export\",\"link\":\"/grammar/export\"},{\"text\":\"Assignment\",\"link\":\"/grammar/assignment\"},{\"text\":\"Expression\",\"link\":\"/grammar/expression\"},{\"text\":\"Function\",\"link\":\"/grammar/function\"},{\"text\":\"If\",\"link\":\"/grammar/if\"},{\"text\":\"Block\",\"link\":\"/grammar/block\"},{\"text\":\"Loop\",\"link\":\"/grammar/loop\"},{\"text\":\"Case\",\"link\":\"/grammar/case\"},{\"text\":\"Call\",\"link\":\"/grammar/call\"},{\"text\":\"Struct\",\"link\":\"/grammar/struct\"},{\"text\":\"Annotation\",\"link\":\"/grammar/annotation\"},{\"text\":\"Async\",\"link\":\"/grammar/async\"},{\"text\":\"HTTP\",\"link\":\"/grammar/http\"}]}],\"/modules/\":[{\"text\":\"Modules\",\"items\":[{\"text\":\"Math\",\"link\":\"/modules/syntax/math\"},{\"text\":\"OS\",\"link\":\"/modules/syntax/os\"},{\"text\":\"IO\",\"link\":\"/modules/syntax/io\"},{\"text\":\"JSON\",\"link\":\"/modules/syntax/json\"},{\"text\":\"String\",\"link\":\"/modules/syntax/string\"},{\"text\":\"Thread\",\"link\":\"/modules/syntax/thread\"},{\"text\":\"HTTP\",\"link\":\"/modules/syntax/http\"},{\"text\":\"DateTime\",\"link\":\"/modules/syntax/datetime\"},{\"text\":\"Regex\",\"link\":\"/modules/syntax/regex\"},{\"text\":\"Crypto\",\"link\":\"/modules/syntax/crypto\"},{\"text\":\"Net\",\"link\":\"/modules/syntax/net\"},{\"text\":\"Sys\",\"link\":\"/modules/syntax/sys\"},{\"text\":\"Fs\",\"link\":\"/modules/syntax/fs\"},{\"text\":\"Database\",\"link\":\"/modules/syntax/database\"}]}]},\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/aidomx/rupa\"}],\"footer\":{\"message\":\"Dirilis di bawah Lisensi MIT.\",\"copyright\":\"© 2026 Rupa Language\"},\"outline\":{\"label\":\"Di halaman ini\"},\"docFooter\":{\"prev\":\"Sebelumnya\",\"next\":\"Berikutnya\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}");</script>
+<span class="line"><span>            └─────────────────────┘</span></span></code></pre></div><h2 id="key-directories" tabindex="-1">Key Directories <a class="header-anchor" href="#key-directories" aria-label="Permalink to &quot;Key Directories&quot;">​</a></h2><table tabindex="0"><thead><tr><th>Directory</th><th>Purpose</th></tr></thead><tbody><tr><td><code>include/</code></td><td>Public API (<code>#include &lt;rupa&gt;</code>)</td></tr><tr><td><code>lib/</code></td><td>Header files &amp; type definitions</td></tr><tr><td><code>lib/intl.h</code></td><td>Central include hub</td></tr><tr><td><code>lib/core/</code></td><td>Enums, constants, macros</td></tr><tr><td><code>lib/compiler/</code></td><td>Struct types menempel header fn decl compiler</td></tr><tr><td><code>lib/modules/</code></td><td>Module system header</td></tr><tr><td><code>src/</code></td><td>Implementation files</td></tr><tr><td><code>src/compiler/</code></td><td>Lexer → Parser → Interpreter + IR pipeline</td></tr><tr><td><code>src/compiler/ir/</code></td><td>rewrite (AST→IR) &amp; execute (mesin IR)</td></tr><tr><td><code>src/formatter/</code></td><td>Formatter modular (top-level)</td></tr><tr><td><code>src/stdlib/</code></td><td>C-implemented standard library modules</td></tr><tr><td><code>src/runtime/</code></td><td>GC, context, input, validation</td></tr><tr><td><code>src/editor/</code></td><td>TUI editor (buffer, cursor, display)</td></tr><tr><td><code>src/repl/</code></td><td>Interactive REPL mode</td></tr><tr><td><code>tests/</code></td><td>Test suites (syntax, ast, execution, semantics, modules)</td></tr><tr><td><code>modules/</code></td><td>Packaged Rupa modules (tar.gz)</td></tr><tr><td><code>docs/</code></td><td>Documentation (syntax, grammar, modules)</td></tr></tbody></table><blockquote><p><strong>Struktur lib (rencana):</strong> struct types sekarang menempel langsung pada header fn decl masing-masing (contoh: <code>RuntimeValue</code> di <code>lib/compiler/interpreter/value.h</code>) — <code>lib/types/</code> sudah tidak ada. Langkah berikutnya memisahkan ke <code>lib/compiler/enums/*.h</code> (enum dari <code>lib/core/</code>) dan <code>lib/compiler/types/*.h</code> (types dari header fn decl). | <code>commands/</code> | Build &amp; development scripts |</p></blockquote></div></div></main><footer class="VPDocFooter" data-v-e6f2a212 data-v-1bcd8184><!--[--><!--]--><!----><!----></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><footer class="VPFooter" data-v-d8b57b2d data-v-566314d4><div class="container" data-v-566314d4><p class="message" data-v-566314d4>Dirilis di bawah Lisensi MIT.</p><p class="copyright" data-v-566314d4>© 2026 Rupa Language</p></div></footer><!--[--><!--]--></div></div>
+    <script>window.__VP_HASH_MAP__=JSON.parse("{\"about.md\":\"ByWEmhHV\",\"grammar_annotation.md\":\"CLThsc3b\",\"grammar_array.md\":\"ijRTLjZ7\",\"grammar_assignment.md\":\"Drh1zveY\",\"grammar_async.md\":\"B15W-JOy\",\"grammar_await.md\":\"CtrB2t_U\",\"grammar_block.md\":\"Coe5UBy9\",\"grammar_call.md\":\"DzEPsORe\",\"grammar_case.md\":\"BoALwBJE\",\"grammar_comment.md\":\"B8hL7uQT\",\"grammar_control.md\":\"D3nJiSmF\",\"grammar_export.md\":\"D94j9B_u\",\"grammar_expression.md\":\"Dt1ilK8g\",\"grammar_fallback.md\":\"BaHFVaql\",\"grammar_function.md\":\"BFvq870W\",\"grammar_grammar.md\":\"B1ft7a9u\",\"grammar_http.md\":\"CJOKDnto\",\"grammar_if.md\":\"DDv8y45o\",\"grammar_import.md\":\"qIbJL0f-\",\"grammar_index.md\":\"DbNca6fM\",\"grammar_literal.md\":\"C0Yt5-8e\",\"grammar_loop.md\":\"CfQFfavV\",\"grammar_member.md\":\"BiSepmX0\",\"grammar_module.md\":\"CowYe0pl\",\"grammar_object.md\":\"CW1JdUzT\",\"grammar_print.md\":\"lyzekpfN\",\"grammar_return.md\":\"BgpGDMLj\",\"grammar_struct.md\":\"yzkRpgZ2\",\"grammar_then.md\":\"DmHUTiNc\",\"grammar_update.md\":\"B9sJNsi6\",\"guide_getting-started.md\":\"DX9xlDC1\",\"index.md\":\"BJH2XwDD\",\"instruction.md\":\"BRm-W5Sa\",\"mission.md\":\"D8pQFiCW\",\"modules_grammar_crypto.md\":\"Cowvp3KQ\",\"modules_grammar_datetime.md\":\"BLmPemP_\",\"modules_grammar_http.md\":\"p4snJ-dZ\",\"modules_grammar_io.md\":\"BqISdqES\",\"modules_grammar_json.md\":\"CD2OwjKR\",\"modules_grammar_math.md\":\"BN3U8lNU\",\"modules_grammar_net.md\":\"Dz0JasGA\",\"modules_grammar_os.md\":\"DGQ6ILth\",\"modules_grammar_regex.md\":\"BKNL2l0Z\",\"modules_grammar_string.md\":\"CvbyK29w\",\"modules_grammar_thread.md\":\"DcX2rfbO\",\"modules_syntax_crypto.md\":\"CsH1Isfu\",\"modules_syntax_database.md\":\"Brf76816\",\"modules_syntax_datetime.md\":\"PWRFLX0G\",\"modules_syntax_fs.md\":\"B7djn-mW\",\"modules_syntax_http.md\":\"CFoxe8zN\",\"modules_syntax_io.md\":\"Di0_bBEC\",\"modules_syntax_json.md\":\"Cx5RO1I0\",\"modules_syntax_math.md\":\"RFYc-54U\",\"modules_syntax_net.md\":\"DEpep9Ux\",\"modules_syntax_os.md\":\"Clva2KMp\",\"modules_syntax_regex.md\":\"ClcwDUG7\",\"modules_syntax_string.md\":\"ozFrCVYS\",\"modules_syntax_sys.md\":\"pi0iK9Wg\",\"modules_syntax_thread.md\":\"Ctp7JKs7\",\"readme.md\":\"CJ8ihPp2\",\"structure.md\":\"yGZm-4ba\",\"syntax_annotation.md\":\"DahDzcCC\",\"syntax_array.md\":\"4m6PvhPO\",\"syntax_assignment.md\":\"CZv3Tzdw\",\"syntax_async.md\":\"EcLW_Lfy\",\"syntax_await.md\":\"DrubQi1i\",\"syntax_block.md\":\"CgaWtqSh\",\"syntax_builtins.md\":\"DBUXKfSe\",\"syntax_call.md\":\"C65_HA6E\",\"syntax_case.md\":\"BvADIUVo\",\"syntax_comment.md\":\"CqKcWjt_\",\"syntax_control.md\":\"HL3O-Jnn\",\"syntax_export.md\":\"CjVyN_e8\",\"syntax_expression.md\":\"BoTnWWRf\",\"syntax_fallback.md\":\"CndauNjB\",\"syntax_function.md\":\"6RNeqqlU\",\"syntax_if.md\":\"TR4zAOXl\",\"syntax_import.md\":\"Be9dccOs\",\"syntax_index.md\":\"CbnbBK0y\",\"syntax_literal.md\":\"D8geeSGZ\",\"syntax_loop.md\":\"DF5N-Dhe\",\"syntax_main.md\":\"D6BHWUr2\",\"syntax_module.md\":\"BIOU2IcO\",\"syntax_object.md\":\"tRst6fpK\",\"syntax_print.md\":\"BCZxHwJN\",\"syntax_return.md\":\"mNIWU8IA\",\"syntax_string.md\":\"Bp36FZDs\",\"syntax_struct.md\":\"BY_8UQj5\",\"syntax_syntax.md\":\"DkWw7xCp\",\"syntax_then.md\":\"DFBzPkI3\",\"syntax_update.md\":\"ByFsKBtc\",\"syntax_view.md\":\"CDbGJ0qa\",\"todo.md\":\"B3S17Xsu\",\"vision.md\":\"l3_0FG1U\"}");window.__VP_SITE_DATA__=JSON.parse("{\"lang\":\"en-US\",\"dir\":\"ltr\",\"title\":\"Rupa\",\"description\":\"Satu Bahasa, Banyak Cara Bicara\",\"base\":\"/rupa/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Beranda\",\"link\":\"/\"},{\"text\":\"Panduan\",\"link\":\"/guide/getting-started\"},{\"text\":\"Syntax\",\"link\":\"/syntax/\"},{\"text\":\"Grammar\",\"link\":\"/grammar/\"},{\"text\":\"Modules\",\"link\":\"/modules/syntax/\"},{\"text\":\"TODO\",\"link\":\"/TODO\"}],\"sidebar\":{\"/guide/\":[{\"text\":\"Panduan\",\"items\":[{\"text\":\"Memulai\",\"link\":\"/guide/getting-started\"}]}],\"/syntax/\":[{\"text\":\"Syntax\",\"items\":[{\"text\":\"Index\",\"link\":\"/syntax/\"},{\"text\":\"Main\",\"link\":\"/syntax/main\"},{\"text\":\"Literal\",\"link\":\"/syntax/literal\"},{\"text\":\"Print\",\"link\":\"/syntax/print\"},{\"text\":\"Assignment\",\"link\":\"/syntax/assignment\"},{\"text\":\"Expression\",\"link\":\"/syntax/expression\"},{\"text\":\"String\",\"link\":\"/syntax/string\"},{\"text\":\"Array\",\"link\":\"/syntax/array\"},{\"text\":\"Object\",\"link\":\"/syntax/object\"},{\"text\":\"If/Else\",\"link\":\"/syntax/if\"},{\"text\":\"Block\",\"link\":\"/syntax/block\"},{\"text\":\"Function\",\"link\":\"/syntax/function\"},{\"text\":\"Return\",\"link\":\"/syntax/return\"},{\"text\":\"Loop\",\"link\":\"/syntax/loop\"},{\"text\":\"Case\",\"link\":\"/syntax/case\"},{\"text\":\"Call\",\"link\":\"/syntax/call\"},{\"text\":\"Struct\",\"link\":\"/syntax/struct\"},{\"text\":\"Annotation\",\"link\":\"/syntax/annotation\"},{\"text\":\"Update\",\"link\":\"/syntax/update\"},{\"text\":\"Control\",\"link\":\"/syntax/control\"},{\"text\":\"Fallback\",\"link\":\"/syntax/fallback\"},{\"text\":\"Then\",\"link\":\"/syntax/then\"},{\"text\":\"Async\",\"link\":\"/syntax/async\"},{\"text\":\"Builtins\",\"link\":\"/syntax/builtins\"},{\"text\":\"Module\",\"link\":\"/syntax/module\"},{\"text\":\"Import\",\"link\":\"/syntax/import\"},{\"text\":\"Export\",\"link\":\"/syntax/export\"}]}],\"/grammar/\":[{\"text\":\"Grammar\",\"items\":[{\"text\":\"Index\",\"link\":\"/grammar/\"},{\"text\":\"Module\",\"link\":\"/grammar/module\"},{\"text\":\"Import\",\"link\":\"/grammar/import\"},{\"text\":\"Export\",\"link\":\"/grammar/export\"},{\"text\":\"Assignment\",\"link\":\"/grammar/assignment\"},{\"text\":\"Expression\",\"link\":\"/grammar/expression\"},{\"text\":\"Function\",\"link\":\"/grammar/function\"},{\"text\":\"If\",\"link\":\"/grammar/if\"},{\"text\":\"Block\",\"link\":\"/grammar/block\"},{\"text\":\"Loop\",\"link\":\"/grammar/loop\"},{\"text\":\"Case\",\"link\":\"/grammar/case\"},{\"text\":\"Call\",\"link\":\"/grammar/call\"},{\"text\":\"Struct\",\"link\":\"/grammar/struct\"},{\"text\":\"Annotation\",\"link\":\"/grammar/annotation\"},{\"text\":\"Async\",\"link\":\"/grammar/async\"},{\"text\":\"HTTP\",\"link\":\"/grammar/http\"}]}],\"/modules/\":[{\"text\":\"Modules\",\"items\":[{\"text\":\"Math\",\"link\":\"/modules/syntax/math\"},{\"text\":\"OS\",\"link\":\"/modules/syntax/os\"},{\"text\":\"IO\",\"link\":\"/modules/syntax/io\"},{\"text\":\"JSON\",\"link\":\"/modules/syntax/json\"},{\"text\":\"String\",\"link\":\"/modules/syntax/string\"},{\"text\":\"Thread\",\"link\":\"/modules/syntax/thread\"},{\"text\":\"HTTP\",\"link\":\"/modules/syntax/http\"},{\"text\":\"DateTime\",\"link\":\"/modules/syntax/datetime\"},{\"text\":\"Regex\",\"link\":\"/modules/syntax/regex\"},{\"text\":\"Crypto\",\"link\":\"/modules/syntax/crypto\"},{\"text\":\"Net\",\"link\":\"/modules/syntax/net\"},{\"text\":\"Sys\",\"link\":\"/modules/syntax/sys\"},{\"text\":\"Fs\",\"link\":\"/modules/syntax/fs\"},{\"text\":\"Database\",\"link\":\"/modules/syntax/database\"}]}]},\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/aidomx/rupa\"}],\"footer\":{\"message\":\"Dirilis di bawah Lisensi MIT.\",\"copyright\":\"© 2026 Rupa Language\"},\"outline\":{\"label\":\"Di halaman ini\"},\"docFooter\":{\"prev\":\"Sebelumnya\",\"next\":\"Berikutnya\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}");</script>
     
   </body>
 </html>

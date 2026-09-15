@@ -26,6 +26,36 @@ Program:
           Value: Number: 1
 ```
 
+## Shorthand object
+
+Key tanpa `: value` diambil dari nama variable:
+
+Source:
+
+```rupa
+name = "Rupa"
+age = 1
+person = { name, age }
+```
+
+AST:
+
+```text
+Program:
+  Assignment:
+    Target: Identifier: person
+    Value:
+      Object:
+        Entry 1:
+          Key: Identifier: name
+          Value: Identifier: name
+        Entry 2:
+          Key: Identifier: age
+          Value: Identifier: age
+```
+
+Formatter mencetak `{name, age}` kembali (key == value → bentuk shorthand).
+
 ## Nested object
 
 Source:

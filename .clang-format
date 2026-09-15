@@ -32,7 +32,7 @@ SpacesInSquareBrackets: false
 SpaceAfterCStyleCast: false
 
 # Includes
-SortIncludes: Never
+SortIncludes: true
 IncludeBlocks: Preserve
 
 # Comments

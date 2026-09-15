@@ -173,7 +173,7 @@ InterpreterResult stdStringSplit(int argc, RuntimeValue *argv,
   for (const char *p = value; (p = strstr(p, sep)) != NULL; p += sepLength)
     count++;
 
-  RuntimeValue *items = calloc((size_t)count, sizeof(*items));
+  RuntimeValue *items = gccalloc((size_t)count, sizeof(*items));
   if (!items)
     return resultNormal(valueNull());
 
@@ -183,7 +183,6 @@ InterpreterResult stdStringSplit(int argc, RuntimeValue *argv,
     size_t partLength = (size_t)(p - start);
     char *part = malloc(partLength + 1);
     if (!part) {
-      free(items);
       return resultNormal(valueNull());
     }
     memcpy(part, start, partLength);
@@ -254,10 +253,10 @@ InterpreterResult stdStringSlice(int argc, RuntimeValue *argv,
 
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
-  struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
+  struct RuntimeObjectEntry *entry = gccalloc(1, sizeof(*entry));
   if (!entry)
     return;
-  entry->key = strdup(name);
+  entry->key = gcstrdup(name);
   entry->value = valueNativeFunction(name, fn, paramCount);
   entry->next = *head;
   *head = entry;

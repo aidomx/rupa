@@ -1,9 +1,7 @@
 #include <rupa.h>
-#include "module.h"
-
 /* Interpreter Dispatch — the main interpretNode switch/case dispatcher.
  * Module loading utilities are in loader.c. */
-
+#include "module.h"
 /* ==================== NODE_MOD helpers ==================== */
 
 /* Flatten an entry to its dotted path string: "a.create", "b.*". */
@@ -51,8 +49,8 @@ static RuntimeValue modLoadSource(const char *source) {
 }
 
 static void modAppendEntry(struct RuntimeObjectEntry **list, const char *key, RuntimeValue v) {
-  struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-  se->key = strdup(key);
+  struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+  se->key = gcstrdup(key);
   se->value = v;
   se->next = *list;
   *list = se;
@@ -105,7 +103,8 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
       /* `b.login` (no alias) → bind under the last segment's name
        * ("login"), not the module prefix ("b"). */
       AstModEntry *last = en->childrens;
-      while (last->childrens) last = last->childrens;
+      while (last->childrens)
+        last = last->childrens;
       if (last->name) bindName = last->name;
     }
 
@@ -277,7 +276,8 @@ static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntr
     /* Bind name defaults to the last chain segment ("connect"), not the
      * file name ("driver") — same rule as the import-side fix. */
     AstModEntry *last = en->childrens;
-    while (last->childrens) last = last->childrens;
+    while (last->childrens)
+      last = last->childrens;
     const char *bindName = en->key ? en->key : (last->name ? last->name : en->name);
     modAppendEntry(out, bindName, cur);
     return;
@@ -344,7 +344,8 @@ static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
       }
       if (found) {
         AstModEntry *last = en->childrens;
-        while (last->childrens) last = last->childrens;
+        while (last->childrens)
+          last = last->childrens;
         modAppendEntry(out, en->key ? en->key : (last->name ? last->name : en->name), cur);
       }
       continue;
@@ -361,8 +362,8 @@ static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
 static void freeBindingList(struct RuntimeObjectEntry *list) {
   while (list) {
     struct RuntimeObjectEntry *next = list->next;
-    free(list->key);
-    free(list);
+    gcfree(list->key);
+    gcfree(list);
     list = next;
   }
 }
@@ -375,7 +376,8 @@ static void interpretModExport(Node *n, int id, RuntimeEnv *e) {
   struct AstMod *mod = &n->ast[id].mod;
   struct RuntimeObjectEntry *out = NULL;
   computeExportBindings(mod, /*insideNamespace=*/false, &out);
-  for (struct RuntimeObjectEntry *o = out; o; o = o->next) semSet(e, o->key, o->value);
+  for (struct RuntimeObjectEntry *o = out; o; o = o->next)
+    semSet(e, o->key, o->value);
   freeBindingList(out);
 }
 
@@ -428,8 +430,8 @@ static bool interpretModNamespace(Node *n, int id, RuntimeEnv *e, Error *x) {
                                   .row = 0,
                                   .type = ERR_REDECLARED_VAR});
         }
-        free(o->key);
-        free(o);
+        gcfree(o->key);
+        gcfree(o);
       } else {
         o->next = merged;
         merged = o;
@@ -454,8 +456,7 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
     for (AstDeclaration *d = n->ast[id].program.declarations; d; d = d->next) {
       InterpreterResult r = interpretNode(n, d->nodeId, e, x);
       last = r.value;
-      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE)
-        return r;
+      if (r.flow == FLOW_RETURN || r.flow == FLOW_BREAK || r.flow == FLOW_CONTINUE) return r;
       /* FLOW_ERROR is recoverable: the error is already recorded in x.
        * Continue executing the remaining top-level declarations. */
     }

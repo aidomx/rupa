@@ -21,13 +21,26 @@ InterpreterResult interpretObject(Node *node, AstNode *ast, RuntimeEnv *env,
         key = kn->string.value;
     }
 
-    InterpreterResult val = interpretNode(node, valId, env, error);
-    if (val.flow != FLOW_NORMAL)
-      return val;
+    InterpreterResult val;
+    if (valId == keyId) {
+      /* Shorthand {name} ≡ {name: name} — value dari binding bernama sama. */
+      RuntimeValue bound;
+      if (semGet(env, key, &bound))
+        val = resultNormal(bound);
+      else {
+        if (error)
+          addRuntimeError(error, ERR_UNDEFINED_VAR, key, "undefined variable");
+        return resultNormal(valueNull());
+      }
+    } else {
+      val = interpretNode(node, valId, env, error);
+      if (val.flow != FLOW_NORMAL)
+        return val;
+    }
 
-    struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
+    struct RuntimeObjectEntry *entry = gccalloc(1, sizeof(*entry));
     if (!entry) return resultNormal(valueNull());
-    entry->key = key ? strdup(key) : NULL;
+    entry->key = key ? gcstrdup(key) : NULL;
     entry->value = val.value;
     entry->next = NULL;
 

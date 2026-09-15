@@ -1,5 +1,5 @@
-#include <rupa.h>
 #include "module.h"
+#include <rupa.h>
 
 /* Module Loader — utilities for loading and executing .rp files as modules.
  * The interpreter dispatcher (interpretNode) is in dispatch.c. */
@@ -207,6 +207,7 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
   builtinsInit(mod_env); /* len, type, … wajib tersedia di scope module */
 
   const char *prev_path = g_source_file_path;
+  char *module_source_path = NULL;
 
   int root = 0;
   for (int i = 0; i < node->length; i++)
@@ -217,7 +218,8 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
 
   {
     if (module_path[0] == '/') {
-      g_source_file_path = strdup(module_path);
+      module_source_path = gcstrdup(module_path);
+      g_source_file_path = module_source_path;
     } else {
       char *src_dir = dirName(prev_path);
       char *mod_full = NULL;
@@ -231,7 +233,11 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
         }
       }
       free(src_dir);
-      if (mod_full) g_source_file_path = mod_full;
+      if (mod_full) {
+        module_source_path = mod_full;
+        gcreg(module_source_path);
+        g_source_file_path = module_source_path;
+      }
     }
   }
 
@@ -272,8 +278,8 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
           strcmp(b->name, "ERROR") == 0)
         continue;
       if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
-      struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-      e->key = strdup(b->name);
+      struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+      e->key = gcstrdup(b->name);
       e->value = b->value;
       e->next = entries;
       entries = e;
@@ -312,8 +318,8 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
               }
             }
             if (!is_private) {
-              struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-              se->key = strdup(fe->key);
+              struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+              se->key = gcstrdup(fe->key);
               se->value = fe->value;
               se->next = filtered;
               filtered = se;
@@ -323,28 +329,28 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
           for (int pi = 0; pi < mod->policyCount; pi++) {
             if (mod->policies[pi].name && mod->policies[pi].value &&
                 strcmp(mod->policies[pi].value, "private") == 0) {
-              struct RuntimeObjectEntry *pe = calloc(1, sizeof(*pe));
-              pe->key = strdup(mod->policies[pi].name);
+              struct RuntimeObjectEntry *pe = gccalloc(1, sizeof(*pe));
+              pe->key = gcstrdup(mod->policies[pi].name);
               pe->value = valueNull();
               pe->next = priv_entries;
               priv_entries = pe;
             }
           }
           if (priv_entries) {
-            struct RuntimeObjectEntry *pe = calloc(1, sizeof(*pe));
-            pe->key = strdup("_private");
+            struct RuntimeObjectEntry *pe = gccalloc(1, sizeof(*pe));
+            pe->key = gcstrdup("_private");
             pe->value = valueObject(priv_entries);
             pe->next = filtered;
             filtered = pe;
           }
-          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-          se->key = strdup(ns_name);
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(ns_name);
           se->value = valueObject(filtered);
           se->next = entries;
           entries = se;
         } else {
-          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-          se->key = strdup(ns_name);
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(ns_name);
           se->value = mod_val;
           se->next = entries;
           entries = se;
@@ -358,8 +364,8 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
         if (!en->name) continue;
         RuntimeValue item_val;
         if (valueObjectGet(mod_val, en->name, &item_val)) {
-          struct RuntimeObjectEntry *se = calloc(1, sizeof(*se));
-          se->key = strdup(en->key ? en->key : en->name);
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(en->key ? en->key : en->name);
           se->value = item_val;
           se->next = entries;
           entries = se;
@@ -376,8 +382,8 @@ RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
         strcmp(b->name, "ERROR") == 0)
       continue;
     if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
-    struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-    e->key = strdup(b->name);
+    struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup(b->name);
     e->value = b->value;
     e->next = entries;
     entries = e;

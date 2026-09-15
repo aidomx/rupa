@@ -19,6 +19,8 @@ int run(const char *paths[], int length) {
   }
 
   const char *index = paths[length];
+  // Atur nilai menjadi false jika IR sedang dalam perbaikan
+  bool runWithIR = true;
   if (isDirectory(index)) {
     static char indexBuf[1024];
     snprintf(indexBuf, sizeof(indexBuf), "%s/index.rp", index);
@@ -29,10 +31,13 @@ int run(const char *paths[], int length) {
   clearStateToken(state->tokens);
   clearStateContext(state->context);
   state->size = 0;
+  analyzerReset(); /* registry struct per-file */
 
   Buffer *buffer = state->buffer;
   if (!readfile(index, buffer)) {
-    fprintf(stderr, "Cannot read file: %s\n", index);
+    char *path = gcdup(index);
+    getcwd(path, MAX_PATH_LENGTH);
+    fprintf(stderr, "Message: Cannot read file %s/%s\n", path, index);
     return 1;
   }
 
@@ -70,10 +75,28 @@ int run(const char *paths[], int length) {
     }
   }
   if (root < 0) {
-    addSourceErrorAt(state->error, "ParserError", "program root not found",
-                     state->input->content, state->input->cursor, ERR_SYNTAX);
+    addSourceErrorAt(state->error, "ParserError", "program root not found", state->input->content,
+                     state->input->cursor, ERR_SYNTAX);
     printErrors(state->error);
     return 1;
+  }
+
+  if (runWithIR) {
+    IRModule *ir = createIR();
+    if (!ir || !rewrite(node, -1, ir)) {
+      addSourceErrorAt(state->error, "IRError", "rewrite ast to ir is failed.",
+                       state->input->content, state->input->cursor, ERR_SYNTAX);
+      printErrors(state->error);
+      return 1;
+    }
+
+    /* executeIRError memakai Error eksternal sehingga status runtime
+     * (TypeError dari IR_CHECK, dll.) terlihat oleh exit code. */
+    int status = executeIRError(ir, node, error);
+    irModuleFree(ir);
+
+    if (status != 0) printErrors(error);
+    return status;
   }
 
   RuntimeEnv *env = semCreateEnv(NULL);
@@ -116,6 +139,7 @@ void execute(const char *code) {
   clearStateToken(state->tokens);
   clearStateContext(state->context);
   state->size = 0;
+  analyzerReset(); /* registry struct per-file */
 
   Buffer *buffer = state->buffer;
   size_t len = strlen(code);

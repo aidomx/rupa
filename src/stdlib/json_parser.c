@@ -82,7 +82,7 @@ RuntimeValue parseJsonArray(JsonParser *parser, bool *ok) {
     return valueNull();
   }
   int capacity = 8, length = 0;
-  RuntimeValue *items = calloc(capacity, sizeof(*items));
+  RuntimeValue *items = gccalloc(capacity, sizeof(*items));
   skipJsonWhitespace(parser);
   if (parser->text[parser->position] == ']') {
     parser->position++;
@@ -91,7 +91,7 @@ RuntimeValue parseJsonArray(JsonParser *parser, bool *ok) {
   while (*ok) {
     if (length >= capacity) {
       capacity *= 2;
-      items = realloc(items, capacity * sizeof(*items));
+      items = gcrealloc(items, capacity * sizeof(*items));
     }
     items[length++] = parseJsonValue(parser, ok);
     skipJsonWhitespace(parser);
@@ -105,7 +105,6 @@ RuntimeValue parseJsonArray(JsonParser *parser, bool *ok) {
     }
   }
   if (!*ok) {
-    free(items);
     return valueNull();
   }
   return valueArray(items, length);
@@ -133,12 +132,12 @@ RuntimeValue parseJsonObject(JsonParser *parser, bool *ok) {
       *ok = false;
       break;
     }
-    struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
+    struct RuntimeObjectEntry *entry = gccalloc(1, sizeof(*entry));
     if (!entry) {
       *ok = false;
       break;
     }
-    entry->key = strdup(key.as.string ? key.as.string : "");
+    entry->key = gcstrdup(key.as.string ? key.as.string : "");
     entry->value = value;
     *tail = entry;
     tail = &entry->next;

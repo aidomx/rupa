@@ -1,4 +1,5 @@
 #pragma once
+#include "node_type.h"
 
 #if defined(RUPA_PACKAGE_H)
 
@@ -12,7 +13,7 @@ void addToProgram(struct Node *node, int programId, int declId);
  */
 struct Node *createNode(int capacity);
 
-int createComment(struct Node *root, char *value, int type);
+int createComment(struct Node *root, const char *value, int type);
 
 int createArray(struct Node *root, int *elements, int length);
 /**
@@ -69,7 +70,7 @@ int createReturn(struct Node *root, int expression_id);
 int createExpressionStatement(struct Node *root, int expression_id);
 int createBreak(struct Node *root);
 int createContinue(struct Node *root);
-int createUpdate(struct Node *root, int target, const char *op, bool prefix);
+int createUpdate(struct Node *root, int target, const char *op, bool prefix, int value);
 int createString(struct Node *root, char *value, enum NodeType nodeType);
 
 int createSubscript(struct Node *root, int posId, int index);
@@ -134,8 +135,8 @@ AstModEntry *modPolicy(const char *name, const char *value);
  * @param sourceAlias Alias `from X as m`, atau NULL.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createModImport(struct Node *root, AstModEntry **entries, int entryCount,
-                    const char *source, const char *sourceAlias);
+int createModImport(struct Node *root, AstModEntry **entries, int entryCount, const char *source,
+                    const char *sourceAlias);
 
 /**
  * Membuat NODE_MOD dengan type ExportDecl.
@@ -148,8 +149,8 @@ int createModImport(struct Node *root, AstModEntry **entries, int entryCount,
  * @param policyCount Jumlah policies.
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createModExport(struct Node *root, AstModEntry **entries, int entryCount,
-                    const char *source, AstModEntry **policies, int policyCount);
+int createModExport(struct Node *root, AstModEntry **entries, int entryCount, const char *source,
+                    AstModEntry **policies, int policyCount);
 
 /**
  * Membuat NODE_MOD dengan type NamespaceDecl (`namespace db { export ... }`).
@@ -178,6 +179,6 @@ Request createRequestWithError(struct Token *tokens, int capacity, struct Error 
  */
 void clearNode(struct Node *node);
 
-#endif
-
 extern DataToken *g_parser_token;
+
+#endif

@@ -151,7 +151,7 @@ int createContinue(Node *root) {
   return createAst(root, node);
 }
 
-int createUpdate(Node *root, int target, const char *op, bool prefix) {
+int createUpdate(Node *root, int target, const char *op, bool prefix, int value) {
   if (!root || target < 0 || !op)
     return -1;
 
@@ -159,6 +159,7 @@ int createUpdate(Node *root, int target, const char *op, bool prefix) {
   node.update.target = target;
   node.update.op = gcstrdup(op);
   node.update.prefix = prefix;
+  node.update.value = value;
   return createAst(root, node);
 }
 

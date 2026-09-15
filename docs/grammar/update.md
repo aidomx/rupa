@@ -43,12 +43,16 @@ x += 5
 AST:
 
 ```text
-Assignment:
-  Target: Identifier: x
-  Value: Binary: +
-    Left: Identifier: x
-    Right: Number: 5
+Update: postfix +=
+  Identifier: x
+  Number: 5
 ```
+
+Node `NODE_UPDATE` membawa operand kanan pada field `value` untuk
+compound (`+=`, `-=`, `*=`, `/=`, `%=`); untuk `++`/`--` field ini `-1`.
+Interpreter mengevaluasi sebagai `x OP v` (semantik persis
+`interpretBinary`), mesin IR menurunkannya menjadi `IR_BINARY` +
+`IR_STORE` pada slot variable.
 
 ## Update in loop
 

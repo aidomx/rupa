@@ -8,10 +8,8 @@ static const char *memberName(Node *node, int id) {
   return NULL;
 }
 
-InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
-                                  Error *error) {
-  if (!node || !ast || ast->type != NODE_MEMBER)
-    return resultNormal(valueNull());
+InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Error *error) {
+  if (!node || !ast || ast->type != NODE_MEMBER) return resultNormal(valueNull());
 
   InterpreterResult obj = interpretNode(node, ast->member.object, env, error);
   if (obj.flow != FLOW_NORMAL) return obj;
@@ -20,8 +18,7 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
 
   if (obj.value.type == VALUE_OBJECT) {
     RuntimeValue val;
-    if (valueObjectGet(obj.value, key, &val))
-      return resultNormal(val);
+    if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
     return resultNormal(valueNull());
   }
 
@@ -32,9 +29,7 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
   /* String .length property and bound methods */
   if (obj.value.type == VALUE_STRING && key) {
     if (!strcmp(key, "length"))
-      return resultNormal(valueNumber(obj.value.as.string
-                                          ? (int)strlen(obj.value.as.string)
-                                          : 0));
+      return resultNormal(valueNumber(obj.value.as.string ? (int)strlen(obj.value.as.string) : 0));
 
     NativeFn fn = NULL;
     int paramCount = 0;
@@ -72,23 +67,20 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
     if (fn) {
       RuntimeValue method = valueNativeFunction(key, fn, paramCount);
       method.as.nativeFunc->hasReceiver = true;
-      method.as.nativeFunc->receiver = malloc(sizeof(RuntimeValue));
-      if (method.as.nativeFunc->receiver)
-        *method.as.nativeFunc->receiver = obj.value;
+      method.as.nativeFunc->receiver = gcmall(sizeof(RuntimeValue));
+      if (method.as.nativeFunc->receiver) *method.as.nativeFunc->receiver = obj.value;
       return resultNormal(method);
     }
   }
 
-  if (obj.value.type == VALUE_NULL)
-    return resultNormal(valueNull());
+  if (obj.value.type == VALUE_NULL) return resultNormal(valueNull());
 
   static char message[256];
-  snprintf(message, sizeof(message),
-           "cannot access property '%s' on value of type '%s'",
+  snprintf(message, sizeof(message), "cannot access property '%s' on value of type '%s'",
            key ? key : "?", valueTypeName(obj.value.type));
   if (error)
     addError(error, (ErrorInfo){.code = "TypeError",
-                                .message = message,
+                                .message = gcdup(message),
                                 .line = 0,
                                 .row = 0,
                                 .type = ERR_TYPE_MISMATCH});
@@ -102,23 +94,19 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env,
  * For objects: update the entry in-place via valueObjectSet.
  * For arrays:  replace the element at the given index.
  */
-InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
-                                        RuntimeEnv *env, Error *error) {
-  if (!node || !ast || ast->type != NODE_MEMBER_ASSIGN)
-    return resultNormal(valueNull());
+InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *env, Error *error) {
+  if (!node || !ast || ast->type != NODE_MEMBER_ASSIGN) return resultNormal(valueNull());
 
   AstNode *target = &node->ast[ast->memberAssign.target];
 
   /* Evaluate the value to assign. */
-  InterpreterResult val =
-      interpretNode(node, ast->memberAssign.value, env, error);
+  InterpreterResult val = interpretNode(node, ast->memberAssign.value, env, error);
   if (val.flow != FLOW_NORMAL) return val;
 
   /* --- Object member assignment: obj.field = value --- */
   if (target->type == NODE_MEMBER) {
     /* Resolve the base object (not the leaf member). */
-    InterpreterResult base =
-        interpretNode(node, target->member.object, env, error);
+    InterpreterResult base = interpretNode(node, target->member.object, env, error);
     if (base.flow != FLOW_NORMAL) return base;
 
     const char *key = memberName(node, target->member.member);
@@ -126,33 +114,29 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
     if (base.value.type == VALUE_OBJECT) {
       if (!valueObjectSet(&base.value, key, val.value)) {
         if (error)
-          addError(error,
-                   (ErrorInfo){.code = "InternalError",
-                               .message = "failed to set object property",
-                               .line = 0,
-                               .row = 0,
-                               .type = ERR_INTERNAL});
+          addError(error, (ErrorInfo){.code = "InternalError",
+                                      .message = "failed to set object property",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_INTERNAL});
         return resultFlow(FLOW_ERROR, valueNull());
       }
       /* Write the mutated object back to the environment so the
        * assignment is visible to subsequent lookups. */
-      if (target->member.object >= 0 &&
-          target->member.object < node->length) {
+      if (target->member.object >= 0 && target->member.object < node->length) {
         AstNode *baseAst = &node->ast[target->member.object];
         const char *baseName = NULL;
         if (baseAst->type == NODE_IDENTIFIER)
           baseName = baseAst->identifier.name;
         else if (baseAst->type == NODE_LITERAL_ID)
           baseName = baseAst->string.value;
-        if (baseName)
-          semSet(env, baseName, base.value);
+        if (baseName) semSet(env, baseName, base.value);
       }
       return resultNormal(val.value);
     }
 
     static char message[256];
-    snprintf(message, sizeof(message),
-             "cannot assign property '%s' on value of type '%s'",
+    snprintf(message, sizeof(message), "cannot assign property '%s' on value of type '%s'",
              key ? key : "?", valueTypeName(base.value.type));
     if (error)
       addError(error, (ErrorInfo){.code = "TypeError",
@@ -161,85 +145,74 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
                                   .row = 0,
                                   .type = ERR_TYPE_MISMATCH});
     return resultFlow(FLOW_ERROR, valueNull());
-  }    /* --- Object element assignment: obj["key"] = value --- */
-    if (target->type == NODE_SUBSCRIPT) {
-      InterpreterResult base =
-          interpretNode(node, target->subscript.posId, env, error);
-      if (base.flow != FLOW_NORMAL) return base;
+  } /* --- Object element assignment: obj["key"] = value --- */
+  if (target->type == NODE_SUBSCRIPT) {
+    InterpreterResult base = interpretNode(node, target->subscript.posId, env, error);
+    if (base.flow != FLOW_NORMAL) return base;
 
-      if (base.value.type == VALUE_OBJECT) {
-        InterpreterResult keyRes =
-            interpretNode(node, target->subscript.index, env, error);
-        if (keyRes.flow != FLOW_NORMAL) return keyRes;
-        if (keyRes.value.type != VALUE_STRING || !keyRes.value.as.string) {
-          if (error)
-            addError(error,
-                     (ErrorInfo){.code = "TypeError",
-                                 .message = "object index must be a string",
-                                 .line = 0,
-                                 .row = 0,
-                                 .type = ERR_TYPE_MISMATCH});
-          return resultFlow(FLOW_ERROR, valueNull());
-        }
-        if (!valueObjectSet(&base.value, keyRes.value.as.string, val.value)) {
-          if (error)
-            addError(error,
-                     (ErrorInfo){.code = "InternalError",
-                                 .message = "failed to set object property",
-                                 .line = 0,
-                                 .row = 0,
-                                 .type = ERR_INTERNAL});
-          return resultFlow(FLOW_ERROR, valueNull());
-        }
-        /* Write the mutated object back (mirrors obj.field = v). */
-        if (target->subscript.posId >= 0 &&
-            target->subscript.posId < node->length) {
-          AstNode *baseAst = &node->ast[target->subscript.posId];
-          const char *baseName = NULL;
-          if (baseAst->type == NODE_IDENTIFIER)
-            baseName = baseAst->identifier.name;
-          else if (baseAst->type == NODE_LITERAL_ID)
-            baseName = baseAst->string.value;
-          if (baseName)
-            semSet(env, baseName, base.value);
-        }
-        return resultNormal(val.value);
+    if (base.value.type == VALUE_OBJECT) {
+      InterpreterResult keyRes = interpretNode(node, target->subscript.index, env, error);
+      if (keyRes.flow != FLOW_NORMAL) return keyRes;
+      if (keyRes.value.type != VALUE_STRING || !keyRes.value.as.string) {
+        if (error)
+          addError(error, (ErrorInfo){.code = "TypeError",
+                                      .message = "object index must be a string",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_TYPE_MISMATCH});
+        return resultFlow(FLOW_ERROR, valueNull());
       }
+      if (!valueObjectSet(&base.value, keyRes.value.as.string, val.value)) {
+        if (error)
+          addError(error, (ErrorInfo){.code = "InternalError",
+                                      .message = "failed to set object property",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_INTERNAL});
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
+      /* Write the mutated object back (mirrors obj.field = v). */
+      if (target->subscript.posId >= 0 && target->subscript.posId < node->length) {
+        AstNode *baseAst = &node->ast[target->subscript.posId];
+        const char *baseName = NULL;
+        if (baseAst->type == NODE_IDENTIFIER)
+          baseName = baseAst->identifier.name;
+        else if (baseAst->type == NODE_LITERAL_ID)
+          baseName = baseAst->string.value;
+        if (baseName) semSet(env, baseName, base.value);
+      }
+      return resultNormal(val.value);
     }
+  }
 
-    /* --- Array element assignment: arr[i] = value --- */
-    if (target->type == NODE_SUBSCRIPT) {
-    InterpreterResult base =
-        interpretNode(node, target->subscript.posId, env, error);
+  /* --- Array element assignment: arr[i] = value --- */
+  if (target->type == NODE_SUBSCRIPT) {
+    InterpreterResult base = interpretNode(node, target->subscript.posId, env, error);
     if (base.flow != FLOW_NORMAL) return base;
 
     if (base.value.type != VALUE_ARRAY) {
       static char message[256];
-      snprintf(message, sizeof(message),
-               "cannot index into value of type '%s'",
+      snprintf(message, sizeof(message), "cannot index into value of type '%s'",
                valueTypeName(base.value.type));
       if (error)
-        addError(error,
-                 (ErrorInfo){.code = "TypeError",
-                             .message = message,
-                             .line = 0,
-                             .row = 0,
-                             .type = ERR_TYPE_MISMATCH});
+        addError(error, (ErrorInfo){.code = "TypeError",
+                                    .message = message,
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_TYPE_MISMATCH});
       return resultFlow(FLOW_ERROR, valueNull());
     }
 
-    InterpreterResult idx =
-        interpretNode(node, target->subscript.index, env, error);
+    InterpreterResult idx = interpretNode(node, target->subscript.index, env, error);
     if (idx.flow != FLOW_NORMAL) return idx;
 
     if (idx.value.type != VALUE_NUMBER) {
       if (error)
-        addError(error,
-                 (ErrorInfo){.code = "TypeError",
-                             .message = "array index must be a number",
-                             .line = 0,
-                             .row = 0,
-                             .type = ERR_TYPE_MISMATCH});
+        addError(error, (ErrorInfo){.code = "TypeError",
+                                    .message = "array index must be a number",
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_TYPE_MISMATCH});
       return resultFlow(FLOW_ERROR, valueNull());
     }
 
@@ -249,16 +222,14 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
      * Indeks di luar itu tetap out of bounds. */
     if (i == len) {
       int newLen = len + 1;
-      RuntimeValue *items =
-          gcrealloc(base.value.as.array.items, sizeof(RuntimeValue) * newLen);
+      RuntimeValue *items = gcrealloc(base.value.as.array.items, sizeof(RuntimeValue) * newLen);
       if (!items && newLen > 0) {
         if (error)
-          addError(error,
-                   (ErrorInfo){.code = "IOError",
-                               .message = "out of memory growing array",
-                               .line = 0,
-                               .row = 0,
-                               .type = ERR_INTERNAL});
+          addError(error, (ErrorInfo){.code = "IOError",
+                                      .message = "out of memory growing array",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_INTERNAL});
         return resultFlow(FLOW_ERROR, valueNull());
       }
       items[newLen - 1] = val.value;
@@ -266,41 +237,37 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
       base.value.as.array.length = newLen;
     } else if (i < 0 || i >= len) {
       static char message[256];
-      snprintf(message, sizeof(message),
-               "index %d is out of bounds for array of length %d", i, len);
+      snprintf(message, sizeof(message), "index %d is out of bounds for array of length %d", i,
+               len);
       if (error)
-        addError(error,
-                 (ErrorInfo){.code = "RangeError",
-                             .message = message,
-                             .line = 0,
-                             .row = 0,
-                             .type = ERR_INDEX_OUT_OF_BOUNDS});
+        addError(error, (ErrorInfo){.code = "RangeError",
+                                    .message = message,
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_INDEX_OUT_OF_BOUNDS});
       return resultFlow(FLOW_ERROR, valueNull());
     }
 
     base.value.as.array.items[i] = val.value;
 
     /* Write the mutated array back. */
-    if (target->subscript.posId >= 0 &&
-        target->subscript.posId < node->length) {
+    if (target->subscript.posId >= 0 && target->subscript.posId < node->length) {
       AstNode *baseAst = &node->ast[target->subscript.posId];
       const char *baseName = NULL;
       if (baseAst->type == NODE_IDENTIFIER)
         baseName = baseAst->identifier.name;
       else if (baseAst->type == NODE_LITERAL_ID)
         baseName = baseAst->string.value;
-      if (baseName)
-        semSet(env, baseName, base.value);
+      if (baseName) semSet(env, baseName, base.value);
     }
     return resultNormal(val.value);
   }
 
   if (error)
-    addError(error,
-             (ErrorInfo){.code = "SyntaxError",
-                         .message = "invalid assignment target",
-                         .line = 0,
-                         .row = 0,
-                         .type = ERR_SYNTAX});
+    addError(error, (ErrorInfo){.code = "SyntaxError",
+                                .message = "invalid assignment target",
+                                .line = 0,
+                                .row = 0,
+                                .type = ERR_SYNTAX});
   return resultFlow(FLOW_ERROR, valueNull());
 }

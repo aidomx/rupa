@@ -1,6 +1,27 @@
 #pragma once
 
 #if defined(RUPA_PACKAGE_H)
+/**
+ * @brief Satu binding variabel dalam scope environment.
+ * Menyimpan nama, tipe, dan nilai runtime dari sebuah variabel.
+ */
+struct RuntimeBinding {
+  char *name;
+  char *type;
+  RuntimeValue value;
+  struct RuntimeBinding *next;
+};
+
+/**
+ * @brief Environment scope — linked list ke parent scope.
+ * Digunakan oleh semantic layer untuk mengelola deklarasi dan
+ * pencarian variabel selama interpretasi.
+ */
+struct RuntimeEnv {
+  struct RuntimeEnv *parent;
+  struct RuntimeBinding *bindings;
+  bool isRepl;
+};
 
 /**
  * @brief Membuat environment scope baru.
@@ -73,14 +94,12 @@ RuntimeBinding *semFind(RuntimeEnv *env, const char *name);
 /* ====================== Async Event Loop ==================== */
 
 struct EventLoop *eventLoopCreate(void);
-void eventLoopPush(struct EventLoop *loop, int handleId, int requestId,
-                   int handlerId, int timeoutMs, int loaderId, int timeoutId);
-void eventLoopRun(Node *node, struct EventLoop *loop, RuntimeEnv *env,
-                  Error *error);
-void eventLoopRunUntil(struct EventLoop *loop, int handleId, Node *node,
-                       RuntimeEnv *env, Error *error);
-bool eventLoopGetResult(struct EventLoop *loop, int handleId,
-                        RuntimeValue *out);
+void eventLoopPush(struct EventLoop *loop, int handleId, int requestId, int handlerId,
+                   int timeoutMs, int loaderId, int timeoutId);
+void eventLoopRun(Node *node, struct EventLoop *loop, RuntimeEnv *env, Error *error);
+void eventLoopRunUntil(struct EventLoop *loop, int handleId, Node *node, RuntimeEnv *env,
+                       Error *error);
+bool eventLoopGetResult(struct EventLoop *loop, int handleId, RuntimeValue *out);
 void eventLoopDestroy(struct EventLoop *loop);
 void eventLoopCleanDone(struct EventLoop *loop);
 bool eventLoopHasPending(struct EventLoop *loop);

@@ -26,6 +26,49 @@ static void bufAppend(char **buf, size_t *len, size_t *cap, const char *text) {
   (*buf)[*len] = '\0';
 }
 
+/* Wrapper publik textOf untuk mesin IR (lib/compiler/interpreter/text.h). */
+char *valueTextOf(RuntimeValue value) { return textOf(value); }
+
+/* Terapkan operator aritmetika/konkatenasi pada dua value — semantik persis
+ * interpretBinary, dipakai interpretUpdate untuk compound assignment
+ * (+=, -=, *=, /=, %=). *ok=false bila operator tidak berlaku pada tipe. */
+RuntimeValue valueBinaryApply(const char *op, RuntimeValue left,
+                              RuntimeValue right, bool *ok) {
+  *ok = true;
+  if (!strcmp(op, "+")) {
+    if (numeric(left) && numeric(right))
+      return numericResult(left, right, numberOf(left) + numberOf(right));
+    char *a = textOf(left), *b = textOf(right);
+    size_t size = strlen(a) + strlen(b) + 1;
+    char *joined = malloc(size);
+    if (!joined) {
+      free(a);
+      free(b);
+      *ok = false;
+      return valueNull();
+    }
+    snprintf(joined, size, "%s%s", a, b);
+    free(a);
+    free(b);
+    RuntimeValue result = valueString(joined);
+    free(joined);
+    return result;
+  }
+  if (numeric(left) && numeric(right)) {
+    double a = numberOf(left), b = numberOf(right);
+    if (!strcmp(op, "-"))
+      return numericResult(left, right, a - b);
+    if (!strcmp(op, "*"))
+      return numericResult(left, right, a * b);
+    if (!strcmp(op, "/"))
+      return b ? numericResult(left, right, a / b) : valueNull();
+    if (!strcmp(op, "%"))
+      return b ? numericResult(left, right, fmod(a, b)) : valueNull();
+  }
+  *ok = false;
+  return valueNull();
+}
+
 /* Helper: append a RuntimeValue as text */
 static void bufAppendVal(char **buf, size_t *len, size_t *cap,
                          RuntimeValue val) {
@@ -134,7 +177,9 @@ InterpreterResult interpretBinary(Node *node, AstNode *ast, RuntimeEnv *env,
     snprintf(joined, size, "%s%s", a, b);
     free(a);
     free(b);
-    return resultNormal(valueString(joined));
+    RuntimeValue result = valueString(joined);
+    free(joined);
+    return resultNormal(result);
   }
   if (numeric(left) && numeric(right)) {
     double a = numberOf(left), b = numberOf(right);
@@ -161,4 +206,29 @@ InterpreterResult interpretBinary(Node *node, AstNode *ast, RuntimeEnv *env,
   if (!strcmp(op, "!="))
     return resultNormal(valueBoolean(!valueEquals(left, right)));
   return resultNormal(valueNull());
+}
+
+/* Format type annotation node menjadi nama tipe string — dipakai analyzer
+ * (registry struct) & statement.c. Duplikat logis formatType() statement.c
+ * disatukan di sini sebagai versi publik. */
+bool formatAstTypeName(Node *node, int typeId, char *buffer, size_t capacity) {
+  if (!node || typeId < 0 || typeId >= node->length || !buffer || capacity == 0)
+    return false;
+
+  AstNode *type = &node->ast[typeId];
+  if (type->type == NODE_IDENTIFIER) {
+    int written = snprintf(buffer, capacity, "%s", type->identifier.name);
+    return written > 0 && (size_t)written < capacity;
+  }
+  if (type->type == NODE_LITERAL_ID) {
+    int written = snprintf(buffer, capacity, "%s", type->string.value);
+    return written > 0 && (size_t)written < capacity;
+  }
+  if (type->type != NODE_ARRAY_TYPE) return false;
+
+  char element[256];
+  if (!formatAstTypeName(node, type->arrayType.elementType, element, sizeof(element)))
+    return false;
+  int written = snprintf(buffer, capacity, "%s[]", element);
+  return written > 0 && (size_t)written < capacity;
 }

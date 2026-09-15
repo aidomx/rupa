@@ -1,4 +1,5 @@
 #pragma once
+#include "repl_type.h"
 
 #if defined(RUPA_PACKAGE_H)
 

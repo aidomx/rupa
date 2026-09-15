@@ -88,12 +88,18 @@ static bool matchesTypeName(const char *type, RuntimeValue value, Error *error) 
     return valid;
   }
 
+  /* Struct terdaftar → validasi terhadap layout (design/next_struct.txt).
+   * Rekursif: field bertipe struct / array-of-struct ikut dicek. */
+  if (analyzerFindStruct(type))
+    return analyzerCheckStruct(type, value, error);
+
   return matchesScalar(type, value);
 }
 
 bool validateTypeName(const char *type, RuntimeValue value, Error *error) {
   if (matchesTypeName(type, value, error)) return true;
-  if (error && (!type || !strstr(type, "[]")))
+  /* Struct/array check sudah menulis error detail — jangan duplikasi. */
+  if (error && error->size == 0 && (!type || !strstr(type, "[]")))
     addRuntimeError(error, ERR_TYPE_MISMATCH, type, valueTypeName(value.type));
   return false;
 }

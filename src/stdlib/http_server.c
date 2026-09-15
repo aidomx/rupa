@@ -25,9 +25,9 @@ typedef struct {
 typedef struct {
   int status;
   char status_text[64];
-  char headers_buf[MAX_RESPONSE_SIZE];
+  char *headers_buf;
   int headers_len;
-  char body[MAX_RESPONSE_SIZE];
+  char *body;
   int body_len;
 } HttpResponse;
 
@@ -35,18 +35,18 @@ typedef struct {
 #define MAX_PENDING 64
 
 typedef struct {
-  int client_fd;                  /* Client socket fd */
-  int server_id;                  /* Which server owns this request */
-  char request[MAX_REQUEST_SIZE]; /* Raw HTTP request data */
-  int request_len;                /* Length of request data */
+  int client_fd;   /* Client socket fd */
+  int server_id;   /* Which server owns this request */
+  char *request;   /* Raw HTTP request data */
+  int request_len; /* Length of request data */
 
   /* Response filled by handler (main thread) */
   HttpResponse response;
-  bool response_ready;            /* Main thread has filled the response */
-  bool in_use;                    /* Slot is occupied */
+  bool response_ready; /* Main thread has filled the response */
+  bool in_use;         /* Slot is occupied */
 
   pthread_mutex_t mutex;
-  pthread_cond_t response_cond;   /* Server thread waits on this */
+  pthread_cond_t response_cond; /* Server thread waits on this */
 } PendingRequest;
 
 static PendingRequest pendingQueue[MAX_PENDING];
@@ -60,12 +60,22 @@ static int pendingCount = 0;
 static _Thread_local PendingRequest *currentPendingRequest = NULL;
 
 /* Enqueue a request from the server thread */
-static PendingRequest *enqueueRequest(int client_fd, int server_id,
-                                      const char *data, int len) {
+static PendingRequest *enqueueRequest(int client_fd, int server_id, const char *data, int len) {
   pthread_mutex_lock(&queueMutex);
   for (int i = 0; i < MAX_PENDING; i++) {
     if (!pendingQueue[i].in_use) {
       PendingRequest *pr = &pendingQueue[i];
+      memset(&pr->response, 0, sizeof(HttpResponse));
+      pr->request = gcmall(MAX_REQUEST_SIZE);
+      pr->response.headers_buf = gcmall(MAX_RESPONSE_SIZE);
+      pr->response.body = gcmall(MAX_RESPONSE_SIZE);
+
+      if (!pr->request || !pr->response.headers_buf || !pr->response.body) {
+        gcfree(pr->request);
+        gcfree(pr->response.headers_buf);
+        gcfree(pr->response.body);
+      }
+
       pr->in_use = true;
       pr->client_fd = client_fd;
       pr->server_id = server_id;
@@ -73,7 +83,6 @@ static PendingRequest *enqueueRequest(int client_fd, int server_id,
       pr->request_len = len < MAX_REQUEST_SIZE ? len : MAX_REQUEST_SIZE - 1;
       memcpy(pr->request, data, pr->request_len);
       pr->request[pr->request_len] = '\0';
-      memset(&pr->response, 0, sizeof(HttpResponse));
       pr->response.status = 200;
       strcpy(pr->response.status_text, "OK");
       strcpy(pr->response.headers_buf, "Content-Type: text/plain\r\n");
@@ -124,61 +133,51 @@ static void parseRequest(const char *raw, HttpRequest *req) {
 }
 
 /* ==================== res.setHeader(key, value) ==================== */
-static InterpreterResult resSetHeader(int argc, RuntimeValue *argv,
-                                      RuntimeEnv *env, Error *error) {
+static InterpreterResult resSetHeader(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   (void)error;
   if (argc < 2 || argv[0].type != VALUE_STRING || argv[1].type != VALUE_STRING)
-    return resultFlow(FLOW_ERROR,
-                      valueString("res.setHeader() expects two strings"));
+    return resultFlow(FLOW_ERROR, valueString("res.setHeader() expects two strings"));
 
   PendingRequest *pr = currentPendingRequest;
   if (!pr) return resultFlow(FLOW_ERROR, valueString("No active response"));
 
   HttpResponse *res = &pr->response;
-  int written = snprintf(res->headers_buf + res->headers_len,
-                         sizeof(res->headers_buf) - res->headers_len,
+  int written = snprintf(res->headers_buf + res->headers_len, MAX_RESPONSE_SIZE - res->headers_len,
                          "%s: %s\r\n", argv[0].as.string, argv[1].as.string);
-  if (written < 0 || written >= (int)(sizeof(res->headers_buf) - res->headers_len))
+  if (written < 0 || written >= (int)(MAX_RESPONSE_SIZE - res->headers_len))
     return resultFlow(FLOW_ERROR, valueString("Response headers too large"));
   res->headers_len += written;
   return resultNormal(valueNull());
 }
 
 /* ==================== res.json(obj) ==================== */
-static InterpreterResult resJson(int argc, RuntimeValue *argv,
-                                 RuntimeEnv *env, Error *error) {
+static InterpreterResult resJson(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   (void)error;
-  if (argc < 1)
-    return resultFlow(FLOW_ERROR,
-                      valueString("res.json() expects a value"));
+  if (argc < 1) return resultFlow(FLOW_ERROR, valueString("res.json() expects a value"));
 
   PendingRequest *pr = currentPendingRequest;
   if (!pr) return resultFlow(FLOW_ERROR, valueString("No active response"));
 
   HttpResponse *res = &pr->response;
-  res->headers_len = snprintf(res->headers_buf, sizeof(res->headers_buf),
-                              "Content-Type: application/json\r\n");
+  res->headers_len =
+      snprintf(res->headers_buf, MAX_RESPONSE_SIZE, "Content-Type: application/json\r\n");
 
   if (argv[0].type == VALUE_STRING && argv[0].as.string) {
-    res->body_len = snprintf(res->body, sizeof(res->body), "\"%s\"",
-                             argv[0].as.string);
+    res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "\"%s\"", argv[0].as.string);
   } else if (argv[0].type == VALUE_NUMBER) {
-    res->body_len = snprintf(res->body, sizeof(res->body), "%d",
-                             argv[0].as.number);
+    res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "%d", argv[0].as.number);
   } else if (argv[0].type == VALUE_BOOLEAN) {
-    res->body_len = snprintf(res->body, sizeof(res->body), "%s",
-                             argv[0].as.boolean ? "true" : "false");
+    res->body_len =
+        snprintf(res->body, MAX_RESPONSE_SIZE, "%s", argv[0].as.boolean ? "true" : "false");
   } else if (argv[0].type == VALUE_NULL) {
-    res->body_len = snprintf(res->body, sizeof(res->body), "null");
+    res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "null");
   } else {
     InterpreterResult jr = jsonStringify(1, argv, NULL, NULL);
-    if (jr.flow == FLOW_NORMAL && jr.value.type == VALUE_STRING &&
-        jr.value.as.string) {
+    if (jr.flow == FLOW_NORMAL && jr.value.type == VALUE_STRING && jr.value.as.string) {
       res->body_len = (int)strlen(jr.value.as.string);
-      if (res->body_len >= MAX_RESPONSE_SIZE)
-        res->body_len = MAX_RESPONSE_SIZE - 1;
+      if (res->body_len >= MAX_RESPONSE_SIZE) res->body_len = MAX_RESPONSE_SIZE - 1;
       memcpy(res->body, jr.value.as.string, res->body_len);
       res->body[res->body_len] = '\0';
     }
@@ -192,8 +191,7 @@ static InterpreterResult resJson(int argc, RuntimeValue *argv,
 /* ==================== Build response string ==================== */
 static int buildResponseString(HttpResponse *res, char *buf, int bufsize) {
   int header_len = res->headers_len;
-  if (header_len > 0 && res->headers_buf[header_len - 2] == '\r')
-    header_len -= 2;
+  if (header_len > 0 && res->headers_buf[header_len - 2] == '\r') header_len -= 2;
 
   int len = snprintf(buf, bufsize,
                      "HTTP/1.1 %d %s\r\n"
@@ -201,12 +199,9 @@ static int buildResponseString(HttpResponse *res, char *buf, int bufsize) {
                      "Content-Length: %d\r\n"
                      "Connection: close\r\n"
                      "\r\n",
-                     res->status, res->status_text,
-                     header_len, res->headers_buf,
-                     res->body_len);
+                     res->status, res->status_text, header_len, res->headers_buf, res->body_len);
 
-  if (len + res->body_len >= bufsize)
-    res->body_len = bufsize - len - 1;
+  if (len + res->body_len >= bufsize) res->body_len = bufsize - len - 1;
 
   memcpy(buf + len, res->body, res->body_len);
   len += res->body_len;
@@ -230,26 +225,26 @@ static void processRequest(PendingRequest *pr) {
 
     struct RuntimeObjectEntry *e;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("method");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("method");
     e->value = valueString(req.method);
     *req_tail = e;
     req_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("path");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("path");
     e->value = valueString(req.path);
     *req_tail = e;
     req_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("body");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("body");
     e->value = valueString(req.body);
     *req_tail = e;
     req_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("headers");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("headers");
     e->value = valueString(req.headers);
     *req_tail = e;
     req_tail = &e->next;
@@ -260,26 +255,26 @@ static void processRequest(PendingRequest *pr) {
     struct RuntimeObjectEntry *res_entries = NULL;
     struct RuntimeObjectEntry **res_tail = &res_entries;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("status");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("status");
     e->value = valueNumber(res->status);
     *res_tail = e;
     res_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("body");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("body");
     e->value = valueString(res->body);
     *res_tail = e;
     res_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("setHeader");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("setHeader");
     e->value = valueNativeFunction("setHeader", resSetHeader, 2);
     *res_tail = e;
     res_tail = &e->next;
 
-    e = calloc(1, sizeof(*e));
-    e->key = strdup("json");
+    e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup("json");
     e->value = valueNativeFunction("json", resJson, 1);
     *res_tail = e;
     res_tail = &e->next;
@@ -288,12 +283,10 @@ static void processRequest(PendingRequest *pr) {
 
     /* Call the handler — safe to call interpretNode from main thread */
     InterpreterResult result;
-    if (server->handler.type == VALUE_NATIVE_FUNCTION &&
-        server->handler.as.nativeFunc) {
+    if (server->handler.type == VALUE_NATIVE_FUNCTION && server->handler.as.nativeFunc) {
       RuntimeValue args[] = {req_val, res_val};
       result = server->handler.as.nativeFunc->func(2, args, NULL, NULL);
-    } else if (server->handler.type == VALUE_FUNCTION &&
-               server->handler.as.function) {
+    } else if (server->handler.type == VALUE_FUNCTION && server->handler.as.function) {
       RuntimeFunction *fn = server->handler.as.function;
       RuntimeEnv *local = semCreateEnv(fn->closure);
       if (local) {
@@ -313,8 +306,7 @@ static void processRequest(PendingRequest *pr) {
           }
         }
         result = interpretNode(fn->node, fn->body, local, NULL);
-        if (result.flow == FLOW_RETURN)
-          result = resultNormal(result.value);
+        if (result.flow == FLOW_RETURN) result = resultNormal(result.value);
       } else {
         result = resultNormal(valueNull());
       }
@@ -328,28 +320,37 @@ static void processRequest(PendingRequest *pr) {
      * only if the handler returned an object with those fields. */
     if (result.flow == FLOW_NORMAL && result.value.type == VALUE_OBJECT) {
       RuntimeValue status_val;
-      if (valueObjectGet(result.value, "status", &status_val) &&
-          status_val.type == VALUE_NUMBER) {
+      if (valueObjectGet(result.value, "status", &status_val) && status_val.type == VALUE_NUMBER) {
         res->status = status_val.as.number;
         switch (res->status) {
-          case 200: strcpy(res->status_text, "OK"); break;
-          case 201: strcpy(res->status_text, "Created"); break;
-          case 400: strcpy(res->status_text, "Bad Request"); break;
-          case 404: strcpy(res->status_text, "Not Found"); break;
-          case 500: strcpy(res->status_text, "Internal Server Error"); break;
-          default: strcpy(res->status_text, "OK"); break;
+        case 200:
+          strcpy(res->status_text, "OK");
+          break;
+        case 201:
+          strcpy(res->status_text, "Created");
+          break;
+        case 400:
+          strcpy(res->status_text, "Bad Request");
+          break;
+        case 404:
+          strcpy(res->status_text, "Not Found");
+          break;
+        case 500:
+          strcpy(res->status_text, "Internal Server Error");
+          break;
+        default:
+          strcpy(res->status_text, "OK");
+          break;
         }
       }
 
       /* Only override body if the handler explicitly set it
        * (i.e. the body differs from the empty default). */
       RuntimeValue body_val;
-      if (valueObjectGet(result.value, "body", &body_val) &&
-          body_val.type == VALUE_STRING && body_val.as.string &&
-          body_val.as.string[0] != '\0') {
+      if (valueObjectGet(result.value, "body", &body_val) && body_val.type == VALUE_STRING &&
+          body_val.as.string && body_val.as.string[0] != '\0') {
         res->body_len = (int)strlen(body_val.as.string);
-        if (res->body_len >= MAX_RESPONSE_SIZE)
-          res->body_len = MAX_RESPONSE_SIZE - 1;
+        if (res->body_len >= MAX_RESPONSE_SIZE) res->body_len = MAX_RESPONSE_SIZE - 1;
         memcpy(res->body, body_val.as.string, res->body_len);
         res->body[res->body_len] = '\0';
       }
@@ -363,7 +364,7 @@ static void processRequest(PendingRequest *pr) {
 
 /* ==================== Server thread ==================== */
 static void *serverThread(void *arg) {
-  int id = *(int *)arg;
+  int id = (int)(intptr_t)arg;
   ServerEntry *server = &serverTable[id];
 
   struct sockaddr_in addr;
@@ -433,8 +434,7 @@ static void *serverThread(void *arg) {
     /* Send response */
     if (pr->response_ready) {
       char response_buf[MAX_RESPONSE_SIZE];
-      int len = buildResponseString(&pr->response, response_buf,
-                                    sizeof(response_buf));
+      int len = buildResponseString(&pr->response, response_buf, sizeof(response_buf));
       send(client_fd, response_buf, len, 0);
     }
 
@@ -442,6 +442,15 @@ static void *serverThread(void *arg) {
 
     /* Mark slot as free */
     pthread_mutex_lock(&pr->mutex);
+
+    gcfree(pr->request);
+    gcfree(pr->response.headers_buf);
+    gcfree(pr->response.body);
+
+    pr->request = NULL;
+    pr->response.headers_buf = NULL;
+    pr->response.body = NULL;
+
     pr->in_use = false;
     pr->response_ready = false;
     pthread_mutex_unlock(&pr->mutex);
@@ -454,17 +463,14 @@ static void *serverThread(void *arg) {
 }
 
 /* ==================== http.server(port, handler) ==================== */
-InterpreterResult httpServer(int argc, RuntimeValue *argv,
-                             RuntimeEnv *env, Error *error) {
+InterpreterResult httpServer(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   (void)error;
   if (argc < 1 || argv[0].type != VALUE_NUMBER)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.server() expects a port number"));
+    return resultFlow(FLOW_ERROR, valueString("http.server() expects a port number"));
 
   int port = argv[0].as.number;
-  if (port < 1 || port > 65535)
-    return resultFlow(FLOW_ERROR, valueString("Invalid port number"));
+  if (port < 1 || port > 65535) return resultFlow(FLOW_ERROR, valueString("Invalid port number"));
 
   pthread_mutex_lock(&serverMutex);
   if (serverCount >= MAX_SERVERS) {
@@ -478,8 +484,7 @@ InterpreterResult httpServer(int argc, RuntimeValue *argv,
   server->running = true;
   server->has_handler = false;
 
-  if (argc >= 2 && (argv[1].type == VALUE_NATIVE_FUNCTION ||
-                    argv[1].type == VALUE_FUNCTION)) {
+  if (argc >= 2 && (argv[1].type == VALUE_NATIVE_FUNCTION || argv[1].type == VALUE_FUNCTION)) {
     server->handler = argv[1];
     server->has_handler = true;
   }
@@ -493,7 +498,7 @@ InterpreterResult httpServer(int argc, RuntimeValue *argv,
     pthread_cond_init(&pendingQueue[i].response_cond, NULL);
   }
 
-  if (pthread_create(&server->thread, NULL, serverThread, &id) != 0) {
+  if (pthread_create(&server->thread, NULL, serverThread, (void *)(intptr_t)id) != 0) {
     return resultFlow(FLOW_ERROR, valueString("Failed to start server thread"));
   }
 
@@ -504,13 +509,11 @@ InterpreterResult httpServer(int argc, RuntimeValue *argv,
 }
 
 /* ==================== http.stop(handle) ==================== */
-InterpreterResult httpStop(int argc, RuntimeValue *argv,
-                           RuntimeEnv *env, Error *error) {
+InterpreterResult httpStop(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   (void)error;
   if (argc < 1 || argv[0].type != VALUE_NUMBER)
-    return resultFlow(FLOW_ERROR,
-                      valueString("http.stop() expects a server handle"));
+    return resultFlow(FLOW_ERROR, valueString("http.stop() expects a server handle"));
 
   int id = argv[0].as.number;
   pthread_mutex_lock(&serverMutex);

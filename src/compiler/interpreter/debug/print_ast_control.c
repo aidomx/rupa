@@ -16,9 +16,11 @@ bool printControlAst(Node *node, int index, int level) {
     printf("Comment:\n");
     printIndent(level + 1);
     printf("Type:\n");
-    printAst(node, n->asComment.type, level + 2);
+    /* n->asComment.type adalah enum kind, BUKAN node id — jangan
+     * diteruskan ke printAst (dulu menyebabkan rekursi tak berujung
+     * saat pool AST cukup besar sehingga id enum valid). */
     const char *kind = (n->asComment.type == NODE_BLOCK_COMMENT) ? "BlockComment" : "InlineComment";
-    printIndent(level + 3);
+    printIndent(level + 2);
     printf("%s\n", kind);
     printIndent(level + 1);
     printf("Value:\n");
@@ -68,6 +70,7 @@ bool printControlAst(Node *node, int index, int level) {
     printf("Update: %s%s\n", n->update.prefix ? "prefix " : "postfix ",
            n->update.op ? n->update.op : "?");
     if (n->update.target >= 0) printAst(node, n->update.target, level + 1);
+    if (n->update.value >= 0) printAst(node, n->update.value, level + 1);
     return true;
   case NODE_LOOP:
     printIndent(level);

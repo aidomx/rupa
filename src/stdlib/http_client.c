@@ -115,8 +115,8 @@ static InterpreterResult httpPatch(int argc, RuntimeValue *argv, RuntimeEnv *env
 /* ==================== Module init ==================== */
 static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
                      int paramCount) {
-  struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-  e->key = strdup(name);
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+  e->key = gcstrdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
   e->next = *head;
   *head = e;

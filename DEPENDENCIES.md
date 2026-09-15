@@ -8,6 +8,7 @@ Sebelum membangun dan menjalankan Rupa, pastikan dependensi berikut sudah terpas
 - **Make** → build automation tool
 - **Bear** → generate `compile_commands.json` untuk clangd
 - **Clangd (>=21)** → language server untuk C/C++
+- **Openssl** → library for stdlib crypto
 
 ## Opsional
 

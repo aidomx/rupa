@@ -36,6 +36,14 @@ int grammarParseObjectLiteral(Request *r, int a, int b) {
           entries = gcrealloc(entries, sizeof(*entries) * (n + 1));
           entries[n++] = (struct AstObjectEntry){key, value};
         }
+      } else {
+        /* Shorthand {name, health} — key menentukan nama, value
+         * diambil dari variable dengan nama yang sama. */
+        int key = grammarParseExpr(r, start, i);
+        if (key >= 0) {
+          entries = gcrealloc(entries, sizeof(*entries) * (n + 1));
+          entries[n++] = (struct AstObjectEntry){key, key};
+        }
       }
       start = i + 1;
     }

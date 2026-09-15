@@ -23,6 +23,7 @@ ReplContext *replContextCreate(void) {
   if (ctx->env) {
     stdlibInit(ctx->env);
     builtinsInit(ctx->env);
+    testHelperInit(ctx->env);
   }
 
   ctx->eventLoop = eventLoopCreate();

@@ -1,7 +1,7 @@
 #include <rupa.h>
 
 RuntimeEnv *semCreateEnv(RuntimeEnv *parent) {
-  RuntimeEnv *env = calloc(1, sizeof(*env));
+  RuntimeEnv *env = gccalloc(1, sizeof(*env));
   if (env) env->parent = parent;
   return env;
 }
@@ -25,15 +25,15 @@ bool semDeclare(RuntimeEnv *env, const char *name, const char *type) {
 
   RuntimeBinding *b = semFindLocal(env, name);
   if (b) {
-    if (type && !b->type) b->type = strdup(type);
+    if (type && !b->type) b->type = gcstrdup(type);
     return true;
   }
 
-  b = calloc(1, sizeof(*b));
+  b = gccalloc(1, sizeof(*b));
   if (!b) return false;
 
-  b->name = strdup(name);
-  b->type = type ? strdup(type) : NULL;
+  b->name = gcstrdup(name);
+  b->type = type ? gcstrdup(type) : NULL;
   b->value = valueNull();
   b->next = env->bindings;
   env->bindings = b;

@@ -66,6 +66,20 @@ int loader(const char *args[], int length) {
       break;
     }
 
+    else if (strcmp(args[i], "--test-ir") == 0) {
+      testIR(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
+    else if (strcmp(args[i], "--test-irexec") == 0) {
+      testIRExec(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
     else if (strcmp(args[i], "fmt") == 0) {
       if (i + 1 < length) {
         int result;

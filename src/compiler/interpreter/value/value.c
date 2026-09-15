@@ -1,6 +1,8 @@
 #include <rupa.h>
 
-RuntimeValue valueNull(void) { return (RuntimeValue){.type = VALUE_NULL}; }
+RuntimeValue valueNull(void) {
+  return (RuntimeValue){.type = VALUE_NULL};
+}
 
 RuntimeValue valueNumber(int value) {
   return (RuntimeValue){.type = VALUE_NUMBER, .as.number = value};
@@ -15,8 +17,7 @@ RuntimeValue valueBoolean(bool value) {
 }
 
 RuntimeValue valueString(const char *value) {
-  if (!value)
-    return (RuntimeValue){.type = VALUE_STRING, .as.string = NULL};
+  if (!value) return (RuntimeValue){.type = VALUE_STRING, .as.string = NULL};
 
   size_t length = strlen(value);
   size_t begin = 0;
@@ -27,9 +28,8 @@ RuntimeValue valueString(const char *value) {
     end = length - 1;
   }
 
-  char *text = malloc(end - begin + 1);
-  if (!text)
-    return (RuntimeValue){.type = VALUE_STRING, .as.string = NULL};
+  char *text = gcmall(end - begin + 1);
+  if (!text) return (RuntimeValue){.type = VALUE_STRING, .as.string = NULL};
 
   size_t out = 0;
   for (size_t i = begin; i < end; i++) {
@@ -66,8 +66,7 @@ RuntimeValue valueString(const char *value) {
 }
 
 RuntimeValue valueArray(RuntimeValue *items, int length) {
-  return (RuntimeValue){.type = VALUE_ARRAY,
-                        .as.array = {.items = items, .length = length}};
+  return (RuntimeValue){.type = VALUE_ARRAY, .as.array = {.items = items, .length = length}};
 }
 
 /**
@@ -84,14 +83,11 @@ RuntimeValue valueArray(RuntimeValue *items, int length) {
  * untouched) on lex/parse/eval failure, so the caller can fall back to
  * printing the interpolation block literally instead of crashing.
  */
-static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env,
-                           Error *error, RuntimeValue *out) {
-  if (!exprSrc || !*exprSrc)
-    return false;
+static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env, Error *error, RuntimeValue *out) {
+  if (!exprSrc || !*exprSrc) return false;
 
   State *state = createGlobalState(8, false);
-  if (!state || !state->buffer)
-    return false;
+  if (!state || !state->buffer) return false;
 
   clearReplState(state->repl);
   clearInput(state->input);
@@ -101,22 +97,19 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env,
 
   Buffer *buffer = state->buffer;
   size_t len = strlen(exprSrc);
-  if ((int)len >= buffer->capacity)
-    return false;
+  if ((int)len >= buffer->capacity) return false;
 
   memcpy(buffer->value, exprSrc, len);
   buffer->value[len] = '\0';
   buffer->length = (int)len;
 
-  if (!addToHistory(state) || !addToInput(state))
-    return false;
+  if (!addToHistory(state) || !addToInput(state)) return false;
 
   lexer(state);
 
   Flags *flags = state->input->flags;
   Token *tokens = state->tokens;
-  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting))
-    return false;
+  if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) return false;
 
   Request request = createRequest(tokens, 8);
   int end = grammarLineEnd(tokens, 0);
@@ -125,22 +118,21 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env,
     if (error)
       addError(error, (ErrorInfo){.code = "SyntaxError",
                                   .message = "invalid expression inside {{ }}",
-                                  .line = 0, .row = 0, .type = ERR_SYNTAX});
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_SYNTAX});
     return false;
   }
 
   InterpreterResult result = interpretNode(request.node, exprId, env, error);
-  if (result.flow == FLOW_ERROR)
-    return false;
+  if (result.flow == FLOW_ERROR) return false;
 
   *out = result.value;
   return true;
 }
 
-static void printStringWithInterp(const char *str, RuntimeEnv *env,
-                                  Error *error) {
-  if (!str)
-    return;
+static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error) {
+  if (!str) return;
   const char *p = str;
   while (*p) {
     /* `{{ expr }}`: full expression - function call, member access, dst. */
@@ -149,9 +141,16 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env,
       if (end) {
         int len = (int)(end - p - 2);
         if (len > 0) {
-          char expr[512];
-          if (len >= (int)sizeof(expr))
-            len = (int)sizeof(expr) - 1;
+          /* Heap-allocated, sized to the actual match — a fixed stack
+           * buffer here silently truncated any match longer than it
+           * (e.g. printing a stringified object/array that happens to
+           * contain literal braces), corrupting output instead of falling
+           * through to the verbatim fallback below. */
+          char *expr = malloc((size_t)len + 1);
+          if (!expr) {
+            p = end + 2;
+            continue;
+          }
           memcpy(expr, p + 2, len);
           expr[len] = '\0';
 
@@ -161,6 +160,7 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env,
           } else {
             printf("{{%s}}", expr); /* gagal parse/eval: tampilkan apa adanya */
           }
+          free(expr);
         } else {
           printf("{{}}"); /* empty braces */
         }
@@ -176,9 +176,20 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env,
         /* Extract variable name */
         int len = (int)(end - p - 1);
         if (len > 0) {
-          char name[256];
-          if (len >= (int)sizeof(name))
-            len = (int)sizeof(name) - 1;
+          /* Heap-allocated for the same reason as `expr` above: a fixed
+           * 256-byte buffer would silently truncate anything longer (e.g.
+           * `print(math + "\n")`, where the concatenated object literal
+           * starts with `{` and runs well past 256 chars before its real
+           * closing `}` — the whole tail after the cutoff, including the
+           * actual closing brace and any trailing text, was getting lost).
+           * When `name` isn't a real variable, the unresolved branch below
+           * reprints it byte-for-byte, so this is a safe no-op for content
+           * that only incidentally contains braces. */
+          char *name = malloc((size_t)len + 1);
+          if (!name) {
+            p = end + 1;
+            continue;
+          }
           memcpy(name, p + 1, len);
           name[len] = '\0';
           /* Resolve variable */
@@ -188,6 +199,7 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env,
           } else {
             printf("{%s}", name); /* unresolved */
           }
+          free(name);
         } else {
           printf("{}"); /* empty braces */
         }
@@ -228,8 +240,7 @@ void valuePrint(RuntimeValue value) {
   case VALUE_ARRAY:
     putchar('[');
     for (int i = 0; i < value.as.array.length; i++) {
-      if (i)
-        printf(", ");
+      if (i) printf(", ");
       valuePrint(value.as.array.items[i]);
     }
     putchar(']');
@@ -237,13 +248,10 @@ void valuePrint(RuntimeValue value) {
   case VALUE_OBJECT: {
     bool first = true;
     putchar('{');
-    for (struct RuntimeObjectEntry *e = value.as.object.entries; e;
-         e = e->next) {
+    for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
       /* Skip hidden _private metadata */
-      if (e->key && strcmp(e->key, "_private") == 0)
-        continue;
-      if (!first)
-        printf(", ");
+      if (e->key && strcmp(e->key, "_private") == 0) continue;
+      if (!first) printf(", ");
       printf("%s: ", e->key ? e->key : "?");
       valuePrint(e->value);
       first = false;
@@ -275,8 +283,7 @@ bool valueTruthy(RuntimeValue value) {
 }
 
 bool valueEquals(RuntimeValue left, RuntimeValue right) {
-  if (left.type != right.type)
-    return false;
+  if (left.type != right.type) return false;
   switch (left.type) {
   case VALUE_NULL:
     return true;
@@ -287,15 +294,12 @@ bool valueEquals(RuntimeValue left, RuntimeValue right) {
   case VALUE_DECIMAL:
     return left.as.decimal == right.as.decimal;
   case VALUE_STRING:
-    return left.as.string && right.as.string &&
-           !strcmp(left.as.string, right.as.string);
+    return left.as.string && right.as.string && !strcmp(left.as.string, right.as.string);
   case VALUE_ARRAY: {
     /* Structural (deep) equality, element-wise. */
-    if (left.as.array.length != right.as.array.length)
-      return false;
+    if (left.as.array.length != right.as.array.length) return false;
     for (int i = 0; i < left.as.array.length; i++)
-      if (!valueEquals(left.as.array.items[i], right.as.array.items[i]))
-        return false;
+      if (!valueEquals(left.as.array.items[i], right.as.array.items[i])) return false;
     return true;
   }
   case VALUE_OBJECT: {
@@ -305,14 +309,11 @@ bool valueEquals(RuntimeValue left, RuntimeValue right) {
       leftCount++;
     for (struct RuntimeObjectEntry *e = right.as.object.entries; e; e = e->next)
       rightCount++;
-    if (leftCount != rightCount)
-      return false;
+    if (leftCount != rightCount) return false;
     for (struct RuntimeObjectEntry *e = left.as.object.entries; e; e = e->next) {
       RuntimeValue rv;
-      if (!valueObjectGet(right, e->key, &rv))
-        return false;
-      if (!valueEquals(e->value, rv))
-        return false;
+      if (!valueObjectGet(right, e->key, &rv)) return false;
+      if (!valueEquals(e->value, rv)) return false;
     }
     return true;
   }
@@ -330,15 +331,12 @@ RuntimeValue valueFunction(RuntimeFunction *function) {
 }
 
 RuntimeValue valueObject(struct RuntimeObjectEntry *entries) {
-  return (RuntimeValue){.type = VALUE_OBJECT,
-                        .as.object = {.entries = entries}};
+  return (RuntimeValue){.type = VALUE_OBJECT, .as.object = {.entries = entries}};
 }
 
-RuntimeValue valueNativeFunction(const char *name, NativeFn func,
-                                 int paramCount) {
-  struct RuntimeNativeFunction *nf = calloc(1, sizeof(*nf));
-  if (!nf)
-    return valueNull();
+RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount) {
+  struct RuntimeNativeFunction *nf = gccalloc(1, sizeof(*nf));
+  if (!nf) return valueNull();
   nf->name = name;
   nf->func = func;
   nf->paramCount = paramCount;
@@ -346,20 +344,17 @@ RuntimeValue valueNativeFunction(const char *name, NativeFn func,
 }
 
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out) {
-  if (obj.type != VALUE_OBJECT || !key)
-    return false;
+  if (obj.type != VALUE_OBJECT || !key) return false;
   for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
     if (e->key && !strcmp(e->key, key)) {
-      if (out)
-        *out = e->value;
+      if (out) *out = e->value;
       return true;
     }
   return false;
 }
 
 bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value) {
-  if (!obj || obj->type != VALUE_OBJECT || !key)
-    return false;
+  if (!obj || obj->type != VALUE_OBJECT || !key) return false;
   /* Update existing entry */
   for (struct RuntimeObjectEntry *e = obj->as.object.entries; e; e = e->next)
     if (e->key && !strcmp(e->key, key)) {
@@ -367,10 +362,9 @@ bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value) {
       return true;
     }
   /* Add new entry */
-  struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-  if (!e)
-    return false;
-  e->key = strdup(key);
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+  if (!e) return false;
+  e->key = gcstrdup(key);
   e->value = value;
   e->next = obj->as.object.entries;
   obj->as.object.entries = e;

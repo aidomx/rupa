@@ -214,19 +214,29 @@ Usage:
 Options:
   (none)              Run syntax tests — PASS/FAIL only (tests/syntax/)
   --ast               Show AST structure for syntax tests
+  --ir                Rewrite syntax tests to IR, show IR structure
+  --irexec            Rewrite syntax tests to IR, execute via IR machine
   --exec              Run execution tests (tests/execution/ + tests/semantics/)
   --repl              Run REPL boundary tests (tests/execution/repl_*.rp)
   --list              Show all available test files
-  --select "1,3,7"    Run selected test files (syntax only)
+  --select "1,3,7"    Run selected test files by number instead of the
+                      whole category — combine with --ast/--ir/--irexec/
+                      --exec/--repl to pick from that category's list
+                      (see --list); with no other flag, selects from the
+                      syntax list.
   --help | -h         Show this help message
 
 Examples:
   DEV_MODE=1 ./build.sh test
   DEV_MODE=1 ./build.sh test --ast
+  DEV_MODE=1 ./build.sh test --ir
+  DEV_MODE=1 ./build.sh test --irexec
   DEV_MODE=1 ./build.sh test --exec
   DEV_MODE=1 ./build.sh test --repl
   DEV_MODE=1 ./build.sh test --list
   DEV_MODE=1 ./build.sh test --select "7,13"
+  DEV_MODE=1 ./build.sh test --exec --select "1"
+  DEV_MODE=1 ./build.sh test --repl --select "1"
 EOF
 }
 
@@ -249,7 +259,7 @@ test_lists() {
   # --- Syntax tests ---
   if [[ ${#files[@]} -gt 0 ]]; then
     echo
-    echo -e "${CYAN}> Syntax Tests${NC} (--test)"
+    echo -e "${CYAN}> Syntax Tests${NC} (--test / --ast / --ir / --irexec)"
     echo "  Found ${#files[@]} test files"
     echo
     printf "%-${width}s | %s\n" "#" "Filename"
@@ -301,13 +311,19 @@ test_lists() {
 
 select_file_test() {
   local selection="$1"
+  local mode="$2"      # "" | exec | repl — which file set to pick indices from
+  local test_flag="$3" # binary flag to invoke: --test, --test-ast, --test-ir, --test-irexec, --test-exec, --test-repl
   local files=()
   local indexes=()
   local selected=()
   local index
   local file_index
 
-  get_file_tests files || return $?
+  case "$mode" in
+    exec) get_file_exec_tests files || return $? ;;
+    repl) get_file_repl_tests files || return $? ;;
+    *) get_file_tests files || return $? ;;
+  esac
 
   IFS=',' read -ra indexes <<< "$selection"
 
@@ -336,7 +352,7 @@ select_file_test() {
   done
 
   # Jalankan nanti
-  "$TARGET" --test "${selected[@]}"
+  "$TARGET" "$test_flag" "${selected[@]}"
 }
 
 run_test() {
@@ -345,6 +361,15 @@ run_test() {
   local tests=()
   local arguments=("$@")
   local i
+
+  # mode menentukan file set (syntax/exec/repl); test_flag menentukan flag
+  # binary yang dipanggil. Keduanya cuma di-*set* di loop ini (bukan langsung
+  # dieksekusi/return), supaya --select bisa datang di posisi mana pun dan
+  # tetap nyambung ke kategori (--exec/--repl/--ast/--ir/--irexec) yang
+  # ditulis di flag lain pada baris perintah yang sama.
+  local mode=""
+  local test_flag="--test"
+  local selection=""
 
   for ((i = 0; i < ${#arguments[@]}; i++)); do
     case "${arguments[$i]}" in
@@ -368,30 +393,43 @@ run_test() {
           return 1
         fi
 
-        select_file_test "${arguments[$i]}"
-        return 0
+        selection="${arguments[$i]}"
         ;;
 
       --ast)
-        get_file_tests tests || return $?
-        "$TARGET" --test-ast "${tests[@]}"
-        return $?
+        test_flag="--test-ast"
+        ;;
+
+      --ir)
+        test_flag="--test-ir"
+        ;;
+
+      --irexec)
+        test_flag="--test-irexec"
         ;;
 
       --exec)
-        get_file_exec_tests tests || return $?
-        "$TARGET" --test-exec "${tests[@]}"
-        return $?
+        mode="exec"
+        test_flag="--test-exec"
         ;;
 
       --repl)
-        get_file_repl_tests tests || return $?
-        "$TARGET" --test-repl "${tests[@]}"
-        return $?
+        mode="repl"
+        test_flag="--test-repl"
         ;;
     esac
   done
 
-  get_file_tests tests || return $?
-  "$TARGET" --test "${tests[@]}"
+  if [[ -n "$selection" ]]; then
+    select_file_test "$selection" "$mode" "$test_flag"
+    return $?
+  fi
+
+  case "$mode" in
+    exec) get_file_exec_tests tests || return $? ;;
+    repl) get_file_repl_tests tests || return $? ;;
+    *) get_file_tests tests || return $? ;;
+  esac
+
+  time "$TARGET" "$test_flag" "${tests[@]}"
 }

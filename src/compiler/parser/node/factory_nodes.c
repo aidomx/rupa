@@ -1,21 +1,21 @@
 #include <rupa.h>
 
 /* ---- Module design baru (NODE_MOD) — 1 container untuk import & export ----
- * Semua alokasi via GC (gccalloc/gcstrdup), tidak ada free manual.
+ * Semua alokasi via GC (gccalloc/gcdup), tidak ada free manual.
  */
 
 AstModEntry *modEntry(const char *name) {
   AstModEntry *e = gccalloc(1, sizeof(AstModEntry));
   if (!e) return NULL;
   e->type = MOD_ID;
-  e->name = gcstrdup(name);
+  e->name = gcdup(name);
   return e;
 }
 
 AstModEntry *modEntryKey(const char *name, const char *key) {
   AstModEntry *e = modEntry(name);
   if (!e) return NULL;
-  e->key = gcstrdup(key);
+  e->key = gcdup(key);
   return e;
 }
 
@@ -37,7 +37,7 @@ AstModEntry *modEntryMember(const char *name, AstModEntry *path) {
 AstModEntry *modPolicy(const char *name, const char *value) {
   AstModEntry *e = modEntry(name);
   if (!e) return NULL;
-  e->value = gcstrdup(value);
+  e->value = gcdup(value);
   return e;
 }
 
@@ -50,9 +50,9 @@ static AstModEntry *modCopyEntries(AstModEntry **entries, int entryCount) {
     AstModEntry *src = entries[i];
     if (!src) continue;
     out[i].type = src->type;
-    out[i].name = src->name ? gcstrdup(src->name) : NULL;
-    out[i].key = src->key ? gcstrdup(src->key) : NULL;
-    out[i].value = src->value ? gcstrdup(src->value) : NULL;
+    out[i].name = src->name ? gcdup(src->name) : NULL;
+    out[i].key = src->key ? gcdup(src->key) : NULL;
+    out[i].value = src->value ? gcdup(src->value) : NULL;
     /* Rantai childrens disalin (shallow per node, GC-owned). */
     AstModEntry *s = src->childrens;
     AstModEntry *dst = NULL;
@@ -60,9 +60,9 @@ static AstModEntry *modCopyEntries(AstModEntry **entries, int entryCount) {
       AstModEntry *c = gccalloc(1, sizeof(AstModEntry));
       if (!c) break;
       c->type = s->type;
-      c->name = s->name ? gcstrdup(s->name) : NULL;
-      c->key = s->key ? gcstrdup(s->key) : NULL;
-      c->value = s->value ? gcstrdup(s->value) : NULL;
+      c->name = s->name ? gcdup(s->name) : NULL;
+      c->key = s->key ? gcdup(s->key) : NULL;
+      c->value = s->value ? gcdup(s->value) : NULL;
       if (dst)
         dst->childrens = c;
       else
@@ -74,29 +74,29 @@ static AstModEntry *modCopyEntries(AstModEntry **entries, int entryCount) {
   return out;
 }
 
-int createModImport(Node *root, AstModEntry **entries, int entryCount,
-                    const char *source, const char *sourceAlias) {
+int createModImport(Node *root, AstModEntry **entries, int entryCount, const char *source,
+                    const char *sourceAlias) {
   if (!root) return -1;
   AstNode n = {.type = NODE_MOD};
   n.mod.type = ImportDecl;
   n.mod.entries = modCopyEntries(entries, entryCount);
   n.mod.entryCount = entryCount;
-  n.mod.source = source ? gcstrdup(source) : NULL;
-  n.mod.sourceAlias = sourceAlias ? gcstrdup(sourceAlias) : NULL;
+  n.mod.source = source ? gcdup(source) : NULL;
+  n.mod.sourceAlias = sourceAlias ? gcdup(sourceAlias) : NULL;
   n.mod.policies = NULL;
   n.mod.policyCount = 0;
   n.mod.body = -1;
   return createAst(root, n);
 }
 
-int createModExport(Node *root, AstModEntry **entries, int entryCount,
-                    const char *source, AstModEntry **policies, int policyCount) {
+int createModExport(Node *root, AstModEntry **entries, int entryCount, const char *source,
+                    AstModEntry **policies, int policyCount) {
   if (!root) return -1;
   AstNode n = {.type = NODE_MOD};
   n.mod.type = ExportDecl;
   n.mod.entries = modCopyEntries(entries, entryCount);
   n.mod.entryCount = entryCount;
-  n.mod.source = source ? gcstrdup(source) : NULL;
+  n.mod.source = source ? gcdup(source) : NULL;
   n.mod.sourceAlias = NULL;
   n.mod.policies = modCopyEntries(policies, policyCount);
   n.mod.policyCount = policies ? policyCount : 0;
@@ -113,7 +113,7 @@ int createModNamespace(Node *root, const char *name, int body) {
   n.mod.type = NamespaceDecl;
   n.mod.entries = NULL;
   n.mod.entryCount = 0;
-  n.mod.source = name ? gcstrdup(name) : NULL;
+  n.mod.source = name ? gcdup(name) : NULL;
   n.mod.sourceAlias = NULL;
   n.mod.policies = NULL;
   n.mod.policyCount = 0;
@@ -125,11 +125,11 @@ int createModNamespace(Node *root, const char *name, int body) {
  * Core factory functions remain in factory.c.
  * createAst and copyIds are declared in rupa_modules.h
  */
-int createComment(Node *root, char *value, int type) {
+int createComment(Node *root, const char *value, int type) {
   if (!root) return -1;
   AstNode n = {.type = NODE_COMMENT};
   n.asComment.type = type;
-  n.asComment.value = strdup(value);
+  n.asComment.value = gcdup(value);
   return createAst(root, n);
 }
 
@@ -185,7 +185,7 @@ int createIf(Node *root, int condition, int thenBlock, int elseBlock, bool isBlo
 
 int createLoop(Node *root, const char *kind, int condition, int body) {
   AstNode n = {.type = NODE_LOOP};
-  n.loop.kind = gcstrdup(kind ? kind : "");
+  n.loop.kind = gcdup(kind ? kind : "");
   n.loop.condition = condition;
   n.loop.body = body;
   return createAst(root, n);

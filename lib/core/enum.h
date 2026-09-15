@@ -20,6 +20,7 @@
 #include "enum_error.h"
 #include "enum_except.h"
 #include "enum_flag.h"
+#include "enum_ir.h"
 #include "enum_keyword.h"
 #include "enum_mod.h"
 #include "enum_node.h"

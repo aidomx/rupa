@@ -127,21 +127,20 @@ static InterpreterResult osListdir(int argc, RuntimeValue *argv,
     return osError(error, "IOError", "failed to open directory");
 
   int capacity = 16, count = 0;
-  RuntimeValue *items = calloc(capacity, sizeof(RuntimeValue));
+  RuntimeValue *items = gccalloc(capacity, sizeof(RuntimeValue));
   struct dirent *entry;
   while ((entry = readdir(d)) != NULL) {
     if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
       continue;
     if (count >= capacity) {
       capacity *= 2;
-      items = realloc(items, capacity * sizeof(RuntimeValue));
+      items = gcrealloc(items, capacity * sizeof(RuntimeValue));
     }
     items[count++] = valueString(entry->d_name);
   }
   closedir(d);
 
   RuntimeValue result = valueArray(items, count);
-  free(items);
   return resultNormal(result);
 }
 
@@ -159,8 +158,8 @@ static InterpreterResult osPathExists(int argc, RuntimeValue *argv,
 static RuntimeValue createPathObject(void) {
   struct RuntimeObjectEntry *entries = NULL;
 
-  struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-  e->key = strdup("exists");
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+  e->key = gcstrdup("exists");
   e->value = valueNativeFunction("exists", osPathExists, 1);
   e->next = entries;
   entries = e;
@@ -182,8 +181,8 @@ static InterpreterResult osInfo(int argc, RuntimeValue *argv, RuntimeEnv *env,
 /* Helper macro to add entry */
 #define ADD_ENTRY(k, v)                                                        \
   do {                                                                         \
-    struct RuntimeObjectEntry *_e = calloc(1, sizeof(*_e));                    \
-    _e->key = strdup(k);                                                       \
+    struct RuntimeObjectEntry *_e = gccalloc(1, sizeof(*_e));                    \
+    _e->key = gcstrdup(k);                                                       \
     _e->value = valueString(v);                                                \
     _e->next = entries;                                                        \
     entries = _e;                                                              \
@@ -246,8 +245,8 @@ static InterpreterResult osInfo(int argc, RuntimeValue *argv, RuntimeEnv *env,
 /* ==================== Module init ==================== */
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
-  struct RuntimeObjectEntry *e = calloc(1, sizeof(*e));
-  e->key = strdup(name);
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+  e->key = gcstrdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
   e->next = *head;
   *head = e;
@@ -268,8 +267,8 @@ InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   addEntry(&entries, "info", osInfo, 1);
 
   /* Add path sub-object */
-  struct RuntimeObjectEntry *path_entry = calloc(1, sizeof(*path_entry));
-  path_entry->key = strdup("path");
+  struct RuntimeObjectEntry *path_entry = gccalloc(1, sizeof(*path_entry));
+  path_entry->key = gcstrdup("path");
   path_entry->value = createPathObject();
   path_entry->next = entries;
   entries = path_entry;

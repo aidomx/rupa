@@ -7,6 +7,7 @@ extern struct EventLoop *g_event_loop;
 void interpreter(Node *node, Error *error) {
   if (!node || node->length <= 0) return;
 
+  analyzerReset(); /* registry struct per-file, tidak bocor lintas program */
   RuntimeEnv *env = semCreateEnv(NULL);
   if (!env) return;
 

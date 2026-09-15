@@ -90,7 +90,7 @@ static InterpreterResult regexFindAll(int argc, RuntimeValue *argv, RuntimeEnv *
   /* Collect matches into dynamic array */
   int capacity = 16;
   int count = 0;
-  RuntimeValue *items = calloc(capacity, sizeof(RuntimeValue));
+  RuntimeValue *items = gccalloc(capacity, sizeof(RuntimeValue));
 
   const char *str = argv[1].as.string;
   regmatch_t match[1];
@@ -108,7 +108,7 @@ static InterpreterResult regexFindAll(int argc, RuntimeValue *argv, RuntimeEnv *
 
     if (count >= capacity) {
       capacity *= 2;
-      items = realloc(items, capacity * sizeof(RuntimeValue));
+      items = gcrealloc(items, capacity * sizeof(RuntimeValue));
     }
     items[count++] = valueString(matched);
     str += match[0].rm_eo;
@@ -199,7 +199,7 @@ static InterpreterResult regexSplit(int argc, RuntimeValue *argv, RuntimeEnv *en
 
   int capacity = 16;
   int count = 0;
-  RuntimeValue *items = calloc(capacity, sizeof(RuntimeValue));
+  RuntimeValue *items = gccalloc(capacity, sizeof(RuntimeValue));
 
   const char *str = argv[1].as.string;
   regmatch_t match[1];
@@ -212,7 +212,7 @@ static InterpreterResult regexSplit(int argc, RuntimeValue *argv, RuntimeEnv *en
 
     if (count >= capacity) {
       capacity *= 2;
-      items = realloc(items, capacity * sizeof(RuntimeValue));
+      items = gcrealloc(items, capacity * sizeof(RuntimeValue));
     }
     items[count++] = valueString(part);
     str += match[0].rm_eo;
@@ -225,7 +225,7 @@ static InterpreterResult regexSplit(int argc, RuntimeValue *argv, RuntimeEnv *en
   part[remaining] = '\0';
   if (count >= capacity) {
     capacity *= 2;
-    items = realloc(items, capacity * sizeof(RuntimeValue));
+    items = gcrealloc(items, capacity * sizeof(RuntimeValue));
   }
   items[count++] = valueString(part);
 

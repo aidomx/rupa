@@ -69,6 +69,7 @@ typedef struct AstComment AstComment;
 typedef struct AstDeclaration AstDeclaration;
 typedef struct AstDouble AstDouble;
 typedef struct AstDecimal AstDecimal;
+typedef struct AstFunctionDecl AstFunctionDecl;
 typedef struct AstIdentifier AstIdentifier;
 typedef struct AstMod AstMod;
 typedef struct AstModEntry AstModEntry;
@@ -87,3 +88,15 @@ typedef struct Function Function;
 typedef struct Number Number;
 typedef struct Binary Binary;
 typedef struct Position Position;
+
+typedef enum IRTypeKind IRTypeKind;
+typedef enum IROpcode IROpcode;
+typedef enum IRConstantKind IRConstantKind;
+typedef enum IRValueKind IRValueKind;
+
+typedef struct IRType IRType;
+typedef struct IRInstruction IRInstruction;
+typedef struct IRValue IRValue;
+typedef struct IRBlock IRBlock;
+typedef struct IRFunction IRFunction;
+typedef struct IRModule IRModule;

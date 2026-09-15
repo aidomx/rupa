@@ -1,12 +1,10 @@
 #include <rupa.h>
 
 int addDelim(Token *tokens, char c, char *safetyType, int line, int row) {
-  if (!tokens)
-    return -1;
+  if (!tokens) return -1;
 
   char del[2] = {c, '\0'};
-  DataToken data = {
-      .line = line, .row = row, .safetyType = safetyType, .value = strdup(del)};
+  DataToken data = {.line = line, .row = row, .safetyType = safetyType, .value = gcdup(del)};
 
   if (isassign(c)) {
     data.type = ASSIGN;

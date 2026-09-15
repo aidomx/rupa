@@ -7,14 +7,11 @@
  * Parts array alternates between NODE_STRING (literal text) and expression
  * nodes (evaluated at runtime).
  */
-InterpreterResult interpretStringInterp(Node *node, AstNode *ast,
-                                        RuntimeEnv *env, Error *error) {
-  if (!ast || ast->type != NODE_STRING_INTERP)
-    return resultNormal(valueNull());
+InterpreterResult interpretStringInterp(Node *node, AstNode *ast, RuntimeEnv *env, Error *error) {
+  if (!ast || ast->type != NODE_STRING_INTERP) return resultNormal(valueNull());
 
   int partsLen = ast->stringInterp.length;
-  if (partsLen == 0)
-    return resultNormal(valueString("\"\""));
+  if (partsLen == 0) return resultNormal(valueString("\"\""));
 
   /* Estimate initial capacity */
   size_t cap = 256;
@@ -23,19 +20,19 @@ InterpreterResult interpretStringInterp(Node *node, AstNode *ast,
   if (!buf) return resultNormal(valueNull());
   buf[0] = '\0';
 
-  /* Helper: ensure buffer has room for `need` more chars */
-  #define ENSURE(need) do { \
-    if (len + (need) + 1 > cap) { \
-      cap = (len + (need) + 1) * 2; \
-      buf = realloc(buf, cap); \
-      if (!buf) return resultNormal(valueNull()); \
-    } \
-  } while(0)
+/* Helper: ensure buffer has room for `need` more chars */
+#define ENSURE(need)                                                                               \
+  do {                                                                                             \
+    if (len + (need) + 1 > cap) {                                                                  \
+      cap = (len + (need) + 1) * 2;                                                                \
+      buf = realloc(buf, cap);                                                                     \
+      if (!buf) return resultNormal(valueNull());                                                  \
+    }                                                                                              \
+  } while (0)
 
   for (int i = 0; i < partsLen; i++) {
     int partId = ast->stringInterp.parts[i];
-    if (partId < 0 || partId >= node->length)
-      continue;
+    if (partId < 0 || partId >= node->length) continue;
 
     AstNode *part = &node->ast[partId];
 
@@ -47,8 +44,8 @@ InterpreterResult interpretStringInterp(Node *node, AstNode *ast,
         size_t rlen = strlen(raw);
         const char *start = raw;
         const char *end = raw + rlen;
-        if (rlen >= 2 && ((raw[0] == '"' && raw[rlen-1] == '"') ||
-                          (raw[0] == '\'' && raw[rlen-1] == '\''))) {
+        if (rlen >= 2 && ((raw[0] == '"' && raw[rlen - 1] == '"') ||
+                          (raw[0] == '\'' && raw[rlen - 1] == '\''))) {
           start = raw + 1;
           end = raw + rlen - 1;
         }
@@ -154,16 +151,21 @@ InterpreterResult interpretStringInterp(Node *node, AstNode *ast,
 
   buf[len] = '\0';
 
-  #undef ENSURE
+#undef ENSURE
 
   /* Return as a quoted string that valueString will strip quotes from */
   char *quoted = malloc(len + 3);
-  if (!quoted) { free(buf); return resultNormal(valueNull()); }
+  if (!quoted) {
+    free(buf);
+    return resultNormal(valueNull());
+  }
   quoted[0] = '"';
   memcpy(quoted + 1, buf, len);
   quoted[len + 1] = '"';
   quoted[len + 2] = '\0';
   free(buf);
 
-  return resultNormal(valueString(quoted));
+  RuntimeValue result = valueString(quoted);
+  free(quoted);
+  return resultNormal(result);
 }

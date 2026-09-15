@@ -1,11 +1,7 @@
 #pragma once
 /**
  * Definisi tipe yang digunakan untuk membagi jenis
- * tipe token saat proses tokenize atau lexer, dan
- * untuk daftar TokenType dibantu oleh ChatGPT.
- *
- * @TokenType
- * @reference ChatGPT
+ * tipe token saat proses tokenize atau lexer.
  */
 enum TokenType {
   AMPERSAND = 0, // &
@@ -63,6 +59,11 @@ enum TokenType {
   PERCENT = 50,            // %
   PIPE = 51,               // |
   PLUS = 52,               // +
+  PLUS_ASSIGN = 68,        // +=
+  MINUS_ASSIGN = 69,       // -=
+  STAR_ASSIGN = 70,        // *=
+  SLASH_ASSIGN = 71,       // /=
+  PERCENT_ASSIGN = 72,     // %=
   QUESTION_MARK = 53,      // ?
   CONDITIONAL_ASSIGN = 67, // ?=
   QUOTE = 54,              // "

@@ -17,6 +17,11 @@ static TokenType op_type(const char *op) {
   if (!strcmp(op, ">")) return GREATER_THAN;
   if (!strcmp(op, ".")) return DOT;
   if (!strcmp(op, "?=")) return CONDITIONAL_ASSIGN;
+  if (!strcmp(op, "+=")) return PLUS_ASSIGN;
+  if (!strcmp(op, "-=")) return MINUS_ASSIGN;
+  if (!strcmp(op, "*=")) return STAR_ASSIGN;
+  if (!strcmp(op, "/=")) return SLASH_ASSIGN;
+  if (!strcmp(op, "%=")) return PERCENT_ASSIGN;
   if (!strcmp(op, "==")) return EQUAL;
   if (!strcmp(op, "!=")) return NOT_EQUAL;
   if (!strcmp(op, "<=")) return LESS_EQUAL;

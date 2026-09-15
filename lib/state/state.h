@@ -1,5 +1,12 @@
 #pragma once
 
+#include "types/flags.h"
+#include "types/input.h"
+#include "types/state.h"
+
+#include "input/flags.h"
+#include "input/input.h"
+
 #if defined(RUPA_PACKAGE_H)
 
 /**

@@ -1,12 +1,12 @@
 # Loop that accumulates value
 sum = 0
-for i in 5 {
-    sum = sum + i
+for i < 5 {
+  sum = sum + i
 }
-assertEq(sum, 10)
 # Another loop
+assertEq(sum, 10)
 product = 1
-for i in 4 {
-    product = product * (i + 1)
+for j < 4 {
+  product = product * (j + 1)
 }
 assertEq(product, 24)

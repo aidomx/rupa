@@ -1,10 +1,8 @@
 #include <rupa.h>
 
 static const char *cli_commands[] = {
-    "rupa <file>         - Run a Rupa script",
-    "-e <code>           - Execute code",
-    "--help|help         - Show this help",
-    "--help|help <topic> - Show topic module, test, etc",
+    "rupa <file>         - Run a Rupa script", "-e <code>           - Execute code",
+    "--help|help         - Show this help", "--help|help <topic> - Show topic module, test, etc",
     "--version           - Show version"};
 
 static const char *module_commands[] = {
@@ -22,17 +20,20 @@ static const char *module_commands[] = {
 static const char *test_commands[] = {
     "--test <file>       - Run syntax and execution tests",
     "--test-ast <file>   - Parse and show the AST",
+    "--test-ir <file>    - Parse, rewrite AST to IR, show the IR",
+    "--test-irexec <file> - Rewrite AST to IR, execute via IR machine",
     "--test-exec <file>  - Run execution tests with assertions",
     "--test-repl <file>  - Test multi-line REPL execution",
     "",
     "Examples:",
     "  rupa --test tests/syntax/module.rp",
+    "  rupa --test-ir tests/syntax/module.rp",
+    "  rupa --test-irexec tests/syntax/module.rp",
     "  rupa --test-exec tests/execution/*.rp"};
 
-static const char *repl_commands[] = {
-    ".clear for clear screen and history!",
-    ".editor enter editor mode (is not ready used!)", ".exit for exit the repl",
-    ".help for more information."};
+static const char *repl_commands[] = {".clear for clear screen and history!",
+                                      ".editor enter editor mode (is not ready used!)",
+                                      ".exit for exit the repl", ".help for more information."};
 
 static const char *formatVersion = "Rupa v%s";
 
@@ -60,7 +61,7 @@ void showModuleHelp() {
 
 void showTestHelp() {
   int length = sizeof(test_commands) / sizeof(test_commands[0]);
-  printf("Usage: rupa --test[-ast|-exec|-repl] <file>...\n\nTest commands:\n");
+  printf("Usage: rupa --test[-ast|-ir|-irexec|-exec|-repl] <file>...\n\nTest commands:\n");
   for (int i = 0; i < length; i++) {
     printf("  %s\n", test_commands[i]);
   }
@@ -83,6 +84,6 @@ void help(bool is_repl_mode) {
 
 void version() {
   printf(formatVersion, RUPA_VERSION);
-  printf("A general-purpose programming language\n");
+  printf("\nA general-purpose programming language\n");
   printf("\n");
 }

@@ -20,9 +20,14 @@ void printAst(Node *node, int index, int level) {
       printIndent(level + 2);
       printf("Key:\n");
       printAst(node, n->object.entries[i].key, level + 3);
-      printIndent(level + 2);
-      printf("Value:\n");
-      printAst(node, n->object.entries[i].value, level + 3);
+      if (n->object.entries[i].key == n->object.entries[i].value) {
+        printIndent(level + 2);
+        printf("Value: (shorthand)\n");
+      } else {
+        printIndent(level + 2);
+        printf("Value:\n");
+        printAst(node, n->object.entries[i].value, level + 3);
+      }
     }
     break;
   default:

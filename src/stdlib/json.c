@@ -164,7 +164,7 @@ static InterpreterResult jsonKeys(int argc, RuntimeValue *argv,
   for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
     count++;
 
-  RuntimeValue *items = calloc(count, sizeof(RuntimeValue));
+  RuntimeValue *items = gccalloc(count, sizeof(RuntimeValue));
   int i = 0;
   for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
     items[i++] = valueString(e->key ? e->key : "");
@@ -186,7 +186,7 @@ static InterpreterResult jsonValues(int argc, RuntimeValue *argv,
   for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
     count++;
 
-  RuntimeValue *items = calloc(count, sizeof(RuntimeValue));
+  RuntimeValue *items = gccalloc(count, sizeof(RuntimeValue));
   int i = 0;
   for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
     items[i++] = e->value;
@@ -206,8 +206,8 @@ static InterpreterResult jsonMerge(int argc, RuntimeValue *argv,
   struct RuntimeObjectEntry *entries = NULL, **tail = &entries;
   for (struct RuntimeObjectEntry *e = argv[0].as.object.entries; e;
        e = e->next) {
-    struct RuntimeObjectEntry *ne = calloc(1, sizeof(*ne));
-    ne->key = strdup(e->key ? e->key : "");
+    struct RuntimeObjectEntry *ne = gccalloc(1, sizeof(*ne));
+    ne->key = gcstrdup(e->key ? e->key : "");
     ne->value = e->value;
     *tail = ne;
     tail = &ne->next;
@@ -224,8 +224,8 @@ static InterpreterResult jsonMerge(int argc, RuntimeValue *argv,
       }
     }
     if (!found) {
-      struct RuntimeObjectEntry *ne = calloc(1, sizeof(*ne));
-      ne->key = strdup(e->key ? e->key : "");
+      struct RuntimeObjectEntry *ne = gccalloc(1, sizeof(*ne));
+      ne->key = gcstrdup(e->key ? e->key : "");
       ne->value = e->value;
       *tail = ne;
       tail = &ne->next;
@@ -281,10 +281,10 @@ static InterpreterResult jsonGet(int argc, RuntimeValue *argv,
 
 static void addEntry(struct RuntimeObjectEntry **head, const char *name,
                      NativeFn fn, int paramCount) {
-  struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
+  struct RuntimeObjectEntry *entry = gccalloc(1, sizeof(*entry));
   if (!entry)
     return;
-  entry->key = strdup(name);
+  entry->key = gcstrdup(name);
   entry->value = valueNativeFunction(name, fn, paramCount);
   entry->next = *head;
   *head = entry;

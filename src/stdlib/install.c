@@ -54,9 +54,9 @@ static int addLocalPackage(const char *packageName, const char *sourcePath, bool
                            const char *version) {
   const char *archivePath = global ? "~/.rupa/rupa_modules.tar.gz" : LOCAL_ARCHIVE;
 
-  char tempDir[MAX_TMPDIR_LENGTH];
+  char *tempDir = gccalloc(MAX_TMPDIR_LENGTH, sizeof(char));
   snprintf(tempDir, MAX_TMPDIR_LENGTH, "/tmp/rupa-add-%d", getpid());
-  char cmd[MAX_CMD_LENGTH];
+  char *cmd = gccalloc(MAX_CMD_LENGTH, sizeof(char));
 
   if (pathExists(archivePath)) {
     snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null",
@@ -67,7 +67,8 @@ static int addLocalPackage(const char *packageName, const char *sourcePath, bool
     system(cmd);
   }
 
-  char pkgDir[MAX_PKGDIR_LENGTH];
+  char *pkgDir = gccalloc(MAX_PKGDIR_LENGTH, sizeof(char));
+
   snprintf(pkgDir, MAX_PKGDIR_LENGTH, "%s/%s", tempDir, packageName);
 
   snprintf(cmd, MAX_CMD_LENGTH, "rm -rf \"%s\"", pkgDir);
@@ -81,7 +82,7 @@ static int addLocalPackage(const char *packageName, const char *sourcePath, bool
     return -1;
   }
 
-  char versionFile[MAX_VERSIONFILE_LENGTH];
+  char *versionFile = gccalloc(MAX_VERSIONFILE_LENGTH, sizeof(char));
   snprintf(versionFile, MAX_VERSIONFILE_LENGTH, "%s/.version", pkgDir);
   FILE *fp = fopen(versionFile, "w");
   if (fp) {
@@ -91,7 +92,7 @@ static int addLocalPackage(const char *packageName, const char *sourcePath, bool
 
   const char *lastSlash = strrchr(archivePath, '/');
   if (lastSlash) {
-    char archiveDir[1024];
+    char *archiveDir = gccalloc(MAX_ARCHIVE_LENGTH, sizeof(char));
     size_t dirLen = (size_t)(lastSlash - archivePath);
     strncpy(archiveDir, archivePath, dirLen);
     archiveDir[dirLen] = '\0';
@@ -126,14 +127,15 @@ static int removeLocalPackage(const char *packageName, bool global) {
     return 1;
   }
 
-  char tempDir[MAX_TMPDIR_LENGTH];
+  char *tempDir = gccalloc(MAX_TMPDIR_LENGTH, sizeof(char));
   snprintf(tempDir, MAX_TMPDIR_LENGTH, "/tmp/rupa-rm-%d", getpid());
   char cmd[MAX_CMD_LENGTH];
   snprintf(cmd, MAX_CMD_LENGTH, "mkdir -p \"%s\" && tar xzf \"%s\" -C \"%s\" 2>/dev/null", tempDir,
            archivePath, tempDir);
   system(cmd);
 
-  char pkgDir[MAX_PKGDIR_LENGTH];
+  char *pkgDir = gccalloc(MAX_PKGDIR_LENGTH, sizeof(char));
+
   snprintf(pkgDir, MAX_PKGDIR_LENGTH, "%s/%s", tempDir, packageName);
   struct stat st;
   if (stat(pkgDir, &st) != 0 || !S_ISDIR(st.st_mode)) {

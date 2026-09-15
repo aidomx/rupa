@@ -1,5 +1,7 @@
 #pragma once
 
+#include "editor_type.h"
+
 #include "core/buffer.h"
 #include "core/cursor.h"
 #include "core/mode.h"

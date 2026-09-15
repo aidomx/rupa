@@ -118,9 +118,9 @@ static InterpreterResult mathTan(int argc, RuntimeValue *argv, RuntimeEnv *env, 
 /* ==================== Module init ==================== */
 static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
                      int paramCount) {
-  struct RuntimeObjectEntry *entry = calloc(1, sizeof(*entry));
+  struct RuntimeObjectEntry *entry = gccalloc(1, sizeof(*entry));
   if (!entry) return;
-  entry->key = strdup(name);
+  entry->key = gcstrdup(name);
   entry->value = valueNativeFunction(name, fn, paramCount);
   entry->next = *head;
   *head = entry;

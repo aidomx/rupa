@@ -1,0 +1,7 @@
+request = true
+
+loader() {
+  print(this)
+}
+
+async request -> { loader, 5000 }

@@ -16,6 +16,8 @@ extern void execute(const char *code);
 /* test.c — syntax, exec, and REPL tests */
 extern void test(const char *paths[], int length);
 extern void testAst(const char *paths[], int length);
+extern void testIR(const char *paths[], int length);
+extern void testIRExec(const char *paths[], int length);
 extern void testExec(const char *paths[], int length);
 extern void testRepl(const char *paths[], int length);
 

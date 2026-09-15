@@ -1,4 +1,5 @@
 #pragma once
+#include "debug_type.h"
 #if defined(RUPA_PACKAGE_H)
 
 extern Debug debug;

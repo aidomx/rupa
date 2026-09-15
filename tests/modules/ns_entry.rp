@@ -1,0 +1,5 @@
+// Namespace declaration: fungsi module di-flatten ke namespace
+// 'math_utils' (docs/syntax/export.md §3 — namespace name { ... })
+namespace math_utils {
+  export add, subtract, multiply from ./ns
+}

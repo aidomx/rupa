@@ -1,4 +1,8 @@
 People {
-    name: string
-    age: number
+  name: string
+  age: number
 }
+
+people: People = {name: "rupa", age: 25}
+
+print("name: {{people.name}}\nage: {{people.age}}\n")

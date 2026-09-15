@@ -1,12 +1,13 @@
 #include <rupa.h>
 
 bool readfile(const char *path, Buffer *buffer) {
-  if (!path || !buffer || !buffer->value || buffer->capacity < 1)
-    return false;
+  if (!path || !buffer || !buffer->value || buffer->capacity < 1) return false;
 
   FILE *file = fopen(path, "rb");
   if (!file) {
-    fprintf(stderr, "File %s is not found\n", path);
+    char *p = gcdup(path);
+    getcwd(p, MAX_PATH_LENGTH);
+    fprintf(stderr, "Error: file %s/%s is not found\n", p, path);
     return false;
   }
 

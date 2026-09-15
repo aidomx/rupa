@@ -1,18 +1,39 @@
 #pragma once
-
 #if defined(RUPA_PACKAGE_H)
+/**
+ * @brief Informasi detail untuk error reporting.
+ *
+ * Menyimpan pesan error, kode error, dan lokasi (line, row).
+ */
+struct ErrorInfo {
+  const char *file;
+  const char *code;
+  char *message;
+  int line;
+  int row;
+  ErrorType type;
+};
+
+/**
+ * @brief Kumpulan error information.
+ *
+ * Array untuk menyimpan multiple error information.
+ */
+struct Error {
+  struct ErrorInfo *info;
+  int capacity;
+  int size;
+};
 
 Error *createError(int capacity);
 void addError(Error *error, ErrorInfo errorInfo);
-void addRuntimeError(Error *error, ErrorType type, const char *expected,
-                     const char *actual);
+void addRuntimeError(Error *error, ErrorType type, const char *expected, const char *actual);
 void printErrors(const Error *error);
-void addSourceError(Error *error, const char *code, const char *message,
-                    int line, int row, ErrorType type);
-void addSourceErrorAt(Error *error, const char *code, const char *message,
-                      const char *source, int pos, ErrorType type);
+void addSourceError(Error *error, const char *code, const char *message, int line, int row,
+                    ErrorType type);
+void addSourceErrorAt(Error *error, const char *code, const char *message, const char *source,
+                      int pos, ErrorType type);
 void setRuntimeErrorLocation(int line, int row);
-ErrorInfo setErrorInfo(const char *code, char *message, int line, int row,
-                       ErrorType type);
+ErrorInfo setErrorInfo(const char *code, char *message, int line, int row, ErrorType type);
 
 #endif

@@ -7,7 +7,14 @@ x++
 x--
 x += 5
 x -= 3
+x *= 2
+x /= 4
+x %= 3
 ```
+
+Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`) didukung penuh di
+interpreter, mesin IR, dan formatter. `x += v` ekuivalen dengan
+`x = x OP v`, termasuk string: `s += "b"` menggabungkan string.
 
 ## Kapan digunakan?
 

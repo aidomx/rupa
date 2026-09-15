@@ -1,8 +1,13 @@
 #pragma once
 
-#include "../stdlib/io.h"
-#include "../stdlib/os.h"
-#include "../stdlib/string.h"
+#include "crypto.h"
+#include "datetime.h"
+#include "io.h"
+#include "net.h"
+#include "os.h"
+#include "regex.h"
+#include "string.h"
+#include "test_helper.h"
 
 /* ---- HTTP Module (shared between http_server.c and http_client.c) ---- */
 #define MAX_SERVERS 8

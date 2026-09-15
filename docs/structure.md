@@ -10,7 +10,7 @@ rupa-v22/
 │
 ├── lib/                          # Headers & type definitions
 │   ├── intl.h                    # Central include hub (includes all lib/)
-│   ├── forward.h                 # Forward declarations
+│   ├── forward.h                 # Forward declarations (enum, struct)
 │   ├── stdlib.h                  # Standard library C headers
 │   │
 │   ├── core/                     # Enums, constants, macros
@@ -20,15 +20,16 @@ rupa-v22/
 │   │   ├── enum_context.h        # Runtime context types
 │   │   ├── enum_debug.h          # Debug mode flags
 │   │   ├── enum_editor.h         # Editor mode types
-│   │   ├── enum_error.h          # Error code types
+│   │   ├── enum_error.h         # Error code types
 │   │   ├── enum_except.h         # Exception types
 │   │   ├── enum_flag.h           # Runtime flag types
 │   │   ├── enum_interpreter.h    # Interpreter state types
+│   │   ├── enum_ir.h             # IR opcode & value types
 │   │   ├── enum_keyword.h        # Keyword token types
 │   │   ├── enum_mod.h            # Module design baru (ModEntryKind, ModType)
 │   │   ├── enum_node.h           # AST node types
 │   │   ├── enum_program.h        # Program phase types
-│   │   ├── enum_token.h          # Token types
+│   │   ├── enum_token.h          # Token types (termasuk compound +=, -=, dst)
 │   │   ├── enum_value.h          # Runtime value types
 │   │   ├── enum_variable.h       # Variable scope types
 │   │   ├── keys.h                # Keyboard key definitions
@@ -37,93 +38,85 @@ rupa-v22/
 │   │   ├── manifest.h            # Version & build info
 │   │   └── platform.h            # Platform detection
 │   │
-│   ├── types/                    # Type struct definitions
-│   │   ├── compiler/             # Compiler types
-│   │   │   ├── compiler.h
-│   │   │   ├── parser/           # ast.h (termasuk AstMod design baru), node.h
-│   │   │   ├── interpreter/      # Runtime interpreter types
-│   │   │   ├── lexer/            # Lexer types
-│   │   │   └── semantic/         # Symbol & eventloop types
-│   │   ├── debug/debug.h
-│   │   ├── editor/editor.h
-│   │   ├── repl/repl.h
-│   │   ├── runtime/
-│   │   │   ├── context.h
-│   │   │   ├── flags.h
-│   │   │   ├── function.h
-│   │   │   ├── gc.h
-│   │   │   ├── input.h
-│   │   │   ├── io.h
-│   │   │   ├── keyword.h
-│   │   │   └── validation.h
-│   │   ├── state/state.h
-│   │   └── support/
-│   │       ├── atom.h
-│   │       ├── posix.h
-│   │       ├── symbol.h
-│   │       └── system.h
-│   │
 │   ├── compiler/                 # Compiler header interfaces
-│   │   ├── compiler.h
-│   │   ├── formatter/formatter.h
-│   │   ├── interpreter/
-│   │   │   ├── annotation.h
-│   │   │   ├── eval.h
+│   │   ├── compiler.h            # Master include compiler
+│   │   ├── interpreter/          # Struct + fn decl interpreter
+│   │   │   ├── value.h           # RuntimeValue, RuntimeArray, NativeFn
+│   │   │   ├── result.h          # InterpreterResult & flow
+│   │   │   ├── function.h        # RuntimeFunction (closure AST)
+│   │   │   ├── eval.h            # interpretNode & eval API
+│   │   │   ├── text.h            # valueTextOf, valueBinaryApply (dipakai IR)
 │   │   │   ├── interpreter.h
 │   │   │   ├── runtime.h
-│   │   │   ├── debug/debug_ast.h, print_ast.h, print_ast_shared.h
+│   │   │   ├── annotation.h
+│   │   │   ├── debug/            # debug_ast.h, print_ast.h, print_ast_shared.h
 │   │   │   ├── error/error.h
 │   │   │   └── statement/loop.h
-│   │   ├── lexer/lexer.h
-│   │   │   └── processor/processor.h
+│   │   ├── ir/                   # IR pipeline (AST → IR → Execute)
+│   │   │   ├── ir.h              # IRModule, IRInstruction, IRValue
+│   │   │   ├── rewrite.h         # rewrite() AST → IR
+│   │   │   ├── execute.h         # executeIR() mesin IR
+│   │   │   └── debug.h           # IR printer
+│   │   ├── lexer/lexer.h         # DataToken, LexerState
 │   │   ├── parser/
-│   │   │   ├── ast/ast.h, assignment.h, expression.h, operator.h, processor.h
-│   │   │   ├── grammar/grammar.h, array/array.h
-│   │   │   ├── node.h
+│   │   │   ├── ast/ast.h         # AstNode & semua struct Ast* (nempel fn decl)
+│   │   │   ├── node.h, node_type.h
 │   │   │   ├── parser.h
+│   │   │   ├── grammar/grammar.h, array/array.h
 │   │   │   └── token/token.h
-│   │   └── semantic/symbol.h
+│   │   └── semantic/
+│   │       ├── symbol.h          # RuntimeEnv, RuntimeBinding
+│   │       ├── analyzer.h        # Registry struct + validasi type (struct-first)
+│   │       ├── value.h
+│   │       └── eventloop.h       # EventLoop async
 │   │
+│   ├── formatter/formatter.h     # Formatter struct + API
 │   ├── runtime/                  # Runtime header interfaces
 │   │   ├── runtime.h
 │   │   ├── context/context.h
-│   │   ├── gc/gc.h
-│   │   ├── input/flags.h, input.h
-│   │   ├── keyword/keyword.h
-│   │   └── validation/validation.h
+│   │   ├── gc/gc.h               # GC allocator (gcmall, gcstrdup, ...)
+│   │   └── io/io.h
 │   │
 │   ├── editor/                   # Editor header interfaces
-│   │   ├── editor.h
+│   │   ├── editor.h, editor_type.h
 │   │   ├── core/buffer.h, cursor.h, mode.h
 │   │   ├── display/drawer.h, refresh.h, terminal.h
 │   │   └── operations/editorState.h, history.h, indent.h, reset.h
 │   │
-│   ├── stdlib/                   # Stdlib header interfaces
-│   │   ├── io.h, os.h, string.h, test_helper.h
+│   ├── state/                    # State header interfaces
+│   │   ├── state.h
+│   │   ├── types/state.h, input.h, flags.h
+│   │   └── input/input.h, flags.h
 │   │
-│   ├── modules/rupa_modules.h    # Module system header
-│   ├── prompt/prompt.h           # Prompt header
-│   ├── repl/repl.h               # REPL header
-│   ├── debug/debug.h             # Debug header
-│   ├── state/state.h             # State header
+│   ├── modules/                  # Module headers (per modul native)
+│   │   ├── rupa_modules.h        # Master include modul
+│   │   ├── crypto.h, datetime.h, io.h, net.h
+│   │   ├── os.h, regex.h, string.h, test_helper.h
+│   │
+├── prompt/prompt.h           # Prompt header
+│   ├── repl/repl.h, repl_type.h  # REPL header
+│   ├── debug/debug.h, debug_type.h
 │   └── utils/                    # Utility headers
+│       ├── utils.h
 │       ├── atom.h, identifier.h, numbers.h, strings.h
+│       └── types/atom.h, posix.h, symbol.h, support.h, system.h
 │
 ├── src/                          # Implementation (C source)
 │   ├── main.c                    # Entry point
 │   │
 │   ├── bootstrap/                # File loading & bootstrapping
 │   │   └── loader.c
-││   │   ├── compiler/                 # Compiler pipeline
-│   │   ├── formatter/               # Code formatter (modular)
-│   │   │   ├── formatter.c          # Entry points (formatFile/String/Stdin)
-│   │   │   ├── format_helpers.c     # fmtIndent, fmtStr, fmtChar, fmtNewline
-│   │   │   ├── format_node.c        # Atom nodes
-│   │   │   ├── format_expr.c        # Expressions
-│   │   │   ├── format_stmt.c        # Statements (incl. import/export)
-│   │   │   ├── format_dispatch.c    # fmtNode main switch
-│   │   │   └── format_comment.c     # Comment formatting
-│   │   │
+│   │
+│   ├── formatter/                # Code formatter (modular, top-level)
+│   │   ├── formatter.c             # Entry points (formatFile/String/Stdin)
+│   │   ├── format_helpers.c        # fmtIndent, fmtStr, fmtChar, fmtNewline
+│   │   ├── format_node.c           # Atom nodes
+│   │   ├── format_expr.c           # Expressions (incl. compound +=, -=, dst)
+│   │   ├── format_stmt.c           # Statements (incl. import/export/namespace)
+│   │   ├── format_dispatch.c       # fmtNode main switch
+│   │   └── format_comment.c        # Comment formatting
+│   │
+│   ├── compiler/                 # Compiler pipeline
 │   │   ├── lexer/                # Tokenizer
 │   │   │   ├── lexer.c, factory.c, operations.c, support.c
 │   │   │   └── processor/
@@ -167,7 +160,7 @@ rupa-v22/
 │   │   │   │   ├── grammar_print.c         # print()
 │   │   │   │   ├── grammar_return.c        # return
 │   │   │   │   ├── grammar_struct.c        # struct
-│   │   │   │   ├── grammar_update.c        # ++, --
+│   │   │   │   ├── grammar_update.c        # ++, -- dan compound +=, -=, *=, /=, %=
 │   │   │   │   └── array/array.c           # Array grammar
 │   │   │   │
 │   │   │   ├── node/             # AST node utilities
@@ -179,6 +172,12 @@ rupa-v22/
 │   │   │   │   ├── save.c, symbol.c, type.c
 │   │   │   │
 │   │   │   └── parser.h          # Parser entry
+│   │   │
+│   │   ├── ir/                   # IR pipeline (AST → IR → Execute)
+│   │   │   ├── ir.c              # IR builders & module
+│   │   │   ├── rewrite.c         # rewrite() AST → IR
+│   │   │   ├── execute.c         # executeIR() mesin IR (stack machine)
+│   │   │   └── debug.c           # IR printer (--test-ir)
 │   │   │
 │   │   ├── interpreter/          # AST interpreter
 │   │   │   ├── interpreter.c             # Main dispatch
@@ -200,7 +199,7 @@ rupa-v22/
 │   │   │   │   ├── object.c              # Object literal
 │   │   │   │   ├── string_interp.c       # String interpolation
 │   │   │   │   ├── subscript.c           # arr[i]
-│   │   │   │   └── update.c              # ++, --
+│   │   │   │   └── update.c              # ++, -- dan compound +=, -=, dst
 │   │   │   ├── function/                 # Function handling
 │   │   │   │   ├── call.c                # Function call
 │   │   │   │   └── declaration.c         # Function declaration
@@ -214,7 +213,9 @@ rupa-v22/
 │   │   │
 │   │   └── semantic/             # Semantic analysis
 │   │       ├── eventloop.c       # Async event loop
-│   │       └── symbol.c          # Symbol table
+│   │       ├── symbol.c          # Symbol table
+│   │       └── analyzer.c        # Registry struct + validasi assignment/annotation
+│   │                             # + shorthand object literal {name, health}
 │   │
 │   ├── editor/                   # TUI editor
 │   │   ├── editor.c
@@ -271,24 +272,24 @@ rupa-v22/
 │   └── utils/strings.c           # String utilities
 │
 ├── tests/                        # Test files
-│   ├── syntax/                   # Syntax tests (53 files)
+│   ├── syntax/                   # Syntax tests (46 files)
 │   │   ├── annotation.rp, array.rp, assignment.rp, async.rp, ...
-│   │   ├── database/             # DB test modules
 │   │   └── modules/              # Test module files (a.rp, b.rp, ...)
 │   │
 │   ├── ast/                      # AST structure tests (8 files)
 │   │   ├── async.rp, binary_chain.rp, complex_array.rp, ...
 │   │
-│   ├── execution/                # Execution tests (26 files)
+│   ├── execution/                # Execution tests (29 files)
 │   │   ├── array_ops.rp, basic_arithmetic.rp, ...
-│   │   └── repl_*.rp             # REPL-specific tests
+│   │   └── repl_*.rp             # REPL-specific tests (18 files)
 │   │
 │   ├── semantics/                # Semantic analysis tests (6 files)
 │   │   ├── function_param_types.rp, type_annotation_basic.rp, ...
 │   │
-│   ├── modules/                  # Module tests
+│   ├── formatter/                # Formatter tests
+│   ├── modules/                  # Module tests (20 files)
 │   │   ├── math/, json/, collections/, strings/, thread/
-│   │   ├── dbtest/, crypto/, datetime/, net/, regex/
+│   │   └── dbtest/, crypto/, datetime/, net/, regex/
 │   │
 │   └── stress/stress tests
 │
@@ -386,6 +387,13 @@ rupa-v22/
             └──────────┬──────────┘
                        ▼
             ┌─────────────────────┐
+            │    IR Pipeline      │
+            │ src/compiler/ir/    │
+            │  rewrite.c (AST→IR) │
+            │  execute.c (mesin)  │
+            └──────────┬──────────┘
+                       ▼
+            ┌─────────────────────┐
             │   Runtime System    │
             │  src/runtime/       │
             │  GC, Context, IO    │
@@ -407,10 +415,12 @@ rupa-v22/
 | `lib/`          | Header files & type definitions                          |
 | `lib/intl.h`    | Central include hub                                      |
 | `lib/core/`     | Enums, constants, macros                                 |
-| `lib/types/`    | Struct definitions                                       |
+| `lib/compiler/` | Struct types menempel header fn decl compiler            |
 | `lib/modules/`  | Module system header                                     |
 | `src/`          | Implementation files                                     |
-| `src/compiler/` | Lexer → Parser → Interpreter pipeline                    |
+| `src/compiler/` | Lexer → Parser → Interpreter + IR pipeline               |
+| `src/compiler/ir/` | rewrite (AST→IR) & execute (mesin IR)                 |
+| `src/formatter/` | Formatter modular (top-level)                           |
 | `src/stdlib/`   | C-implemented standard library modules                   |
 | `src/runtime/`  | GC, context, input, validation                           |
 | `src/editor/`   | TUI editor (buffer, cursor, display)                     |
@@ -418,4 +428,10 @@ rupa-v22/
 | `tests/`        | Test suites (syntax, ast, execution, semantics, modules) |
 | `modules/`      | Packaged Rupa modules (tar.gz)                           |
 | `docs/`         | Documentation (syntax, grammar, modules)                 |
+
+> **Struktur lib (rencana):** struct types sekarang menempel langsung
+> pada header fn decl masing-masing (contoh: `RuntimeValue` di
+> `lib/compiler/interpreter/value.h`) — `lib/types/` sudah tidak ada.
+> Langkah berikutnya memisahkan ke `lib/compiler/enums/*.h` (enum dari
+> `lib/core/`) dan `lib/compiler/types/*.h` (types dari header fn decl).
 | `commands/`     | Build & development scripts                              |
