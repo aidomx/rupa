@@ -92,6 +92,15 @@ void fmtNode(Formatter *f, Node *node, int id) {
   case NODE_CLASS_DECL:
     fmtClassDecl(f, node, id);
     break;
+  case NODE_MARKER:
+    /* @name (mis. @created): AT + nama + statement berikutnya. */
+    fmtStr(f, "@");
+    if (n->asClass.name >= 0) fmtNode(f, node, n->asClass.name);
+    if (n->asClass.body >= 0) {
+      fmtNewline(f);
+      fmtNode(f, node, n->asClass.body);
+    }
+    break;
   case NODE_MOD:
     fmtMod(f, node, id);
     break;

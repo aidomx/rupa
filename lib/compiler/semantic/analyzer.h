@@ -28,6 +28,19 @@ void analyzerReset(void);
  * Semua string didup via gcstrdup (dikelola GC, tanpa free manual). */
 bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
                            int count);
+bool analyzerDeclareClass(const char *name, const struct StructField *fields,
+                          int count);
+bool analyzerDeclareType(const char *name, const struct StructField *fields,
+                         int count, bool isClass);
+
+/* Nama ini class terdaftar (NODE_CLASS_DECL)? Dispatch instantiation
+ * `c = Counter({...})` hanya untuk class, bukan struct murni. */
+bool analyzerIsClass(const char *name);
+const char *analyzerClassParent(const char *name); /* NULL bila tanpa extends */
+bool analyzerDeclareClassExt(const char *name, const struct StructField *fields,
+                             int count, const char *parent);
+bool analyzerDeclareTypeExt(const char *name, const struct StructField *fields,
+                            int count, bool isClass, const char *parent);
 
 /* Struct terdaftar dengan nama ini? */
 bool analyzerFindStruct(const char *name);

@@ -52,6 +52,9 @@ static const char *getDeclNeedle(Node *node, int nodeId) {
     return getDeclNeedle(node, n->asStruct.name);
   case NODE_CLASS_DECL:
     return getDeclNeedle(node, n->asClass.name);
+  case NODE_MARKER:
+    /* @created — format sebagai statement: needle nama marker. */
+    return n->asClass.name >= 0 ? getDeclNeedle(node, n->asClass.name) : "@";
   case NODE_MOD:
     return n->mod.type == ImportDecl ? "import" : "export";
   case NODE_EXTENDS:
@@ -203,15 +206,25 @@ static int runFormat(State *state, Formatter *fmt) {
 
   AstNode *prog = &node->ast[root];
   AstDeclaration *current = prog->program.declarations;
-  if (!current) return 0; /* Collect declarations */
 #define MAX_DECLS 256
   int declIds[MAX_DECLS];
   int declCount = 0;
   {
     AstDeclaration *d = current;
     while (d && declCount < MAX_DECLS) {
-      declIds[declCount] = d->nodeId;
-      declCount++;
+      AstNode *decl = &node->ast[d->nodeId];
+      /*
+       * Comments are source decorations, not formatting boundaries.
+       * They are emitted by the source scanner so their physical position
+       * (including blank lines) is preserved exactly once. Keeping comment
+       * nodes in declIds makes every comment rescan the same source window,
+       * which duplicates comments/blank lines when several top-level
+       * comments precede the first real declaration.
+       */
+      if (decl->type != NODE_COMMENT && decl->type != NODE_INLINE_COMMENT &&
+          decl->type != NODE_BLOCK_COMMENT) {
+        declIds[declCount++] = d->nodeId;
+      }
       d = d->next;
     }
   }
@@ -235,21 +248,6 @@ static int runFormat(State *state, Formatter *fmt) {
     if (needle) {
       declStart = findDeclStart(src, srcPos, srcLen, needle);
     }
-    /* For comment declarations without a needle, find the next non-comment
-     * declaration's needle so we only scan source up to that point. */
-    if (declStart < 0) {
-      for (int j = d + 1; j < declCount; j++) {
-        AstNode *jn = &node->ast[declIds[j]];
-        if (jn->type == NODE_COMMENT || jn->type == NODE_INLINE_COMMENT ||
-            jn->type == NODE_BLOCK_COMMENT)
-          continue;
-        const char *jnNeedle = getDeclNeedle(node, declIds[j]);
-        if (jnNeedle) {
-          declStart = findDeclStart(src, srcPos, srcLen, jnNeedle);
-        }
-        break;
-      }
-    }
     if (declStart < 0) declStart = srcLen; /* fallback: no more source */
 
     /* Output comments and blank lines between srcPos and declStart */
@@ -265,12 +263,22 @@ static int runFormat(State *state, Formatter *fmt) {
       }
 
       if (c == '\n') {
+        /* Newlines inside the source body of the declaration being skipped
+         * are already represented by fmtNode(). Only top-level newlines are
+         * separators between declarations and therefore belong to this
+         * source-preservation pass. */
+        if (braceDepthBefore(src, srcPos) != 0) {
+          srcPos++;
+          continue;
+        }
+
         /* Check if next non-space char is also \n (blank line) */
         int peek = srcPos + 1;
         while (peek < srcLen && (src[peek] == ' ' || src[peek] == '\t'))
           peek++;
         if (peek < srcLen && src[peek] == '\n') {
-          /* Blank line — flush pending, lalu preserve blank */
+          /* Blank line — preserve it only after the declaration terminator
+           * has been emitted. */
           if (fmt->pendingNewline) {
             fprintf(fmt->out, "\n");
             fmt->pendingNewline = 0;
@@ -278,7 +286,8 @@ static int runFormat(State *state, Formatter *fmt) {
           fmtNewline(fmt);
           srcPos = peek + 1;
         } else {
-          /* Regular newline — flush pending newline deklarasi */
+          /* Regular top-level newline: it terminates the formatted
+           * declaration, so flush its deferred newline. */
           srcPos++;
           if (fmt->pendingNewline) {
             fprintf(fmt->out, "\n");
@@ -312,17 +321,6 @@ static int runFormat(State *state, Formatter *fmt) {
 
       /* Found code — skip it (part of previous declaration) */
       srcPos++;
-    }
-
-    /* Skip comment declarations - already output by source scanning */
-    AstNode *declNode = &node->ast[declIds[d]];
-    if (declNode->type == NODE_COMMENT || declNode->type == NODE_INLINE_COMMENT ||
-        declNode->type == NODE_BLOCK_COMMENT) {
-      /* Advance srcPos past this declaration's needle in source */
-      if (needle && declStart >= 0) {
-        srcPos = declStart + strlen(needle);
-      }
-      continue;
     }
 
     /* Output formatted declaration — trailing newline DITUNDA agar

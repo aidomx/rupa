@@ -221,6 +221,7 @@ int grammarParseFunction(struct Request *r, int a, int b, int limit, int *pos);
  */
 int grammarParseStruct(struct Request *r, int a, int b, int limit, int *pos);
 int grammarParseClass(struct Request *r, int a, int b, int limit, int *pos);
+int grammarParseMarker(struct Request *r, int a, int b, int limit, int *pos);
 
 /* ====================== Grammar annotation & assignment ==================== */
 

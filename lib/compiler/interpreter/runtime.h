@@ -11,6 +11,9 @@ RuntimeValue valueArray(RuntimeValue *items, int length);
 RuntimeValue valueFunction(RuntimeFunction *function);
 RuntimeValue valueObject(struct RuntimeObjectEntry *entries);
 RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount);
+/* Write-back binding utk member call native (mis. o.set(...)): nama
+ * binding receiver di env asal — setelah call, native menulis kembali
+ * receiver ke binding ini (object disalin by value saat bind). */
 RuntimeValue valuePtr(void *ptr);
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out);
 bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value);

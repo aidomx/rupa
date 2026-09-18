@@ -10,6 +10,9 @@ extern void showTestHelp(void);
 extern void showFmtHelp(void);
 extern void version(void);
 
+/* compile class */
+extern int goCompile(const char *paths[], int length);
+
 /* runner.c — file & code execution */
 extern int run(const char *paths[], int length);
 extern void execute(const char *code);

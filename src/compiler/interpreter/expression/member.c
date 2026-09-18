@@ -1,5 +1,37 @@
 #include <rupa.h>
 
+/* this.get("key") — akses field generic pada object penerima (argv[0]). */
+static InterpreterResult stdObjectGet(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                      Error *error) {
+  (void)env;
+  (void)error;
+  if (argc < 2 || argv[0].type != VALUE_OBJECT ||
+      argv[1].type != VALUE_STRING || !argv[1].as.string)
+    return resultNormal(valueNull());
+  RuntimeValue out = valueNull();
+  valueObjectGet(argv[0], argv[1].as.string, &out);
+  return resultNormal(out);
+}
+
+/* Hapus anchor implisit (key "") dari hasil — dipakai valueObjectSet
+ * consumer yang tidak boleh melihat metadata list. */
+
+/* this.set({k: v, ...}) — tulis field ke object penerima (argv[0]).
+ * Object literal argumen menentukan field yang ditulis; set(null) pada
+ * field = kosongkan. Return: object penerima (chainable). */
+static InterpreterResult stdObjectSet(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                      Error *error) {
+  (void)env;
+  (void)error;
+  if (argc < 2 || argv[0].type != VALUE_OBJECT || argv[1].type != VALUE_OBJECT)
+    return resultNormal(argv[0]);
+  for (struct RuntimeObjectEntry *e = argv[1].as.object.entries; e; e = e->next) {
+    if (!e->key || !*e->key) continue; /* skip anchor implisit */
+    valueObjectSet(&argv[0], e->key, e->value);
+  }
+  return resultNormal(argv[0]);
+}
+
 static const char *memberName(Node *node, int id) {
   if (!node || id < 0 || id >= node->length) return NULL;
   AstNode *ast = &node->ast[id];
@@ -10,6 +42,35 @@ static const char *memberName(Node *node, int id) {
 
 InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Error *error) {
   if (!node || !ast || ast->type != NODE_MEMBER) return resultNormal(valueNull());
+
+  /* super dispatch (design/new_class.txt langkah 3): `super.method(...)`
+   * atau `super.field` di dalam method class — receiver `super` di-bind
+   * interpretCall sebagai prototype class induk. Kalau binding itu tak
+   * ada (bukan member call / tanpa extends), fallback: this → instance
+   * dengan lookup method yang DILEWATI override anak (method anak
+   * ditandai override — lihat interpretCall). */
+  if (ast->member.object >= 0 && ast->member.object < node->length) {
+    AstNode *o = &node->ast[ast->member.object];
+    if (o->type == NODE_IDENTIFIER && o->identifier.name &&
+        !strcmp(o->identifier.name, "super")) {
+      RuntimeValue sp = valueNull();
+      if (semGet(env, "super", &sp) && sp.type == VALUE_OBJECT) {
+        const char *key = memberName(node, ast->member.member);
+        RuntimeValue val = valueNull();
+        if (key && valueObjectGet(sp, key, &val))
+          return resultNormal(val);
+        return resultNormal(valueNull());
+      }
+      /* Tidak ada binding super (mis. dipakai di luar method) —
+       * error yang jelas. */
+      if (error)
+        addError(error, (ErrorInfo){.code = "ReferenceError",
+                                    .message = "super requires a class that extends",
+                                    .line = 0, .row = 0,
+                                    .type = ERR_UNDEFINED_VAR});
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+  }
 
   InterpreterResult obj = interpretNode(node, ast->member.object, env, error);
   if (obj.flow != FLOW_NORMAL) return obj;
@@ -29,6 +90,37 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
   if (obj.value.type == VALUE_OBJECT) {
     RuntimeValue val;
     if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
+    /* this.get("key") / this.set({...}) — accessor generic pada this
+     * (design/new_class.txt contoh). get: argumen nama field; set:
+     * object literal field yang ditulis. */
+    if (key && (!strcmp(key, "get") || !strcmp(key, "set"))) {
+      RuntimeValue method = valueNativeFunction(
+          key, !strcmp(key, "get") ? stdObjectGet : stdObjectSet, 1);
+      method.as.nativeFunc->hasReceiver = true;
+      method.as.nativeFunc->receiver = gcmall(sizeof(RuntimeValue));
+      if (method.as.nativeFunc->receiver) {
+        *method.as.nativeFunc->receiver = obj.value;
+        /* Write-back: receiver object disalin by value — set() menambah
+         * field via anchor di salinan. Simpan nama binding receiver bila
+         * ada (o.set / this.set) supaya native bisa semSet kembali.
+         * this binding: this di frame method sudah menunjuk instance
+         * yang sama (tail shared), jadi cukup untuk nama top-level. */
+        if (ast->member.object >= 0 && ast->member.object < node->length) {
+          AstNode *bo = &node->ast[ast->member.object];
+          const char *bn = bo->type == NODE_IDENTIFIER     ? bo->identifier.name
+                           : bo->type == NODE_LITERAL_ID ? bo->string.value
+                                                         : NULL;
+          if (bn) {
+            RuntimeValue probe = valueNull();
+            if (strcmp(bn, "this") == 0 || semGet(env, bn, &probe)) {
+              method.as.nativeFunc->bindingName = gcstrdup(bn);
+              method.as.nativeFunc->bindingEnv = env;
+            }
+          }
+        }
+      }
+      return resultNormal(method);
+    }
     return resultNormal(valueNull());
   }
 

@@ -1,5 +1,6 @@
 add(x: number, y: number) {
-    return x + y
+  return x + y
 }
 
-add(1, 2)
+x = add(1, 2)
+print(x)

@@ -1,0 +1,21 @@
+# class + this + construct (design/new_class.txt langkah 2)
+CounterType {
+  value: number
+}
+
+Counter: CounterType {
+  construct() {
+    this.set({value: 0})
+  }
+
+  increment() {
+    this.value = this.value + 1
+    return this.get("value")
+  }
+}
+
+Counter.increment()
+Counter.increment()
+print(Counter.value)
+print(Counter.increment())
+print(Counter.get("value"))

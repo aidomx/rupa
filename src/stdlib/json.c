@@ -161,13 +161,17 @@ static InterpreterResult jsonKeys(int argc, RuntimeValue *argv,
     return jsonTypeError(error, "json.keys() expects an object");
 
   int count = 0;
-  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next) {
+    if (e->key && e->key[0] == '\0') continue; /* anchor implisit */
     count++;
+  }
 
   RuntimeValue *items = gccalloc(count, sizeof(RuntimeValue));
   int i = 0;
-  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next) {
+    if (e->key && e->key[0] == '\0') continue;
     items[i++] = valueString(e->key ? e->key : "");
+  }
 
   return resultNormal(valueArray(items, count));
 }
@@ -183,13 +187,17 @@ static InterpreterResult jsonValues(int argc, RuntimeValue *argv,
     return jsonTypeError(error, "json.values() expects an object");
 
   int count = 0;
-  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next) {
+    if (e->key && e->key[0] == '\0') continue; /* anchor implisit */
     count++;
+  }
 
   RuntimeValue *items = gccalloc(count, sizeof(RuntimeValue));
   int i = 0;
-  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next)
+  for (struct RuntimeObjectEntry *e = obj.as.object.entries; e; e = e->next) {
+    if (e->key && e->key[0] == '\0') continue;
     items[i++] = e->value;
+  }
 
   return resultNormal(valueArray(items, count));
 }

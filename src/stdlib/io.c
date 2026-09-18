@@ -7,9 +7,15 @@ extern struct termios rupaterm;
 /* Track whether raw mode was ever enabled */
 static bool rawModeActive = false;
 
+/* ioInput dibuka non-static: dipakai juga oleh sistem @input class
+ * (design/new_class.txt poin 5) — input.get("field") membaca stdin
+ * dengan prompt dari spec handler @input. */
+InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
+                              RuntimeEnv *env, Error *error);
+
 /* ==================== io.input(prompt?) ==================== */
-static InterpreterResult ioInput(int argc, RuntimeValue *argv,
-                                 RuntimeEnv *env, Error *error) {
+InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
+                              RuntimeEnv *env, Error *error) {
   /* Print prompt if provided */
   if (argc >= 1 && argv[0].type == VALUE_STRING && argv[0].as.string) {
     printf("%s", argv[0].as.string);
@@ -84,7 +90,7 @@ InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
                             Error *error) {
   struct RuntimeObjectEntry *entries = NULL;
 
-  addEntry(&entries, "input", ioInput, 0);
+  addEntry(&entries, "input", rupaIoInput, 0);
   addEntry(&entries, "toNumber", ioToNumber, 1);
 
   return resultNormal(valueObject(entries));

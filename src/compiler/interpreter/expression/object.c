@@ -8,6 +8,22 @@ InterpreterResult interpretObject(Node *node, AstNode *ast, RuntimeEnv *env,
   struct RuntimeObjectEntry *head = NULL;
   struct RuntimeObjectEntry *tail = NULL;
 
+  /* Object kosong ({}) tetap dapat ANCHOR entry implisit (key ""):
+   * valueObjectSet meng-append field baru ke tail list yang shared —
+   * tanpa anchor, field pertama menulis head di salinan RuntimeValue
+   * (receiver .set, this binding) dan tidak pernah terlihat binding
+   * asal (`o = {}; o.set({a: 1})` kehilangan `a`). Anchor disembunyikan
+   * dari print/equality (key ""). */
+  {
+    struct RuntimeObjectEntry *anchor = gccalloc(1, sizeof(*anchor));
+    if (!anchor) return resultNormal(valueNull());
+    anchor->key = gcstrdup("");
+    anchor->value = valueNull();
+    anchor->next = NULL;
+    head = anchor;
+    tail = anchor;
+  }
+
   for (int i = 0; i < ast->object.length; i++) {
     int keyId = ast->object.entries[i].key;
     int valId = ast->object.entries[i].value;

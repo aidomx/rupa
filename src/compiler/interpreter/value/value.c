@@ -252,8 +252,12 @@ void valuePrint(RuntimeValue value) {
     bool first = true;
     putchar('{');
     for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
-      /* Skip hidden _private metadata */
-      if (e->key && strcmp(e->key, "_private") == 0) continue;
+      /* Skip hidden metadata: anchor implisit + _private + class registry. */
+      if (e->key && (e->key[0] == '\0' ||
+                     strcmp(e->key, "_private") == 0 ||
+                     strcmp(e->key, "_class") == 0 ||
+                     strcmp(e->key, "_created") == 0))
+        continue;
       if (!first) printf(", ");
       printf("%s: ", e->key ? e->key : "?");
       valuePrint(e->value);
@@ -370,13 +374,34 @@ bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value) {
       e->value = value;
       return true;
     }
-  /* Add new entry */
+  /* Add new entry — APPEND, bukan prepend: RuntimeValue disalin by value
+   * di banyak titik (call frame, this binding, member assign), jadi
+   * mengganti head list hanya terlihat di salinan. Append menyambung
+   * node baru ke TAIL list yang shared — mutasi terlihat di semua salinan
+   * (mis. `this.value = v` dari dalam method harus persist ke instance).
+   *
+   * Object KOSONG (entries == NULL) mendapat anchor entry implisit "":
+   * node pertama setelahnya disambung ke anchor yang DILIHAT SEMUA
+   * SALINAN — receiver yang di-copy sebelum field pertama ditulis
+   * (mis. `o = {}; o.set({a: 1})`, this binding) tetap melihat field.
+   * Anchor disembunyikan dari print/equality. */
+  if (!obj->as.object.entries) {
+    struct RuntimeObjectEntry *anchor = gccalloc(1, sizeof(*anchor));
+    if (!anchor) return false;
+    anchor->key = gcstrdup("");
+    anchor->value = valueNull();
+    anchor->next = NULL;
+    obj->as.object.entries = anchor;
+  }
   struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
   if (!e) return false;
   e->key = gcstrdup(key);
   e->value = value;
-  e->next = obj->as.object.entries;
-  obj->as.object.entries = e;
+  e->next = NULL;
+  struct RuntimeObjectEntry *tail = obj->as.object.entries;
+  while (tail->next)
+    tail = tail->next;
+  tail->next = e;
   return true;
 }
 

@@ -78,6 +78,19 @@ bool memoryPinViewCheck(Node *node, int valueId, const char *type, Error *error)
  * `new number()` lowercase bentrok dengan `x: number`. */
 InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
                                 bool *handled);
+/* instance.c — instantiation class `new ClassName(args)` (design/new_class.txt):
+ * hook di interpretCall SEBELUM memoryNewCall; mengambil alih hanya bila
+ * arg[0] new adalah nama CLASS terdaftar (NODE_CLASS_DECL). Tanpa kaitan
+ * manajemen memori — class adalah object runtime, bukan blok memori. */
+InterpreterResult instanceNewCall(Node *node, AstNode *ast, RuntimeEnv *env,
+                                  Error *error, bool *handled);
+/* input.c — sistem @input class (design/new_class.txt poin 5):
+ * marker @input mengaktifkan main.input: Input; handler @input
+ * mendeklarasikan strict field yang boleh diinput via input.get(). */
+void inputSpecReset(void);
+void inputSpecRegister(RuntimeValue spec);
+bool inputSpecActive(void);
+RuntimeValue inputCreateObject(void);
 InterpreterResult memoryDelCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
                                 bool *handled);
 /* x[i] baca/tulis elemen handle (scalar = blok 1 elemen). *handled

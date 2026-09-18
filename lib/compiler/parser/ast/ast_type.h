@@ -240,8 +240,9 @@ struct AstStructDecl {
  * kini terekam di AST (sebelumnya dibuang parser struct). */
 struct AstClassDecl {
   int name;
-  int type;
+  int type;  /* -1 tanpa `: Type` (class via extends) */
   int body;
+  int parent; /* -1 tanpa extends; else parent class name node */
 };
 
 struct AstAnnotation {

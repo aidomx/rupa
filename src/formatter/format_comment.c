@@ -9,13 +9,24 @@
 /* Output a line, stripping \r and converting \t to spaces. */
 static void fmtCleanLine(FILE *out, const char *s, int len) {
   for (int i = 0; i < len; i++) {
-    if (s[i] == '\r')
-      continue;
+    if (s[i] == '\r') continue;
     if (s[i] == '\t')
       fprintf(out, "    ");
     else
       fputc(s[i], out);
   }
+}
+
+static void fmtHashComment(FILE *out, const char *source, int *pos, int length) {
+  int start = *pos;
+  while (*pos < length && source[*pos] != '\n')
+    (*pos)++;
+  /* Strip trailing \r */
+  int end = *pos;
+  while (end > start && source[end - 1] == '\r')
+    end--;
+  fprintf(out, "%.*s", end - start, source + start);
+  fputc('\n', out);
 }
 
 void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
@@ -24,14 +35,7 @@ void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
 
   /* Single-line comment: # */
   if (c == '#') {
-    int start = *pos;
-    while (*pos < length && source[*pos] != '\n')
-      (*pos)++;
-    /* Strip trailing \r */
-    int end = *pos;
-    while (end > start && source[end - 1] == '\r')
-      end--;
-    fprintf(out, "%.*s\n", end - start, source + start);
+    fmtHashComment(out, source, pos, length);
     return;
   }
 
@@ -61,8 +65,7 @@ void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
       (*pos)++;
     }
     /* If unterminated, advance to end */
-    if (*pos > length)
-      *pos = length;
+    if (*pos > length) *pos = length;
 
     int commentLen = *pos - start;
 
@@ -79,8 +82,8 @@ void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
     if (!hasNewline) {
       /* Single-line block comment: output as-is, strip \r */
       int outLen = commentLen;
-      while (outLen > 0 && (source[start + outLen - 1] == '\n' ||
-                            source[start + outLen - 1] == '\r'))
+      while (outLen > 0 &&
+             (source[start + outLen - 1] == '\n' || source[start + outLen - 1] == '\r'))
         outLen--;
       fmtCleanLine(out, source + start, outLen);
       fputc('\n', out);
@@ -96,8 +99,7 @@ void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
       char ch = (i < commentLen) ? source[start + i] : '\n';
       if (ch == '\n' || ch == '\r') {
         /* Skip \r before \n */
-        if (ch == '\r' && i + 1 < commentLen && source[start + i + 1] == '\n')
-          i++;
+        if (ch == '\r' && i + 1 < commentLen && source[start + i + 1] == '\n') i++;
         int lineLen = i - lineStart;
         const char *line = source + start + lineStart;
 
@@ -109,12 +111,10 @@ void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
         } else {
           /* Trim leading whitespace (space, tab, \r) */
           int p = 0;
-          while (p < lineLen && (line[p] == ' ' || line[p] == '\t' ||
-                                line[p] == '\r'))
+          while (p < lineLen && (line[p] == ' ' || line[p] == '\t' || line[p] == '\r'))
             p++;
 
-          if (p < lineLen && line[p] == '*' && p + 1 < lineLen &&
-              line[p + 1] == '/') {
+          if (p < lineLen && line[p] == '*' && p + 1 < lineLen && line[p + 1] == '/') {
             /* Closing star-slash -- output with leading space */
             fprintf(out, " */\n");
           } else if (p < lineLen && line[p] == '*') {

@@ -1,0 +1,38 @@
+# @input marker (design/new_class.txt poin 5).
+# - `@input` di atas method MENGAKTIFKAN main.input: Input.
+# - Return value handler = deklarasi strict field yang boleh diinput
+#   (key = nama field, value = prompt string).
+# - `input.get("...")` STRICT: field di luar deklarasi = ReferenceError.
+# - construct dengan param `input` menerima object Input saat
+#   instantiation; construct ber-param input tidak jalan saat deklarasi
+#   class (belum ada program yang memakai).
+#
+# Test ini deterministic tanpa stdin interaktif: handler dijalankan,
+# spec terdaftar; get tidak dipanggil di sini (butuh stdin), yang
+# diverifikasi hanya struktur + lifecycle handler.
+
+import io
+
+MonsterType {
+  name: string
+  health: number
+}
+
+Monster: MonsterType {
+  construct(input: Input) {
+    this.set({
+      name: input.get("name"),
+      health: io.toNumber(input.get("health"))
+    })
+  }
+
+  @input
+  handler() {
+    return {
+      name: "Input monster name: ",
+      health: "Input monster health: "
+    }
+  }
+}
+
+print("ready")

@@ -31,6 +31,16 @@ InterpreterResult interpretStruct(Node *node, AstNode *ast, RuntimeEnv *env,
                                    Error *error);
 InterpreterResult interpretClass(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error);
+
+/* Panggil construct(args) pada instance class — args optional (null =
+ * tanpa args). Dipakai interpretClass (deklarasi) dan interpretCall
+ * (instantiation `Counter({...})`). */
+void classRunLifecycle(Node *node, RuntimeValue instance, RuntimeEnv *env,
+                       Error *error, RuntimeValue args);
+void classRunConstructExt(Node *node, RuntimeValue instance, RuntimeEnv *env,
+                          Error *error, RuntimeValue args, bool allowInput);
+void classRunConstruct(Node *node, RuntimeValue instance, RuntimeEnv *env,
+                       Error *error, RuntimeValue args);
 InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
                                         RuntimeEnv *env, Error *error);
 

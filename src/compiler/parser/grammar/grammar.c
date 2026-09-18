@@ -51,6 +51,8 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
    * `Name {}` polos. */
   if ((id = grammarParseClass(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseStruct(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+  /* @marker (`@created`) — setelah decl grammar; wraps statement berikutnya. */
+  if ((id = grammarParseMarker(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseConditionalAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;

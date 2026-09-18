@@ -166,6 +166,19 @@ bool printStructuralAst(Node *node, int index, int level) {
       printf("Type:\n");
       printAst(node, n->asClass.type, level + 2);
     }
+    if (n->asClass.parent >= 0) {
+      printIndent(level + 1);
+      printf("Parent:\n");
+      printAst(node, n->asClass.parent, level + 2);
+    }
+    if (n->asClass.body >= 0)
+      printAst(node, n->asClass.body, level + 1);
+    return true;
+  case NODE_MARKER:
+    printIndent(level);
+    printf("Marker:\n");
+    if (n->asClass.name >= 0)
+      printAst(node, n->asClass.name, level + 1);
     if (n->asClass.body >= 0)
       printAst(node, n->asClass.body, level + 1);
     return true;

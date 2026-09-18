@@ -10,6 +10,12 @@ static bool object_property(State *state) {
   StateContext *ctx = state ? state->context : NULL;
   if (!ctx || ctx->objectDepth <= 0 || ctx->brace < ctx->objectDepth) return false;
 
+  /* Di dalam () / [] (call args, array element), objectDepth menandakan
+   * object literal — `a: 1` adalah property separator, BUKAN annotation
+   * (tanpa ini, properti object dalam call args multiline terparse
+   * sebagai Annotation statement terpisah dan object-nya kosong). */
+  if (ctx->paren > 0 || ctx->bracket > 0) return true;
+
   /* Inside an object literal, an identifier followed by ':' is always a
      property separator. Type annotations belong to declarations/parameters,
      not object properties. */

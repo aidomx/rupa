@@ -1,0 +1,46 @@
+# extends + super + @created (design/new_class.txt langkah 3).
+# - `Goblin extends Monster {}` — extends otomatis menandai class
+#   (orientasi presentation, bukan derivation).
+# - Method induk yang tidak dioverride diwarisi; method anak menang.
+# - `super.method()` dispatch ke class induk; `super.construct()` sah
+#   di dalam construct.
+# - `@created` — method ber-marker dipanggil saat instantiation
+#   `new ClassName()` (bukan saat deklarasi class).
+
+MonsterType {
+  name: string
+}
+
+Monster: MonsterType {
+  construct() {
+    this.set({name: "generic"})
+  }
+  describe() {
+    return "Monster: " + this.name
+  }
+  @created
+  activate() {
+    this.set({active: true})
+  }
+}
+
+Goblin extends Monster {
+  construct() {
+    super.construct()
+    this.set({name: "goblin"})
+  }
+  describe() {
+    return "Goblin; parent: " + super.describe()
+  }
+}
+
+g = new Goblin()
+print(g.describe())
+print(g.name)
+
+# @created induk terwarisi: g.activate() jalan saat new Goblin()
+print(g.active)
+
+# @created class tanpa extends
+m = new Monster()
+print(m.active)

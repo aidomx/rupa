@@ -84,6 +84,7 @@ void fmtIf(Formatter *f, Node *node, int id) {
     }
   }
 }
+
 void fmtLoop(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtStr(f, n->loop.kind);
@@ -167,14 +168,18 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
   fmtStr(f, "}");
 }
 
-/* Class decl (design/new_class.txt): `Monster: MonsterType { ... }` —
- * anotasi `: Type` dipertahankan di output (penanda class). */
+/* Class decl (design/new_class.txt): `Monster: MonsterType { ... }` atau
+ * `main extends Monster { ... }` — anotasi `: Type` / extends
+ * dipertahankan di output (penanda class). */
 void fmtClassDecl(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtNode(f, node, n->asClass.name);
   if (n->asClass.type >= 0) {
     fmtStr(f, ": ");
     fmtNode(f, node, n->asClass.type);
+  } else if (n->asClass.parent >= 0) {
+    fmtStr(f, " extends ");
+    fmtNode(f, node, n->asClass.parent);
   }
   fmtSep(f);
   fmtChar(f, '{');

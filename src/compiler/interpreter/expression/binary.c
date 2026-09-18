@@ -108,6 +108,8 @@ static char *textOf(RuntimeValue value) {
     bool first = true;
     for (struct RuntimeObjectEntry *e = value.as.object.entries; e;
          e = e->next) {
+      /* Skip anchor implisit (key "") — metadata internal list. */
+      if (e->key && e->key[0] == '\0') continue;
       if (!first) bufAppend(&buf, &len, &cap, ", ");
       first = false;
       bufAppend(&buf, &len, &cap, e->key ? e->key : "null");

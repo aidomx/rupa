@@ -115,6 +115,8 @@ int createFunctionDecl(struct Node *root, int name, int *params, int paramLength
                        int returnType);
 int createStructDecl(struct Node *root, int name, int body);
 int createClassDecl(struct Node *root, int name, int typeId, int body);
+int createClassDeclExt(struct Node *root, int name, int typeId, int body, int parent);
+int createMarker(struct Node *root, int name, int value);
 int createAnnotation(struct Node *root, int name, int type, int value);
 int createModule(struct Node *root, enum NodeType type, int value, int name);
 

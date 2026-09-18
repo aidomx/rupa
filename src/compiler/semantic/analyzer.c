@@ -13,6 +13,8 @@ struct StructLayout {
   char *name;
   struct StructField *fields;
   int count;
+  bool isClass; /* true = dideklarasi via NODE_CLASS_DECL (bisa di-instantiate) */
+  char *parent; /* nama class induk (extends), NULL jika tidak ada */
   struct StructLayout *next;
 };
 
@@ -27,6 +29,25 @@ bool analyzerFindStruct(const char *name) {
   return false;
 }
 
+/* Nama ini class terdaftar (NODE_CLASS_DECL)? Dipakai dispatch
+ * instantiation `new ClassName(args)` — hanya class yang bisa
+ * di-instantiate, struct murni data tidak. */
+bool analyzerIsClass(const char *name) {
+  if (!name) return false;
+  for (struct StructLayout *l = g_layouts; l; l = l->next)
+    if (!strcmp(l->name, name)) return l->isClass;
+  return false;
+}
+
+/* Nama class induk (extends) — NULL bila tidak ada / bukan class.
+ * Dipakai super dispatch dan pewarisan method instance. */
+const char *analyzerClassParent(const char *name) {
+  if (!name) return NULL;
+  for (struct StructLayout *l = g_layouts; l; l = l->next)
+    if (!strcmp(l->name, name)) return l->isClass ? l->parent : NULL;
+  return NULL;
+}
+
 static struct StructLayout *layoutFind(const char *name) {
   if (!name) return NULL;
   for (struct StructLayout *l = g_layouts; l; l = l->next)
@@ -36,6 +57,28 @@ static struct StructLayout *layoutFind(const char *name) {
 
 bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
                            int count) {
+  return analyzerDeclareType(name, fields, count, false);
+}
+
+/* Varian untuk NODE_CLASS_DECL — menandai layout sebagai class
+ * (bisa di-instantiate via `Name({...})`). */
+bool analyzerDeclareClass(const char *name, const struct StructField *fields,
+                          int count) {
+  return analyzerDeclareType(name, fields, count, true);
+}
+
+bool analyzerDeclareType(const char *name, const struct StructField *fields,
+                         int count, bool isClass) {
+  return analyzerDeclareTypeExt(name, fields, count, isClass, NULL);
+}
+
+bool analyzerDeclareClassExt(const char *name, const struct StructField *fields,
+                             int count, const char *parent) {
+  return analyzerDeclareTypeExt(name, fields, count, true, parent);
+}
+
+bool analyzerDeclareTypeExt(const char *name, const struct StructField *fields,
+                            int count, bool isClass, const char *parent) {
   if (!name || !*name) return false;
 
   struct StructLayout *existing = layoutFind(name);
@@ -43,6 +86,8 @@ bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
     /* Redeclare: ganti layout (GC akan mengevop yang lama). */
     existing->fields = NULL;
     existing->count = 0;
+    existing->isClass = isClass;
+    existing->parent = parent && *parent ? gcstrdup(parent) : NULL;
     if (fields && count > 0) {
       struct StructField *copy = gcmall(sizeof(*copy) * (size_t)count);
       if (!copy) return false;
@@ -62,6 +107,8 @@ bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
   l->name = gcstrdup(name);
   l->fields = NULL;
   l->count = 0;
+  l->isClass = isClass;
+  l->parent = parent && *parent ? gcstrdup(parent) : NULL;
   if (fields && count > 0) {
     struct StructField *copy = gcmall(sizeof(*copy) * (size_t)count);
     if (!copy) return false;
@@ -78,7 +125,9 @@ bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
   return true;
 }
 
-/* Scalar: number/string/boolean/decimal/array/object/function/null/ptr/void.
+/* Scalar: number/string/boolean/decimal/array/object/function/null/ptr/void
+ * + unknown (value apa pun — tipe data tidak diketahui; dipakai mis. untuk
+ * args variadik `construct(args: unknown[])` atau kontrak "terima apa pun").
  * void hanya sah sebagai return-type annotation — matchesScalar menolak
  * value apa pun untuk void (fungsi void tidak mengembalikan nilai). */
 static bool isScalarType(const char *type) {
@@ -87,7 +136,8 @@ static bool isScalarType(const char *type) {
          !strcmp(type, "string") || !strcmp(type, "boolean") ||
          !strcmp(type, "array") || !strcmp(type, "object") ||
          !strcmp(type, "null") || !strcmp(type, "function") ||
-         !strcmp(type, "ptr") || !strcmp(type, "void");
+         !strcmp(type, "ptr") || !strcmp(type, "void") ||
+         !strcmp(type, "unknown");
 }
 
 /* Tipe selain scalar bawaan harus struct terdaftar — kalau tidak,
@@ -124,6 +174,9 @@ static bool matchesScalar(const char *type, RuntimeValue value) {
   if (!strcmp(type, "function"))
     return value.type == VALUE_FUNCTION || value.type == VALUE_NATIVE_FUNCTION;
   if (!strcmp(type, "ptr")) return value.type == VALUE_PTR || value.type == VALUE_NULL;
+  /* unknown: tipe data tidak diketahui — menerima value apa pun
+   * (termasuk null). Kontrak lemah, dipakai untuk args variadik. */
+  if (!strcmp(type, "unknown")) return true;
   return true; /* tipe tak dikenal: biarkan (behavior lama) */
 }
 
@@ -171,8 +224,10 @@ bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error) {
     }
   }
 
-  /* Field tambahan di luar kontrak juga ditolak. */
+  /* Field tambahan di luar kontrak juga ditolak. Anchor implisit
+   * (key "") dari object kosong di-skip — metadata internal list. */
   for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
+    if (e->key && e->key[0] == '\0') continue;
     bool known = false;
     for (int i = 0; i < l->count; i++) {
       if (!strcmp(e->key, l->fields[i].name)) {
@@ -254,7 +309,8 @@ static int scalarTypeSize(const char *type) {
   if (!strcmp(type, "string")) return (int)sizeof(char *);
   if (!strcmp(type, "ptr")) return (int)sizeof(void *);
   if (!strcmp(type, "array") || !strcmp(type, "object") ||
-      !strcmp(type, "function") || !strcmp(type, "null"))
+      !strcmp(type, "function") || !strcmp(type, "null") ||
+      !strcmp(type, "unknown"))
     return (int)sizeof(void *);
   return -1;
 }

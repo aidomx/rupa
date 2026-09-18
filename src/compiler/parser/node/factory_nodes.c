@@ -210,10 +210,27 @@ int createStructDecl(Node *root, int name, int body) {
 }
 
 int createClassDecl(Node *root, int name, int typeId, int body) {
+  return createClassDeclExt(root, name, typeId, body, -1);
+}
+
+/* Varian extends (design/new_class.txt): `main extends Monster {}` —
+ * extends otomatis menandai class; parent = nama induk. */
+int createClassDeclExt(Node *root, int name, int typeId, int body, int parent) {
   AstNode n = {.type = NODE_CLASS_DECL};
   n.asClass.name = name;
   n.asClass.type = typeId;
   n.asClass.body = body;
+  n.asClass.parent = parent;
+  return createAst(root, n);
+}
+
+/* @name marker (NODE_MARKER): method marker `@created` — parent = nama
+ * marker (node atom), body = value expression yang mengikutinya (-1 jika
+ * tidak ada). */
+int createMarker(Node *root, int name, int value) {
+  AstNode n = {.type = NODE_MARKER};
+  n.asClass.name = name;
+  n.asClass.body = value;
   return createAst(root, n);
 }
 

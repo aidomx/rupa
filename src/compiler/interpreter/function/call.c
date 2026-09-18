@@ -239,6 +239,39 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
 
   /* new T()/del(x) — type-driven memory (design/new_memory.txt):
    * arg pertama `new` nama tipe (tidak dievaluasi), del free variadic. */
+  /* super dispatch (design/new_class.txt langkah 3): member call
+   * `super.m(...)` di dalam method class. Binding HARUS terjadi sebelum
+   * callee dievaluasi (interpretMember membaca binding "super").
+   * this = instance anak (dari frame method yang membungkus),
+   * super = prototype class induk dari env. */
+  if (ast->call.callee >= 0 && ast->call.callee < node->length) {
+    AstNode *ce = &node->ast[ast->call.callee];
+    if (ce->type == NODE_MEMBER && ce->member.object >= 0 &&
+        ce->member.object < node->length) {
+      AstNode *o = &node->ast[ce->member.object];
+      if (o->type == NODE_IDENTIFIER && o->identifier.name &&
+          !strcmp(o->identifier.name, "super")) {
+        RuntimeValue thiz = valueNull();
+        if (semGet(env, "this", &thiz) && thiz.type == VALUE_OBJECT) {
+          RuntimeValue cls = valueNull();
+          if (valueObjectGet(thiz, "_class", &cls) &&
+              cls.type == VALUE_STRING && cls.as.string) {
+            const char *pn = analyzerClassParent(cls.as.string);
+            RuntimeValue pinst = valueNull();
+            if (pn && semGet(env, pn, &pinst) && pinst.type == VALUE_OBJECT)
+              semSet(env, "super", pinst);
+          }
+        }
+      }
+    }
+  }
+
+  /* Instantiation class `new Counter(args)` — SEBELUM new memori:
+   * nama class bukan tipe memori, hook ini yang mengambil alih. */
+  bool instHandled = false;
+  InterpreterResult instResult = instanceNewCall(node, ast, env, error, &instHandled);
+  if (instHandled) return instResult;
+
   bool newHandled = false;
   InterpreterResult newResult = memoryNewCall(node, ast, env, error, &newHandled);
   if (newHandled) return newResult;
@@ -279,6 +312,12 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
       argv[i + offset] = arg.value;
     }
     InterpreterResult result = nf->func(argc, argv, env, error);
+    /* Write-back receiver (mis. o.set({a:1}) pada object kosong):
+     * receiver disalin by value ke argv[0]; mutasi field pertama via
+     * anchor terjadi di salinan. Tulis kembali ke binding asal supaya
+     * terlihat (o.x = 5 sudah begitu via interpretMemberAssign). */
+    if (nf->hasReceiver && nf->bindingName && nf->bindingEnv && argv[0].type == VALUE_OBJECT)
+      semSet((RuntimeEnv *)nf->bindingEnv, nf->bindingName, argv[0]);
     free(argv);
     return result;
   }
@@ -324,6 +363,18 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
     if (arg.flow != FLOW_NORMAL) return arg;
     const char *name = paramName(function->node, function->params[i]);
     if (name) semSet(local, name, arg.value);
+  }
+
+  /* this binding (design/new_class.txt langkah 2): member call pada
+   * instance object (`Monster.method(...)`) mengikat `this` = object
+   * penerima di call frame, sehingga method mengakses instance via this. */
+  if (ast->call.callee >= 0 && ast->call.callee < node->length) {
+    AstNode *calleeAst = &node->ast[ast->call.callee];
+    if (calleeAst->type == NODE_MEMBER) {
+      InterpreterResult recv = interpretNode(node, calleeAst->member.object, env, error);
+      if (recv.flow == FLOW_NORMAL && recv.value.type == VALUE_OBJECT)
+        semSet(local, "this", recv.value);
+    }
   }
 
   InterpreterResult result = interpretNode(function->node, function->body, local, error);

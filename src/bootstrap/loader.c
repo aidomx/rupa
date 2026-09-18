@@ -80,6 +80,12 @@ int loader(const char *args[], int length) {
       break;
     }
 
+    else if (strcmp(args[i], "go") == 0) {
+      handled = true;
+      autorun = false;
+      break;
+    }
+
     else if (strcmp(args[i], "fmt") == 0) {
       int result = 0;
       if (i + 1 >= length) {

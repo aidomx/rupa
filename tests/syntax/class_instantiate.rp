@@ -1,0 +1,35 @@
+# Class instantiation — `new ClassName(args)`.
+# `new` di sini hook khusus class (instance.c), terpisah dari `new T()`
+# memori (Contract/Number). Tanpa `new`, nama class tidak bisa dipanggil
+# (tidak ambigu dengan function biasa).
+
+CounterType {
+  value: number
+}
+
+Counter: CounterType {
+  # args optional: `args: unknown[]` — tipe unknown menerima value apa pun;
+  # args.length untuk cek ada tidaknya argumen.
+  construct(args: unknown[]) {
+    if args.length > 0: this.set(args[0])
+    else: this.set({value: 0})
+  }
+  increment() {
+    this.value = this.value + 1
+    return this.value
+  }
+}
+
+# Dengan args
+c = new Counter({value: 1})
+print(c.increment())
+print(c.increment())
+
+# Tanpa args — construct tetap dipanggil, args = array kosong
+d = new Counter()
+print(d.value)
+
+# Instance terpisah — mutasi c tidak menyentuh d
+c.increment()
+print(c.value)
+print(d.value)

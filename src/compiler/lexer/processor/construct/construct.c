@@ -224,6 +224,30 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       continue;
     }
 
+    if (c == '@') {
+      /* Marker method (design/new_class.txt poin 4/5): `@created` —
+       * emit AT lalu identifier yang mengikutinya sebagai LITERAL_ID.
+       * Grammar (@grammar_marker.c) yang menyusun NODE_MARKER. */
+      addDelim(state->tokens, '@', NULL, state->input->line, p);
+      int q = p + 1;
+      while (q < end && (s[q] == ' ' || s[q] == '\t' || s[q] == '\r'))
+        q++;
+      int we = q;
+      while (we < end && (isalnum((unsigned char)s[we]) || s[we] == '_'))
+        we++;
+      if (we == q)
+        return -1; /* @ tanpa nama */
+      char *name = substring(s, q, we);
+      if (!name)
+        return -1;
+      addToken(state->tokens, createDataToken(name, NULL, LITERAL_ID,
+                                              state->input->line, q));
+      gcfree(name);
+      p = we;
+      expectValue = false;
+      continue;
+    }
+
     int next = p;
     if (strchr("()[]{}:,;", c)) {
       /* processDelimiter() mutates expectValue as a side effect (e.g. for
@@ -254,7 +278,14 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
               (previous == IDENTIFIER && paren == 0 && !state->input->flags->isAssignment)
                   ? 1
                   : ctx->inStruct;
-          ctx->objectDepth = (previous == ASSIGN || wasExpectingValue) ? brace : ctx->objectDepth;
+          /* objectDepth GUGUS: object literal { di dalam () / [] (call
+           * args, array elemen) juga harus menyerap newline — tanpa ini
+           * properti `a: 1` multiline dibaca sebagai ANNOTATION statement
+           * terpisah (bug: `o.set({\n a: 1\n})` hilang). Juga set saat
+           * `wasExpectingValue` (value position) apapun delimiter luar. */
+          ctx->objectDepth = (previous == ASSIGN || wasExpectingValue || paren > 0 || bracket > 0)
+                                 ? brace
+                                 : ctx->objectDepth;
           if (ctx->inStruct) state->input->flags->isStructDecl = true;
         } else if (c == ':') {
           /* A colon inside an object is a property separator, not a

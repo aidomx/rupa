@@ -23,6 +23,13 @@ struct RuntimeNativeFunction {
   int paramCount;
   bool hasReceiver;
   struct RuntimeValue *receiver;
+  /* Write-back (mis. o.set({a:1}) pada object kosong): nama binding
+   * receiver di env asal + env itu sendiri. Setelah call, interpretCall
+   * menulis receiver hasil kembali ke binding ini — receiver object
+   * disalin by value saat bind, anchor field pertama tidak terlihat
+   * binding asal tanpa write-back. */
+  char *bindingName;
+  void *bindingEnv;
 };
 
 struct RuntimeValue {
