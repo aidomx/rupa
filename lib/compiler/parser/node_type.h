@@ -33,10 +33,10 @@ struct Identifier {
 /**
  * @brief Number structure.
  *
- * Menyimpan nilai numerik.
+ * Menyimpan nilai numerik (64-bit, number rupa sekarang long long).
  */
 struct Number {
-  int value;
+  long long value;
 };
 
 /**

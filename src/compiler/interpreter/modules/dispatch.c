@@ -491,6 +491,7 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_LOOP:
   case NODE_CASE:
   case NODE_STRUCT_DECL:
+  case NODE_CLASS_DECL:
   case NODE_MEMBER_ASSIGN:
     return interpretStatement(n, id, e, x);
   case NODE_COMMENT:

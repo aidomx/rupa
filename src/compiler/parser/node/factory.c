@@ -113,7 +113,7 @@ int createId(Node *root, char *name) {
 /**
  * Membuat node number literal.
  */
-int createNumber(Node *root, int value) {
+int createNumber(Node *root, long long value) {
   AstNode node = {.type = NODE_NUMBER, .number.value = value};
   return createAst(root, node);
 }

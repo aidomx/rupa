@@ -242,7 +242,8 @@ rupa-v22/
 │   ├── runtime/                  # Runtime system
 │   │   ├── context/
 │   │   │   ├── context.c, create.c
-│   │   ├── gc/gc.c              # Garbage collector
+│   │   ├── gc/gc.c              # Garbage collector (registry & alokasi)
+│   │   ├── gc/gc_extra.c        # GC utilities (dup family, memcpy/memset)
 │   │   ├── input/
 │   │   │   ├── cleaner.c, create.c, flags.c, input.c
 │   │   ├── io/readfile.c         # File I/O
@@ -253,6 +254,8 @@ rupa-v22/
 │   │
 │   ├── stdlib/                   # Standard library (C functions)
 │   │   ├── stdlib.c              # Module registration
+│   │   ├── builtins.c            # type/len/isNull/toNumber/toString + memory init
+│   │   ├── rupamemory.c          # sizeof, pin family (pin/elpin/repin/repins)
 │   │   ├── http_client.c         # HTTP client (curl)
 │   │   ├── http_server.c         # HTTP server (POSIX sockets)
 │   │   ├── io.c                  # input(), toNumber()

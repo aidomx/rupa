@@ -191,12 +191,14 @@ int createLoop(Node *root, const char *kind, int condition, int body) {
   return createAst(root, n);
 }
 
-int createFunctionDecl(Node *root, int name, int *params, int paramLength, int body) {
+int createFunctionDecl(Node *root, int name, int *params, int paramLength, int body,
+                       int returnType) {
   AstNode n = {.type = NODE_FUNCTION_DECL};
   n.function.name = name;
   n.function.params = copyIds(params, paramLength);
   n.function.paramLength = paramLength;
   n.function.body = body;
+  n.function.returnType = returnType;
   return createAst(root, n);
 }
 
@@ -204,6 +206,14 @@ int createStructDecl(Node *root, int name, int body) {
   AstNode n = {.type = NODE_STRUCT_DECL};
   n.asStruct.name = name;
   n.asStruct.body = body;
+  return createAst(root, n);
+}
+
+int createClassDecl(Node *root, int name, int typeId, int body) {
+  AstNode n = {.type = NODE_CLASS_DECL};
+  n.asClass.name = name;
+  n.asClass.type = typeId;
+  n.asClass.body = body;
   return createAst(root, n);
 }
 

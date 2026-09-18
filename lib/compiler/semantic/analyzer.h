@@ -44,6 +44,19 @@ bool analyzerCheckType(const char *type, RuntimeValue value, Error *error);
  * struct / array-of-struct). */
 bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error);
 
+/* Ukuran representasi struct terdaftar (jumlah ukuran field, rekursif
+ * untuk struct bertingkat). Return false bila tak terdaftar. Dipakai
+ * rupamemorySizeOf untuk sizeof(Struct). */
+bool analyzerStructSizeOf(const char *name, int *outSize);
+
+/* Member access pada handle ptr (design/new_memory.txt, C3): offset
+ * byte + tipe field dalam struct terdaftar (layout = urut deklarasi,
+ * tanpa padding — konsisten dengan analyzerStructSizeOf). */
+bool analyzerFieldOffset(const char *structName, const char *fieldName, int *outOffset,
+                         char *outType, size_t typeCapacity);
+bool analyzerFieldType(const char *structName, const char *fieldName, char *outType,
+                       size_t capacity);
+
 /* Tempel posisi source (line/row dari AST node) ke error runtime yang
  * akan dibuat — agar TypeError menunjuk baris yang benar. */
 void analyzerSetErrorLocation(Node *node, int typeId);

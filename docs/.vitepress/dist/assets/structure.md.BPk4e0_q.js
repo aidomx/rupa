@@ -239,7 +239,8 @@ import{_ as n,o as a,c as p,a0 as e}from"./chunks/framework.BpJS36ta.js";const u
 <span class="line"><span>│   ├── runtime/                  # Runtime system</span></span>
 <span class="line"><span>│   │   ├── context/</span></span>
 <span class="line"><span>│   │   │   ├── context.c, create.c</span></span>
-<span class="line"><span>│   │   ├── gc/gc.c              # Garbage collector</span></span>
+<span class="line"><span>│   │   ├── gc/gc.c              # Garbage collector (registry &amp; alokasi)</span></span>
+<span class="line"><span>│   │   ├── gc/gc_extra.c        # GC utilities (dup family, memcpy/memset)</span></span>
 <span class="line"><span>│   │   ├── input/</span></span>
 <span class="line"><span>│   │   │   ├── cleaner.c, create.c, flags.c, input.c</span></span>
 <span class="line"><span>│   │   ├── io/readfile.c         # File I/O</span></span>
@@ -250,6 +251,8 @@ import{_ as n,o as a,c as p,a0 as e}from"./chunks/framework.BpJS36ta.js";const u
 <span class="line"><span>│   │</span></span>
 <span class="line"><span>│   ├── stdlib/                   # Standard library (C functions)</span></span>
 <span class="line"><span>│   │   ├── stdlib.c              # Module registration</span></span>
+<span class="line"><span>│   │   ├── builtins.c            # type/len/isNull/toNumber/toString + memory init</span></span>
+<span class="line"><span>│   │   ├── rupamemory.c          # sizeof, pin family (pin/elpin/repin/repins)</span></span>
 <span class="line"><span>│   │   ├── http_client.c         # HTTP client (curl)</span></span>
 <span class="line"><span>│   │   ├── http_server.c         # HTTP server (POSIX sockets)</span></span>
 <span class="line"><span>│   │   ├── io.c                  # input(), toNumber()</span></span>

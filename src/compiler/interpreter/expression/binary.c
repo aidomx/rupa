@@ -1,16 +1,23 @@
 #include <rupa.h>
+#include <math.h>
 
 static bool numeric(RuntimeValue value) {
   return value.type == VALUE_NUMBER || value.type == VALUE_DECIMAL;
 }
 static double numberOf(RuntimeValue value) {
-  return value.type == VALUE_DECIMAL ? value.as.decimal : value.as.number;
+  return value.type == VALUE_DECIMAL ? value.as.decimal : (double)value.as.number;
 }
 static RuntimeValue numericResult(RuntimeValue left, RuntimeValue right,
                                   double value) {
-  return left.type == VALUE_NUMBER && right.type == VALUE_NUMBER
-             ? valueNumber((int)value)
-             : valueDecimal(value);
+  /* number 64-bit: keduanya VALUE_NUMBER -> kembalikan number,
+   * selama hasilnya masih mewakili integer di range long long. */
+  if (left.type == VALUE_NUMBER && right.type == VALUE_NUMBER) {
+    if (isfinite(value) && floor(value) == value &&
+        value >= -(double)LLONG_MAX && value <= (double)LLONG_MAX)
+      return valueNumber((long long)value);
+    return valueDecimal(value);
+  }
+  return valueDecimal(value);
 }
 static char *textOf(RuntimeValue value);
 
@@ -83,7 +90,7 @@ static char *textOf(RuntimeValue value) {
   case VALUE_STRING:
     return strdup(value.as.string ? value.as.string : "");
   case VALUE_NUMBER:
-    snprintf(buffer, sizeof(buffer), "%d", value.as.number);
+    snprintf(buffer, sizeof(buffer), "%lld", value.as.number);
     return strdup(buffer);
   case VALUE_DECIMAL:
     snprintf(buffer, sizeof(buffer), "%g", value.as.decimal);
@@ -92,6 +99,8 @@ static char *textOf(RuntimeValue value) {
     return strdup(value.as.boolean ? "true" : "false");
   case VALUE_NULL:
     return strdup("null");
+  case VALUE_PTR:
+    return strdup(value.as.ptr ? "<ptr>" : "null");
   case VALUE_OBJECT: {
     size_t len = 0, cap = 128;
     char *buf = calloc(cap, 1);

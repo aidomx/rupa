@@ -34,6 +34,7 @@ enum ErrorType {
   ERR_INDEX_OUT_OF_BOUNDS, // Akses indeks di luar batas
   ERR_INVALID_CALL,        // Pemanggilan fungsi pada non-fungsi
   ERR_STACK_OVERFLOW,      // Tumpukan melebihi batas
+  ERR_MEMORY,              // Pelanggaran kepemilikan memori (pin family)
 
   // Warning types
   WARN_UNUSED_VAR,    // Variabel tidak digunakan

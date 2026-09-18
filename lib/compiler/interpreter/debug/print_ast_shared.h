@@ -9,7 +9,7 @@ extern void printIndent(int level);
 extern void printBoolean(bool value, int level);
 extern void printDecimal(char *value, int level);
 extern void printId(char *id, int level);
-extern void printNumber(int value, int level);
+extern void printNumber(long long value, int level);
 extern void printNullable(char *value, int level);
 extern void printString(char *value, char *label, int level);
 

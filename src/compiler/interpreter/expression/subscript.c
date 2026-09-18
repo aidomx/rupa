@@ -7,6 +7,13 @@ InterpreterResult interpretSubscript(Node *node, AstNode *ast, RuntimeEnv *env,
   InterpreterResult target = interpretNode(node, ast->subscript.posId, env, error);
   if (target.flow != FLOW_NORMAL) return target;
 
+  /* VALUE_PTR (handle new T()) — baca elemen via registry v2. */
+  bool ptrHandled = false;
+  InterpreterResult ptrResult = memoryIndexGet(node, ast->subscript.posId,
+                                               ast->subscript.index, env, error,
+                                               &ptrHandled);
+  if (ptrHandled) return ptrResult;
+
   InterpreterResult index = interpretNode(node, ast->subscript.index, env, error);
   if (index.flow != FLOW_NORMAL) return index;
 
@@ -27,7 +34,7 @@ InterpreterResult interpretSubscript(Node *node, AstNode *ast, RuntimeEnv *env,
     }
 
     int length = (int)strlen(text);
-    int i = index.value.as.number;
+    int i = (int)index.value.as.number;
     if (i < 0 || i >= length) {
       static char message[256];
       snprintf(message, sizeof(message),
@@ -83,7 +90,7 @@ InterpreterResult interpretSubscript(Node *node, AstNode *ast, RuntimeEnv *env,
     return resultFlow(FLOW_ERROR, valueNull());
   }
 
-  int i = index.value.as.number;
+  int i = (int)index.value.as.number;
   int length = target.value.as.array.length;
 
   if (i < 0 || i >= length) {

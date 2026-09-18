@@ -11,6 +11,24 @@ void fmtBinary(Formatter *f, Node *node, int id) {
 
 void fmtCall(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
+  /* new T(args) — alokasi type-driven (design/new_memory.txt): arg
+   * pertama adalah NAMA TIPE, dicetak tanpa koma setelah callee:
+   * `new Contract(4)`, bukan `new(Contract, 4)`. */
+  AstNode *callee = &node->ast[n->call.callee];
+  const char *cname = callee->type == NODE_IDENTIFIER   ? callee->identifier.name
+                      : callee->type == NODE_LITERAL_ID ? callee->string.value
+                                                        : NULL;
+  if (cname && !strcmp(cname, "new") && n->call.length >= 1) {
+    fmtStr(f, "new ");
+    fmtNode(f, node, n->call.args[0]);
+    fmtChar(f, '(');
+    for (int i = 1; i < n->call.length; i++) {
+      if (i > 1) fmtStr(f, ", ");
+      fmtNode(f, node, n->call.args[i]);
+    }
+    fmtChar(f, ')');
+    return;
+  }
   fmtNode(f, node, n->call.callee);
   fmtChar(f, '(');
   for (int i = 0; i < n->call.length; i++) {

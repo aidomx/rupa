@@ -1,0 +1,32 @@
+# dupl/compare — alokasi & perbandingan string (design/str_memory.txt)
+# dupl(str) = strdup baru (GC-tracked), dupl(str, n) = strndup maksimal n char
+# compare(a, b) = strcmp-style, compare(a, b, n) = memcmp n byte
+
+# dupl menghasilkan ptr terdaftar GC
+s = dupl("hello")
+assertType(s, "ptr")
+
+# compare dua ptr hasil dupl — sama isi
+a = dupl("abc")
+b = dupl("abc")
+assertEq(compare(a, b), 0)
+
+# compare ptr vs string biasa
+assertEq(compare(a, "abd") < 0, true)
+assertEq(compare("abc", a), 0)
+
+# dupl(str, n) memotong maksimal n char (NUL-terminated)
+c = dupl("abcdef", 3)
+assertEq(compare(c, "abc"), 0)
+
+# compare dua string biasa
+assertEq(compare("rupa", "rupa"), 0)
+
+# compare(a, b, n) — memcmp pada blok mentah via block ops
+buf: number = new Contract(2)
+copypin(buf, "rupa", 4)
+assertEq(compare(buf, "rupa", 4), 0)
+
+# blok yang berbeda pada byte pertama tidak sama
+setpin(buf, 0, 8)
+assertEq(compare(buf, "rupa", 4) != 0, true)

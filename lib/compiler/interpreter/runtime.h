@@ -3,7 +3,7 @@
 #if defined(RUPA_PACKAGE_H)
 
 RuntimeValue valueNull(void);
-RuntimeValue valueNumber(int value);
+RuntimeValue valueNumber(long long value);
 RuntimeValue valueDecimal(double value);
 RuntimeValue valueBoolean(bool value);
 RuntimeValue valueString(const char *value);
@@ -11,6 +11,7 @@ RuntimeValue valueArray(RuntimeValue *items, int length);
 RuntimeValue valueFunction(RuntimeFunction *function);
 RuntimeValue valueObject(struct RuntimeObjectEntry *entries);
 RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount);
+RuntimeValue valuePtr(void *ptr);
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out);
 bool valueObjectSet(RuntimeValue *obj, const char *key, RuntimeValue value);
 void valuePrint(RuntimeValue value);

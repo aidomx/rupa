@@ -341,7 +341,7 @@ int parseAtom(Request *req, DataToken *data) {
     return createString(req->node, data->value, NODE_LITERAL_ID);
 
   case NUMBER:
-    return createNumber(req->node, atoi(data->value));
+    return createNumber(req->node, strtoll(data->value, NULL, 10));
 
   case NULLABLE:
     return createString(req->node, data->value, NODE_NULLABLE);

@@ -2,6 +2,7 @@
 
 enum KeywordType {
   KEYWORD_NONE,
+  KEYWORD_VOID,
   KEYWORD_IF,
   KEYWORD_ELSEIF,
   KEYWORD_ELSE,

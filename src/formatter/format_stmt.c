@@ -116,6 +116,14 @@ void fmtFunctionDecl(Formatter *f, Node *node, int id) {
     fmtNode(f, node, n->function.params[i]);
   }
   fmtChar(f, ')');
+  /* Return-type annotation: foo(): void { } */
+  if (n->function.returnType >= 0) {
+    char typeName[256];
+    if (formatAstTypeName(node, n->function.returnType, typeName, sizeof(typeName))) {
+      fmtStr(f, ": ");
+      fmtStr(f, typeName);
+    }
+  }
   fmtSep(f);
   fmtChar(f, '{');
   fmtNewline(f);
@@ -152,6 +160,35 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
       }
     } else {
       fmtNode(f, node, n->asStruct.body);
+      fmtNewline(f);
+    }
+  }
+  f->indent--;
+  fmtStr(f, "}");
+}
+
+/* Class decl (design/new_class.txt): `Monster: MonsterType { ... }` —
+ * anotasi `: Type` dipertahankan di output (penanda class). */
+void fmtClassDecl(Formatter *f, Node *node, int id) {
+  AstNode *n = &node->ast[id];
+  fmtNode(f, node, n->asClass.name);
+  if (n->asClass.type >= 0) {
+    fmtStr(f, ": ");
+    fmtNode(f, node, n->asClass.type);
+  }
+  fmtSep(f);
+  fmtChar(f, '{');
+  fmtNewline(f);
+  f->indent++;
+  if (n->asClass.body >= 0) {
+    AstNode *body = &node->ast[n->asClass.body];
+    if (body->type == NODE_BLOCK) {
+      for (int i = 0; i < body->block.length; i++) {
+        fmtNode(f, node, body->block.statements[i]);
+        fmtNewline(f);
+      }
+    } else {
+      fmtNode(f, node, n->asClass.body);
       fmtNewline(f);
     }
   }

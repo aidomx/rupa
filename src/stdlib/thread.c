@@ -129,7 +129,7 @@ static InterpreterResult threadJoin(int argc, RuntimeValue *argv,
     return resultFlow(FLOW_ERROR,
                       valueString("thread.join() expects a thread handle"));
 
-  int id = argv[0].as.number;
+  int id = (int)argv[0].as.number;
   pthread_mutex_lock(&tableMutex);
   if (id < 0 || id >= threadCount) {
     pthread_mutex_unlock(&tableMutex);
@@ -155,7 +155,7 @@ static InterpreterResult threadSleep(int argc, RuntimeValue *argv,
 
   long ms = 0;
   if (argv[0].type == VALUE_NUMBER)
-    ms = argv[0].as.number;
+    ms = (long)argv[0].as.number;
   else if (argv[0].type == VALUE_DECIMAL)
     ms = (long)argv[0].as.decimal;
   else

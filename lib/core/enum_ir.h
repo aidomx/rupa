@@ -56,6 +56,8 @@ enum IROpcode {
   IR_ALLOC,
   IR_REALLOC,
   IR_FREE,
+  IR_STRSLOT_GET,
+  IR_STRSLOT_SET,
   /* Conversion */
   IR_CAST
 };

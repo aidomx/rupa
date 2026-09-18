@@ -88,6 +88,15 @@ struct IRInstruction {
     struct {
       IRValue *pointer;
     } free;
+    /* String slot (design/str_memory.txt): baca/tulis char* di dalam
+     * handle Contract string — read/write-through pada variable. */
+    struct {
+      IRValue *pointer;
+    } strslot_get;
+    struct {
+      IRValue *pointer;
+      IRValue *value;
+    } strslot_set;
     struct {
       IRValue *value;
       IRType *type;
@@ -95,6 +104,7 @@ struct IRInstruction {
     struct {
       IRValue *value;
       char *type;
+      int nodeId; /* AST id assignment/annotation — view check pin family */
     } check;
   } data;
   IRInstruction *next;
@@ -175,8 +185,11 @@ IRInstruction *irBranch(IRValue *condition, IRBlock *then_block, IRBlock *else_b
 IRInstruction *irAlloc(IRValue *result, IRType *type, IRValue *count, int zeroed);
 IRInstruction *irRealloc(IRValue *result, IRValue *pointer, IRValue *size);
 IRInstruction *irFree(IRValue *pointer);
+IRInstruction *irStrSlotGet(IRValue *result, IRValue *pointer);
+IRInstruction *irStrSlotSet(IRValue *pointer, IRValue *value);
 IRInstruction *irCast(IRValue *result, IRValue *value, IRType *type);
 IRInstruction *irCheck(IRValue *value, const char *type);
+IRInstruction *irCheckAt(IRValue *value, const char *type, int nodeId);
 IRInstruction *irInterpCheck(int nodeId);
 void irInstructionFree(IRInstruction *instruction);
 

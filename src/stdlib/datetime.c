@@ -22,7 +22,7 @@ static InterpreterResult dtNow(int argc, RuntimeValue *argv, RuntimeEnv *env, Er
   (void)env;
   (void)error;
   time_t now = time(NULL);
-  return resultNormal(valueNumber((int)now));
+  return resultNormal(valueNumber((long long)now));
 }
 
 /* ==================== datetime.nowMs() ==================== */
@@ -35,8 +35,9 @@ static InterpreterResult dtNowMs(int argc, RuntimeValue *argv, RuntimeEnv *env, 
   (void)error;
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
+  /* number 64-bit: ms epoch tidak muat di int32. */
   long long ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-  return resultNormal(valueNumber((int)ms));
+  return resultNormal(valueNumber(ms));
 }
 
 /* ==================== datetime.format(timestamp, fmt?) ==================== */

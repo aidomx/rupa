@@ -62,6 +62,7 @@ InterpreterResult interpretUpdate(Node *node, AstNode *ast, RuntimeEnv *env,
     if (current.type == VALUE_DECIMAL)
       updated = valueDecimal(current.as.decimal + (isIncrement ? 1 : -1));
     else if (current.type == VALUE_NUMBER)
+      /* number 64-bit: ++/-- tetap di jalur long long. */
       updated = valueNumber(current.as.number + (isIncrement ? 1 : -1));
     else {
       static char message[256];

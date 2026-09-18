@@ -29,9 +29,10 @@ static bool getNumber(int argc, RuntimeValue *argv, double *out) {
 }
 
 static RuntimeValue numberResult(double value) {
-  if (isfinite(value) && floor(value) == value && value >= (double)INT_MIN &&
-      value <= (double)INT_MAX)
-    return valueNumber((int)value);
+  /* number 64-bit: hasil bulat masuk long long. */
+  if (isfinite(value) && floor(value) == value && value >= -(double)LLONG_MAX &&
+      value <= (double)LLONG_MAX)
+    return valueNumber((long long)value);
   return valueDecimal(value);
 }
 
@@ -69,7 +70,7 @@ static InterpreterResult mathFloor(int argc, RuntimeValue *argv, RuntimeEnv *env
   (void)env;
   if (!getNumber(argc, argv, &value))
     return mathTypeError(error, "floor", "math.floor() expects a number");
-  return resultNormal(valueNumber((int)floor(value)));
+  return resultNormal(valueNumber((long long)floor(value)));
 }
 
 /* ==================== math.ceil(value) ==================== */
@@ -78,7 +79,7 @@ static InterpreterResult mathCeil(int argc, RuntimeValue *argv, RuntimeEnv *env,
   (void)env;
   if (!getNumber(argc, argv, &value))
     return mathTypeError(error, "ceil", "math.ceil() expects a number");
-  return resultNormal(valueNumber((int)ceil(value)));
+  return resultNormal(valueNumber((long long)ceil(value)));
 }
 
 /* ==================== math.round(value) ==================== */
@@ -87,7 +88,7 @@ static InterpreterResult mathRound(int argc, RuntimeValue *argv, RuntimeEnv *env
   (void)env;
   if (!getNumber(argc, argv, &value))
     return mathTypeError(error, "round", "math.round() expects a number");
-  return resultNormal(valueNumber((int)round(value)));
+  return resultNormal(valueNumber((long long)round(value)));
 }
 
 /* ==================== Trigonometric functions ==================== */

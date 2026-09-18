@@ -12,7 +12,7 @@ void fmtLiteralId(Formatter *f, Node *node, int id) {
 
 void fmtNumber(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
-  fprintf(f->out, "%d", n->number.value);
+  fprintf(f->out, "%lld", n->number.value);
   f->needsIndent = false;
 }
 

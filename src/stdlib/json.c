@@ -46,7 +46,7 @@ static void stringifyValue(RuntimeValue value, char **buffer, size_t *length,
     appendText(buffer, length, capacity, value.as.boolean ? "true" : "false");
     break;
   case VALUE_NUMBER:
-    snprintf(number, sizeof(number), "%d", value.as.number);
+    snprintf(number, sizeof(number), "%lld", value.as.number);
     appendText(buffer, length, capacity, number);
     break;
   case VALUE_DECIMAL:

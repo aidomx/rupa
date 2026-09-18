@@ -107,3 +107,21 @@ bool validateTypeName(const char *type, RuntimeValue value, Error *error) {
 bool validateAnnotation(Node *node, int typeId, RuntimeValue value, Error *error) {
   return matchesNode(node, typeId, value, error);
 }
+
+/* Kontrak type permanen: setiap assignment ke variable yang pernah
+ * dideklarasikan dengan type (x: T = ...) divalidasi terhadap T — bukan
+ * hanya di site anotasinya. Handle pin family (VALUE_PTR) dicek via
+ * provenance sizeof; pin tanpa sizeof (generic) tidak boleh masuk
+ * variable bertipe. */
+bool validateDeclaredType(Node *node, int valueId, RuntimeEnv *env,
+                          const char *name, RuntimeValue value, Error *error) {
+  const char *type = semType(env, name);
+  if (!type) return true; /* variable tanpa deklarasi type: bebas */
+
+  /* Handle pin family: view type check lewat provenance sizeof pada
+   * node value (repin/repins inherit; pin/elpin dicek terhadap type). */
+  if (value.type == VALUE_PTR)
+    return memoryPinViewCheck(node, valueId, type, error);
+
+  return validateTypeName(type, value, error);
+}

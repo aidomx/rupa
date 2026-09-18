@@ -79,7 +79,7 @@ int grammarParseAsyncExpr(Request *r, int a, int b) {
     loaderId = createId(r->node, t->data[id1].value);
     /* Timeout: angka literal langsung, atau referensi identifier */
     if (t->data[id2].type == NUMBER)
-      timeoutId = createNumber(r->node, atoi(t->data[id2].value));
+      timeoutId = createNumber(r->node, strtoll(t->data[id2].value, NULL, 10));
     else
       timeoutId = createId(r->node, t->data[id2].value);
     if (loaderId < 0 || timeoutId < 0) return -1;

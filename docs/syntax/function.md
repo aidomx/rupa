@@ -33,6 +33,21 @@ p = makePoint(10, 20)
 print(p.x)
 ```
 
+Return-type annotation (sejak 2026-09-18):
+
+```rupa
+sum(a, b): number {
+    return a + b
+}
+
+log(): void {
+    print("logged")
+}
+```
+
+Fungsi `void` tidak mengembalikan nilai — `return` dengan nilai di dalamnya
+adalah error. `return` tanpa nilai (bare return) sah pada fungsi apa pun.
+
 ## Kapan digunakan?
 
 Gunakan declaration ketika ingin memberi nama pada logic yang dapat dipanggil kembali. Gunakan parameter annotation ketika parameter memiliki type yang diharapkan.

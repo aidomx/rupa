@@ -60,7 +60,7 @@ static InterpreterResult osExit(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                 Error *error) {
   int code = 0;
   if (argc >= 1 && argv[0].type == VALUE_NUMBER)
-    code = argv[0].as.number;
+    code = (int)argv[0].as.number;
   exit(code);
   return resultNormal(valueNull());
 }

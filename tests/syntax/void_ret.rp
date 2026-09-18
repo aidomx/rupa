@@ -1,0 +1,22 @@
+# return-type annotation + void (design/rupa_types_const_void_bigint.txt poin 3).
+# `foo(): void { }` — fungsi void tidak mengembalikan nilai.
+
+log(): void {
+  print("logged")
+}
+
+log()
+
+sum(a, b): number {
+  return a + b
+}
+
+print(sum(40, 2))
+
+# bare `return` tanpa nilai pada fungsi void sah
+# (bug lexer return+EOL sudah diperbaiki — newline dalam block
+# kini boundary statement di file mode)
+early(): void {
+  return
+}
+early()

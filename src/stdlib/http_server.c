@@ -167,7 +167,7 @@ static InterpreterResult resJson(int argc, RuntimeValue *argv, RuntimeEnv *env, 
   if (argv[0].type == VALUE_STRING && argv[0].as.string) {
     res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "\"%s\"", argv[0].as.string);
   } else if (argv[0].type == VALUE_NUMBER) {
-    res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "%d", argv[0].as.number);
+    res->body_len = snprintf(res->body, MAX_RESPONSE_SIZE, "%lld", argv[0].as.number);
   } else if (argv[0].type == VALUE_BOOLEAN) {
     res->body_len =
         snprintf(res->body, MAX_RESPONSE_SIZE, "%s", argv[0].as.boolean ? "true" : "false");
@@ -469,7 +469,7 @@ InterpreterResult httpServer(int argc, RuntimeValue *argv, RuntimeEnv *env, Erro
   if (argc < 1 || argv[0].type != VALUE_NUMBER)
     return resultFlow(FLOW_ERROR, valueString("http.server() expects a port number"));
 
-  int port = argv[0].as.number;
+  int port = (int)argv[0].as.number;
   if (port < 1 || port > 65535) return resultFlow(FLOW_ERROR, valueString("Invalid port number"));
 
   pthread_mutex_lock(&serverMutex);
@@ -515,7 +515,7 @@ InterpreterResult httpStop(int argc, RuntimeValue *argv, RuntimeEnv *env, Error 
   if (argc < 1 || argv[0].type != VALUE_NUMBER)
     return resultFlow(FLOW_ERROR, valueString("http.stop() expects a server handle"));
 
-  int id = argv[0].as.number;
+  int id = (int)argv[0].as.number;
   pthread_mutex_lock(&serverMutex);
   if (id < 0 || id >= serverCount) {
     pthread_mutex_unlock(&serverMutex);

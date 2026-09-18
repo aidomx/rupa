@@ -28,7 +28,10 @@ struct RuntimeNativeFunction {
 struct RuntimeValue {
   ValueType type;
   union {
-    int number;
+    /* number 64-bit (design/rupa_types_const_void_bigint.txt poin 2):
+     * VALUE_NUMBER memakai long long — tanpa tipe baru, tanpa aturan
+     * promosi, semua jalur (interpreter + IR) otomatis 64-bit. */
+    long long number;
     double decimal;
     bool boolean;
     char *string;
@@ -36,6 +39,8 @@ struct RuntimeValue {
     RuntimeFunction *function;
     struct RuntimeNativeFunction *nativeFunc;
     struct RuntimeObject object;
+    /* Handle memori (pin family) — opaque tanpa view type. */
+    void *ptr;
   } as;
 };
 

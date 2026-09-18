@@ -43,6 +43,7 @@ struct IRBuilder {
 struct ScopeMap {
   char *name;
   IRValue *value;
+  char *type; /* type deklarasi (x: T = ...) — kontrak reassignment */
   ScopeMap *next;
 };
 
@@ -64,14 +65,43 @@ static IRValue *scopeFind(IRBuilder *b, const char *name) {
   return NULL;
 }
 
+/* Type deklarasi variable (x: T = ...) untuk kontrak reassignment. */
+static const char *scopeTypeOf(IRBuilder *b, const char *name) {
+  if (!name) return NULL;
+  for (ScopeMap *s = b->scopes; s; s = s->next)
+    if (s->name && strcmp(s->name, name) == 0) return s->type;
+  return NULL;
+}
+
 static void scopeBind(IRBuilder *b, const char *name, IRValue *value) {
   if (!name || !value) return;
+
+  /* Rebind di scope sama: pertahankan type deklarasi lama (kontrak
+   * reassignment tetap berlaku); type baru diset via scopeSetType. */
+  for (ScopeMap *s = b->scopes; s; s = s->next) {
+    if (s->name && strcmp(s->name, name) == 0) {
+      s->value = value;
+      return;
+    }
+  }
+
   ScopeMap *s = gccalloc(1, sizeof(*s));
   if (!s) return;
   s->name = gcdup(name);
   s->value = value;
   s->next = b->scopes;
   b->scopes = s;
+}
+
+/* Simpan/perbarui type deklarasi variable di scope map. */
+static void scopeSetType(IRBuilder *b, const char *name, const char *type) {
+  if (!name || !type) return;
+  for (ScopeMap *s = b->scopes; s; s = s->next) {
+    if (s->name && strcmp(s->name, name) == 0) {
+      s->type = gcdup(type);
+      return;
+    }
+  }
 }
 
 static void scopePush(IRBuilder *b) {
@@ -119,7 +149,8 @@ static const char *nodeName(Node *node, int id) {
 }
 
 static IRType *numberType(void) {
-  return irTypeCreate(IR_TYPE_NUMBER, "number", sizeof(int64_t));
+  /* number 64-bit: sizeof = 8 (long long), konsisten analyzer. */
+  return irTypeCreate(IR_TYPE_NUMBER, "number", sizeof(long long));
 }
 static IRType *boolType(void) {
   return irTypeCreate(IR_TYPE_BOOLEAN, "boolean", sizeof(int));
@@ -156,6 +187,20 @@ static IRValue *foldBinary(IROpcode op, IRValue *l, IRValue *r) {
   if (!irNumericType(l) || !irNumericType(r)) return NULL;
 
   int decimal = l->type->kind == IR_TYPE_DECIMAL || r->type->kind == IR_TYPE_DECIMAL;
+  /* number 64-bit: fold number op number di jalur integer 64-bit
+   * (bukan lewat double) agar tidak kehilangan presisi. */
+  if (!decimal) {
+    long long a = l->data.constant.as.number;
+    long long b = r->data.constant.as.number;
+    switch (op) {
+    case IR_ADD: return irNumber(a + b, numberType());
+    case IR_SUB: return irNumber(a - b, numberType());
+    case IR_MUL: return irNumber(a * b, numberType());
+    case IR_DIV: if (b == 0) return NULL; return irNumber(a / b, numberType());
+    case IR_MOD: if (b == 0) return NULL; return irNumber(a % b, numberType());
+    default: break; /* perbandingan tetap lewat jalur double di bawah */
+    }
+  }
   double a = l->type->kind == IR_TYPE_DECIMAL ? l->data.constant.as.decimal
                                               : (double)l->data.constant.as.number;
   double b = r->type->kind == IR_TYPE_DECIMAL ? r->data.constant.as.decimal
@@ -231,6 +276,9 @@ static void buildContinue(void) {
     irEmit(g_loop->b->block, irJump(g_loop->continueTarget));
 }
 
+/* Nama tipe annotation (NODE_ARRAY_TYPE aware) sebagai string. */
+static const char *annotationTypeName(IRBuilder *b, int typeId);
+
 /* ==================== Statements ==================== */
 
 static void buildProgram(IRBuilder *b, Node *node, int root) {
@@ -251,7 +299,18 @@ static void buildFunctionDecl(IRBuilder *b, Node *node, const AstNode *a) {
   IRBlock *savedBlock = b->block;
   ScopeMap *savedScope = b->scopes;
 
-  IRFunction *fn = irFunctionCreate(b->module, name ? name : "anonymous", NULL);
+  /* Return-type annotation (`foo(): void { }`): catat di IRFunction.
+   * void = IR_TYPE_VOID; tipe lain beri nama saja (belum di-enforce). */
+  IRType *retT = NULL;
+  if (a->function.returnType >= 0) {
+    const char *rtName = annotationTypeName(b, a->function.returnType);
+    if (rtName && !strcmp(rtName, "void"))
+      retT = irTypeCreate(IR_TYPE_VOID, "void", 0);
+    else if (rtName)
+      retT = irTypeCreate(IR_TYPE_VOID, rtName, 0); /* placeholder name */
+  }
+
+  IRFunction *fn = irFunctionCreate(b->module, name ? name : "anonymous", retT);
   b->function = fn;
   b->block = irBlockCreate(fn, "entry");
   b->scopes = NULL;
@@ -294,23 +353,110 @@ static const char *annotationTypeName(IRBuilder *b, int typeId) {
   return buffer;
 }
 
+/* Node value adalah panggilan `new Contract(...)`? (C-blok design
+ * new_memory.txt — alokasi type-driven dari anotasi.) */
+static bool memoryContractIsContract(Node *node, int valueId) {
+  if (!node || valueId < 0 || valueId >= node->length) return false;
+  AstNode *call = &node->ast[valueId];
+  if (call->type != NODE_CALL || call->call.length < 1) return false;
+  AstNode *callee = &node->ast[call->call.callee];
+  const char *fn = callee->type == NODE_IDENTIFIER   ? callee->identifier.name
+                   : callee->type == NODE_LITERAL_ID ? callee->string.value
+                                                     : NULL;
+  if (!fn || strcmp(fn, "new") != 0) return false;
+  AstNode *arg = &node->ast[call->call.args[0]];
+  const char *tname = arg->type == NODE_IDENTIFIER   ? arg->identifier.name
+                      : arg->type == NODE_LITERAL_ID ? arg->string.value
+                                                     : NULL;
+  return tname && !strcmp(tname, "Contract");
+}
+
 static void buildAssign(IRBuilder *b, Node *node, const AstNode *a) {
   (void)node;
   const char *name = nodeName(b->astRef, a->assign.target);
+
+  /* new Contract (C1–C4): intercept SEBELUM buildNode — alokasi dari
+   * anotasi via IR_ALLOC(IR_TYPE_POINTER). Nama tipe elemen (C2: 'T[]'
+   * direduksi ke 'T' saat lookup) di-resolve executor dari payload
+   * alloc.type->name; count = arg kedua Contract (default 1).
+   * C1 (tanpa anotasi) tak mungkin di sini — blok ini hanya jalan
+   * bila assign.type >= 0; `p = new Contract()` polos jatuh ke jalur
+   * new biasa dan ditolak oleh memoryNewCall (tipe Contract tak dikenal). */
+  if (a->assign.type >= 0 && memoryContractIsContract(b->astRef, a->assign.value)) {
+    const char *ann = annotationTypeName(b, a->assign.type);
+    AstNode *call = &b->astRef->ast[a->assign.value];
+    IRValue *count =
+        call->call.length == 2 ? buildNode(b, call->call.args[1])
+                               : irNumber(1, numberType());
+    IRType *ptrT = irTypeCreate(IR_TYPE_POINTER, ann ? ann : "ptr", sizeof(void *));
+    IRValue *res = irTemp(ptrT);
+    irEmit(b->block, irAlloc(res, ptrT, count, 1));
+    IRValue *slot = scopeFind(b, name);
+    if (!slot) slot = newLocal(b, name);
+    if (ann) scopeSetType(b, name, ann);
+    irEmit(b->block, irStore(slot, res));
+    return;
+  }
+
+  /* Write-through string slot (design/str_memory.txt): name = "rudi" /
+   * name = dupl(...) pada handle Contract string — decision butuh env
+   * & binding runtime, jadi trampoline seluruh NODE_ASSIGN. */
+  {
+    AstNode *targetAst = &b->astRef->ast[a->assign.target];
+    const char *tname = targetAst->type == NODE_IDENTIFIER   ? targetAst->identifier.name
+                        : targetAst->type == NODE_LITERAL_ID ? targetAst->string.value
+                                                             : NULL;
+    if (tname) {
+      const char *declared = scopeTypeOf(b, tname);
+      char probe[1];
+      bool valueIsHandle = memoryNewTypeName(b->astRef, a->assign.value, probe, sizeof(probe));
+      if (declared && !strcmp(declared, "string") && !valueIsHandle) {
+        /* Write-through string slot: tulis value ke slot handle yang
+         * sudah ada (op native IR_STRSLOT_SET — registry v3 memutuskan). */
+        IRValue *slotPtr = scopeFind(b, tname);
+        if (!slotPtr) slotPtr = newLocal(b, tname);
+        IRValue *value = buildNode(b, a->assign.value);
+        if (value) irEmit(b->block, irStrSlotSet(slotPtr, value));
+        return;
+      }
+    }
+  }
+
   IRValue *value = buildNode(b, a->assign.value);
   if (!name || !value) return;
 
-  /* Typed assign (x: T = v): semantic check sebelum store. */
+  /* Typed assign (x: T = v): semantic check sebelum store + catat type
+   * deklarasi di scope map — kontrak reassignment selanjutnya. */
   if (a->assign.type >= 0) {
     const char *typeName = annotationTypeName(b, a->assign.type);
     if (typeName) {
       analyzerSetErrorLocation(b->astRef, a->assign.type);
-      irEmit(b->block, irCheck(value, typeName));
+      irEmit(b->block, irCheckAt(value, typeName, a->assign.value));
     }
   }
 
   IRValue *slot = scopeFind(b, name);
   if (!slot) slot = newLocal(b, name);
+
+  /* Catat type SETELAH slot ada (scopeSetType butuh entry yang sudah
+   * ter-bind), lalu reassignment polos (x = v) ke variable yang pernah
+   * dideklarasikan divalidasi terhadap type itu (kontrak permanen). */
+  if (a->assign.type >= 0) {
+    const char *typeName = annotationTypeName(b, a->assign.type);
+    if (typeName) scopeSetType(b, name, typeName);
+  } else {
+    /* new T() type-driven: catat type dari alokasi — kontrak permanen
+     * untuk reassignment polos juga berlaku pada handle new/del. */
+    char newType[256];
+    if (memoryNewTypeName(b->astRef, a->assign.value, newType, sizeof(newType))) {
+      scopeSetType(b, name, newType);
+    } else {
+      const char *declared = scopeTypeOf(b, name);
+      if (declared)
+        irEmit(b->block, irCheckAt(value, declared, a->assign.value));
+    }
+  }
+
   irEmit(b->block, irStore(slot, value));
 }
 
@@ -330,7 +476,13 @@ static void buildConditionalAssign(IRBuilder *b, Node *node, const AstNode *a) {
 
   b->block = evalBlock;
   IRValue *value = buildNode(b, a->conditionalAssign.value);
-  if (value) irEmit(b->block, irStore(slot, value));
+  if (value) {
+    /* Kontrak type permanen berlaku juga di x ?= v. */
+    const char *declared = scopeTypeOf(b, name);
+    if (declared)
+      irEmit(b->block, irCheckAt(value, declared, a->conditionalAssign.value));
+    irEmit(b->block, irStore(slot, value));
+  }
   irEmit(b->block, irJump(endBlock));
 
   b->block = endBlock;
@@ -345,14 +497,30 @@ static void buildAnnotation(IRBuilder *b, Node *node, const AstNode *a) {
   if (!slot) slot = newLocal(b, name);
   if (a->annotation.value < 0) return;
 
+  /* new Contract (C1–C4) — sejajar buildAssign. */
+  if (memoryContractIsContract(b->astRef, a->annotation.value)) {
+    const char *ann = annotationTypeName(b, a->annotation.type);
+    AstNode *call = &b->astRef->ast[a->annotation.value];
+    IRValue *count =
+        call->call.length == 2 ? buildNode(b, call->call.args[1])
+                               : irNumber(1, numberType());
+    IRType *ptrT = irTypeCreate(IR_TYPE_POINTER, ann ? ann : "ptr", sizeof(void *));
+    IRValue *res = irTemp(ptrT);
+    irEmit(b->block, irAlloc(res, ptrT, count, 1));
+    if (ann) scopeSetType(b, name, ann);
+    irEmit(b->block, irStore(slot, res));
+    return;
+  }
+
   IRValue *value = buildNode(b, a->annotation.value);
   if (!value) return;
 
-  /* c: T = v — semantic check sebelum store. */
+  /* c: T = v — semantic check sebelum store + catat type deklarasi. */
   const char *typeName = annotationTypeName(b, a->annotation.type);
   if (typeName) {
     analyzerSetErrorLocation(b->astRef, a->annotation.type);
-    irEmit(b->block, irCheck(value, typeName));
+    irEmit(b->block, irCheckAt(value, typeName, a->annotation.value));
+    scopeSetType(b, name, typeName);
   }
 
   irEmit(b->block, irStore(slot, value));
@@ -650,6 +818,8 @@ static IRValue *buildNode(IRBuilder *b, int id) {
 
   switch (a->type) {
   case NODE_NUMBER:
+    /* number 64-bit: literal AST long long -> IR int64 (union sudah
+     * int64_t, tidak ada perubahan tipe). */
     return cacheOp(b, id, irNumber(a->number.value, numberType()));
   case NODE_DECIMAL:
     return cacheOp(b, id,
@@ -667,6 +837,15 @@ static IRValue *buildNode(IRBuilder *b, int id) {
     const char *name = a->type == NODE_IDENTIFIER ? a->identifier.name : a->string.value;
     IRValue *slot = scopeFind(b, name);
     if (!slot) slot = newLocal(b, name);
+    /* Read-through string slot (design/str_memory.txt): bila slot
+     * dideklarasikan 'string', variable membawa handle — baca slot
+     * via op native IR_STRSLOT_GET (registry v3 memutuskan di runtime). */
+    const char *declared = scopeTypeOf(b, name);
+    if (declared && !strcmp(declared, "string")) {
+      IRValue *res = irTemp(irTypeCreate(IR_TYPE_STRING, "string", 0));
+      irEmit(b->block, irStrSlotGet(res, slot));
+      return cacheOp(b, id, res);
+    }
     return cacheOp(b, id, slot);
   }
 
@@ -767,10 +946,23 @@ static IRValue *buildNode(IRBuilder *b, int id) {
 
   case NODE_CALL: {
     AstNode *calleeNode = &node->ast[a->call.callee];
-    if (calleeNode->type == NODE_MEMBER || calleeNode->type == NODE_SUBSCRIPT) {
+    /* sizeof(TypeName) — argumen nama tipe, bukan value: trampoline ke
+     * interpretCall yang meng-intercept sizeof (pola method call). */
+    const char *calleeName = (calleeNode->type == NODE_IDENTIFIER)
+                                 ? calleeNode->identifier.name
+                                 : (calleeNode->type == NODE_LITERAL_ID)
+                                       ? calleeNode->string.value
+                                       : NULL;
+    bool isSizeof = calleeName && !strcmp(calleeName, "sizeof");
+    /* new/del — type-driven memory: arg pertama `new` nama tipe, tak
+     * bisa dievaluasi sebagai ekspresi. Trampoline ke interpretCall. */
+    bool isMemory = calleeName && (!strcmp(calleeName, "new") || !strcmp(calleeName, "del"));
+    if (isSizeof || isMemory || calleeNode->type == NODE_MEMBER ||
+        calleeNode->type == NODE_SUBSCRIPT) {
       /* Method call (arr.push(x), s.split(","), obj.fn()): dispatch
        * method + write-back ada di interpreter, jadi trampoline seluruh
-       * call node (sejajar interpretCall). */
+       * call node (sejajar interpretCall). sizeof juga: argumennya
+       * nama tipe, tidak bisa dievaluasi sebagai ekspresi. */
       IRInstruction *in = irInterp(id, nullType());
       IRValue *res = in->result;
       irEmit(b->block, in);
@@ -942,6 +1134,12 @@ static IRValue *buildStatementValue(IRBuilder *b, int id) {
     /* Struktur = kontrak type: trampoline ke interpreter agar
      * layout terdaftar di analyzer registry (validasi struct-first
      * juga berlaku di jalur IR). */
+    irEmit(b->block, irInterp(id, nullType()));
+    return NULL;
+  case NODE_CLASS_DECL:
+    /* Class = presentation di atas struct (design/new_class.txt).
+     * Trampoline yang sama: method dalam body ikut tereksekusi via
+     * interpretNode → statement dispatcher. */
     irEmit(b->block, irInterp(id, nullType()));
     return NULL;
   case NODE_MOD:

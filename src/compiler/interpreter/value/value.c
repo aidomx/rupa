@@ -4,7 +4,7 @@ RuntimeValue valueNull(void) {
   return (RuntimeValue){.type = VALUE_NULL};
 }
 
-RuntimeValue valueNumber(int value) {
+RuntimeValue valueNumber(long long value) {
   return (RuntimeValue){.type = VALUE_NUMBER, .as.number = value};
 }
 
@@ -223,7 +223,7 @@ void valuePrintInterp(RuntimeValue value, RuntimeEnv *env, Error *error) {
 void valuePrint(RuntimeValue value) {
   switch (value.type) {
   case VALUE_NUMBER:
-    printf("%d", value.as.number);
+    printf("%lld", value.as.number);
     break;
   case VALUE_DECIMAL:
     printf("%g", value.as.decimal);
@@ -236,6 +236,9 @@ void valuePrint(RuntimeValue value) {
     break;
   case VALUE_FUNCTION:
     printf("<function>");
+    break;
+  case VALUE_PTR:
+    printf(value.as.ptr ? "<ptr>" : "null");
     break;
   case VALUE_ARRAY:
     putchar('[');
@@ -321,6 +324,8 @@ bool valueEquals(RuntimeValue left, RuntimeValue right) {
     return left.as.function == right.as.function;
   case VALUE_NATIVE_FUNCTION:
     return left.as.nativeFunc == right.as.nativeFunc;
+  case VALUE_PTR:
+    return left.as.ptr == right.as.ptr;
   default:
     return false;
   }
@@ -341,6 +346,10 @@ RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount
   nf->func = func;
   nf->paramCount = paramCount;
   return (RuntimeValue){.type = VALUE_NATIVE_FUNCTION, .as.nativeFunc = nf};
+}
+
+RuntimeValue valuePtr(void *ptr) {
+  return (RuntimeValue){.type = VALUE_PTR, .as.ptr = ptr};
 }
 
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out) {
@@ -391,6 +400,8 @@ const char *valueTypeName(ValueType type) {
     return "object";
   case VALUE_NATIVE_FUNCTION:
     return "function";
+  case VALUE_PTR:
+    return "ptr";
   default:
     return "unknown";
   }

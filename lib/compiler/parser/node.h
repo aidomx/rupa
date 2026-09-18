@@ -60,10 +60,10 @@ int createId(struct Node *root, char *name);
  * @brief Membuat number literal node dalam AST.
  *
  * @param root Root node AST.
- * @param value Nilai integer.
+ * @param value Nilai integer (64-bit).
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
-int createNumber(struct Node *root, int value);
+int createNumber(struct Node *root, long long value);
 
 int createProgram(struct Node *root);
 int createReturn(struct Node *root, int expression_id);
@@ -111,8 +111,10 @@ int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);
 int createIf(struct Node *root, int condition, int thenBlock, int elseBlock, bool isBlock);
 int createLoop(struct Node *root, const char *kind, int condition, int body);
-int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body);
+int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body,
+                       int returnType);
 int createStructDecl(struct Node *root, int name, int body);
+int createClassDecl(struct Node *root, int name, int typeId, int body);
 int createAnnotation(struct Node *root, int name, int type, int value);
 int createModule(struct Node *root, enum NodeType type, int value, int name);
 

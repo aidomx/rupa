@@ -29,6 +29,8 @@ InterpreterResult interpretAwait(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error);
 InterpreterResult interpretStruct(Node *node, AstNode *ast, RuntimeEnv *env,
                                    Error *error);
+InterpreterResult interpretClass(Node *node, AstNode *ast, RuntimeEnv *env,
+                                  Error *error);
 InterpreterResult interpretMemberAssign(Node *node, AstNode *ast,
                                         RuntimeEnv *env, Error *error);
 

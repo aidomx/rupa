@@ -78,13 +78,16 @@ bool analyzerDeclareStruct(const char *name, const struct StructField *fields,
   return true;
 }
 
-/* Scalar: number/string/boolean/decimal/array/object/function/null. */
+/* Scalar: number/string/boolean/decimal/array/object/function/null/ptr/void.
+ * void hanya sah sebagai return-type annotation — matchesScalar menolak
+ * value apa pun untuk void (fungsi void tidak mengembalikan nilai). */
 static bool isScalarType(const char *type) {
   if (!type) return true;
   return !strcmp(type, "number") || !strcmp(type, "decimal") ||
          !strcmp(type, "string") || !strcmp(type, "boolean") ||
          !strcmp(type, "array") || !strcmp(type, "object") ||
-         !strcmp(type, "null") || !strcmp(type, "function");
+         !strcmp(type, "null") || !strcmp(type, "function") ||
+         !strcmp(type, "ptr") || !strcmp(type, "void");
 }
 
 /* Tipe selain scalar bawaan harus struct terdaftar — kalau tidak,
@@ -107,6 +110,9 @@ bool analyzerIsKnownType(const char *type) { return isKnownType(type); }
 
 static bool matchesScalar(const char *type, RuntimeValue value) {
   if (!type) return true;
+  /* void tidak punya nilai — value apa pun (termasuk null) ditolak
+   * untuk anotasi `x: void = ...` (void bukan tipe variable). */
+  if (!strcmp(type, "void")) return false;
   if (!strcmp(type, "number"))
     return value.type == VALUE_NUMBER || value.type == VALUE_DECIMAL;
   if (!strcmp(type, "decimal")) return value.type == VALUE_DECIMAL;
@@ -117,6 +123,7 @@ static bool matchesScalar(const char *type, RuntimeValue value) {
   if (!strcmp(type, "null")) return value.type == VALUE_NULL;
   if (!strcmp(type, "function"))
     return value.type == VALUE_FUNCTION || value.type == VALUE_NATIVE_FUNCTION;
+  if (!strcmp(type, "ptr")) return value.type == VALUE_PTR || value.type == VALUE_NULL;
   return true; /* tipe tak dikenal: biarkan (behavior lama) */
 }
 
@@ -234,4 +241,90 @@ bool analyzerCheckType(const char *type, RuntimeValue value, Error *error) {
 void analyzerSetErrorLocation(Node *node, int typeId) {
   if (!node || typeId < 0 || typeId >= node->length) return;
   setRuntimeErrorLocation(node->ast[typeId].line, node->ast[typeId].row);
+}
+
+/* Ukuran scalar untuk sizeof — non-scalar return -1. */
+static int scalarTypeSize(const char *type) {
+  if (!type) return (int)sizeof(void *);
+  /* number 64-bit: representasi runtime VALUE_NUMBER = long long. */
+  if (!strcmp(type, "number")) return (int)sizeof(long long);
+  if (!strcmp(type, "void")) return 0; /* void tidak menyimpan nilai */
+  if (!strcmp(type, "decimal")) return (int)sizeof(double);
+  if (!strcmp(type, "boolean")) return 1;
+  if (!strcmp(type, "string")) return (int)sizeof(char *);
+  if (!strcmp(type, "ptr")) return (int)sizeof(void *);
+  if (!strcmp(type, "array") || !strcmp(type, "object") ||
+      !strcmp(type, "function") || !strcmp(type, "null"))
+    return (int)sizeof(void *);
+  return -1;
+}
+
+/* Ukuran representasi struct: jumlah ukuran field-nya. Field struct
+ * bertingkat dihitung rekursif; array-of-struct memakai representasi
+ * RuntimeArray. Return false bila ada field bertipe tak dikenal.
+ * Rekursi aman: forward reference ditolak saat deklarasi. */
+bool analyzerStructSizeOf(const char *name, int *outSize) {
+  struct StructLayout *l = layoutFind(name);
+  if (!l || !outSize) return false;
+
+  int total = 0;
+  for (int i = 0; i < l->count; i++) {
+    const char *t = l->fields[i].type;
+    size_t length = t ? strlen(t) : 0;
+    if (length >= 2 && t[length - 2] == '[' && t[length - 1] == ']') {
+      total += (int)sizeof(struct RuntimeArray); /* representasi array */
+      continue;
+    }
+    int s = scalarTypeSize(t);
+    if (s < 0) {
+      int nested = 0;
+      if (!analyzerStructSizeOf(t, &nested)) return false;
+      s = nested;
+    }
+    total += s;
+  }
+  *outSize = total;
+  return true;
+}
+
+/* ===== Member access pada handle ptr (design/new_memory.txt, C3) =====
+ * Layout = urut deklarasi, tanpa padding — konsisten dengan
+ * analyzerStructSizeOf yang dipakai new/Contract untuk alokasi. */
+
+/* Offset byte + tipe field dalam struct terdaftar. Return false bila
+ * struct/field tidak ada. */
+bool analyzerFieldOffset(const char *structName, const char *fieldName, int *outOffset,
+                         char *outType, size_t typeCapacity) {
+  struct StructLayout *l = layoutFind(structName);
+  if (!l || !fieldName) return false;
+
+  int offset = 0;
+  for (int i = 0; i < l->count; i++) {
+    const char *t = l->fields[i].type;
+    if (!strcmp(l->fields[i].name, fieldName)) {
+      if (outOffset) *outOffset = offset;
+      if (outType && typeCapacity > 0) snprintf(outType, typeCapacity, "%s", t ? t : "");
+      return true;
+    }
+    size_t length = t ? strlen(t) : 0;
+    if (length >= 2 && t[length - 2] == '[' && t[length - 1] == ']') {
+      offset += (int)sizeof(struct RuntimeArray); /* representasi array */
+      continue;
+    }
+    int s = scalarTypeSize(t);
+    if (s < 0) {
+      int nested = 0;
+      if (!analyzerStructSizeOf(t, &nested)) return false;
+      s = nested;
+    }
+    offset += s;
+  }
+  return false;
+}
+
+/* Tipe field struct ("number", "People", "People[]", ...). Return
+ * false bila struct/field tidak dikenal. */
+bool analyzerFieldType(const char *structName, const char *fieldName, char *outType,
+                       size_t capacity) {
+  return analyzerFieldOffset(structName, fieldName, NULL, outType, capacity);
 }

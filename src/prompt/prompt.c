@@ -59,6 +59,24 @@ void showModuleHelp() {
   }
 }
 
+void showFmtHelp() {
+  printf("Usage: rupa fmt <file> | - | <command> [options]\n\n");
+  printf("Commands:\n");
+  printf("  rupa fmt <file.rp>                  Format one file\n");
+  printf("  rupa fmt -                          Format source from stdin\n");
+  printf("  rupa fmt --list \"syntax\"           List tests/syntax files\n");
+  printf("  rupa fmt --list                    List all tests/*.rp files\n");
+  printf("  rupa fmt --select \"1,2,3\" [path]  Format selected test files\n");
+  printf("  rupa fmt --path \"syntax\"           Format files with status + source\n");
+  printf("  rupa fmt --path syntax --select 41  Combine flags in any order\n");
+  printf("  rupa fmt help                      Show this help\n\n");
+  printf("Options:\n");
+  printf("  --exclude <path>                   Exclude a path; may be repeated\n");
+  printf("  --exclude=<path>                   Same as above\n\n");
+  printf("Selection indexes follow the sorted order shown by --list.\n");
+  printf("An optional path (e.g. \"syntax\") scopes --list, --select and --path.\n");
+}
+
 void showTestHelp() {
   int length = sizeof(test_commands) / sizeof(test_commands[0]);
   printf("Usage: rupa --test[-ast|-ir|-irexec|-exec|-repl] <file>...\n\nTest commands:\n");
@@ -85,5 +103,4 @@ void help(bool is_repl_mode) {
 void version() {
   printf(formatVersion, RUPA_VERSION);
   printf("\nA general-purpose programming language\n");
-  printf("\n");
 }

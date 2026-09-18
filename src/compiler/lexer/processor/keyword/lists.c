@@ -1,6 +1,7 @@
 #include <rupa.h>
 
 const char *keywordList[] = {
+    "void",     // return-type annotation: foo(): void { }
     "if",       // Kondisi utama
     "else if",  // Kondisi lanjutan setelah if
     "else",     // Kondisi fallback
@@ -23,6 +24,7 @@ const char *keywordList[] = {
 };
 
 KeywordType keywordType[] = {
+    KEYWORD_VOID,     // void
     KEYWORD_IF,       // if
     KEYWORD_ELSEIF,   // elseif
     KEYWORD_ELSE,     // else

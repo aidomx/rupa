@@ -327,6 +327,22 @@ IRInstruction *irFree(IRValue *pointer) {
   return i;
 }
 
+IRInstruction *irStrSlotGet(IRValue *result, IRValue *pointer) {
+  IRInstruction *i = newInstruction(IR_STRSLOT_GET);
+  if (!i) return NULL;
+  i->result = result;
+  i->data.strslot_get.pointer = pointer;
+  return i;
+}
+
+IRInstruction *irStrSlotSet(IRValue *pointer, IRValue *value) {
+  IRInstruction *i = newInstruction(IR_STRSLOT_SET);
+  if (!i) return NULL;
+  i->data.strslot_set.pointer = pointer;
+  i->data.strslot_set.value = value;
+  return i;
+}
+
 IRInstruction *irCast(IRValue *result, IRValue *value, IRType *type) {
   IRInstruction *i = newInstruction(IR_CAST);
   if (!i) return NULL;
@@ -393,14 +409,21 @@ void irModuleFree(IRModule *module) {
 }
 
 /* Semantic check: validasi value terhadap nama tipe saat eksekusi IR.
- *Nama tipe dibawa sebagai string (gcstrdup, dikelola GC). */
-IRInstruction *irCheck(IRValue *value, const char *type) {
+ * Nama tipe dibawa sebagai string (gcstrdup, dikelola GC).
+ * nodeId = AST id assignment/annotation (-1 jika tidak ada) untuk view
+ * type check pin family (provenance sizeof di sisi kanan). */
+IRInstruction *irCheckAt(IRValue *value, const char *type, int nodeId) {
   IRInstruction *i = newInstruction(IR_CHECK);
   if (!i) return NULL;
   i->result = NULL;
   i->data.check.value = value;
   i->data.check.type = type ? gcstrdup(type) : NULL;
+  i->data.check.nodeId = nodeId;
   return i;
+}
+
+IRInstruction *irCheck(IRValue *value, const char *type) {
+  return irCheckAt(value, type, -1);
 }
 
 /* Trampoline IR_CHECK ke interpretNode: node annotation/assignment

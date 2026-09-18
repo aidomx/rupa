@@ -137,6 +137,13 @@ bool printStructuralAst(Node *node, int index, int level) {
     printf("Parameters:\n");
     for (int i = 0; i < n->function.paramLength; i++)
       printAst(node, n->function.params[i], level + 2);
+    if (n->function.returnType >= 0) {
+      char typeName[256];
+      if (formatAstTypeName(node, n->function.returnType, typeName, sizeof(typeName))) {
+        printIndent(level + 1);
+        printf("ReturnType: %s\n", typeName);
+      }
+    }
     if (n->function.body >= 0) {
       printIndent(level + 1);
       printf("Body:\n");
@@ -149,6 +156,18 @@ bool printStructuralAst(Node *node, int index, int level) {
     printAst(node, n->asStruct.name, level + 1);
     if (n->asStruct.body >= 0)
       printAst(node, n->asStruct.body, level + 1);
+    return true;
+  case NODE_CLASS_DECL:
+    printIndent(level);
+    printf("Class:\n");
+    printAst(node, n->asClass.name, level + 1);
+    if (n->asClass.type >= 0) {
+      printIndent(level + 1);
+      printf("Type:\n");
+      printAst(node, n->asClass.type, level + 2);
+    }
+    if (n->asClass.body >= 0)
+      printAst(node, n->asClass.body, level + 1);
     return true;
   case NODE_MEMBER_ASSIGN:
     printIndent(level);

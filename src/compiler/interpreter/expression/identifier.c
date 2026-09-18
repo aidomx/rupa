@@ -7,7 +7,17 @@ InterpreterResult interpretIdentifier(Node *node, AstNode *ast, RuntimeEnv *env,
 
   const char *name = ast->type == NODE_IDENTIFIER ? ast->identifier.name : ast->string.value;
 
-  if (name && semGet(env, name, &value)) return resultNormal(value);
+  if (name && semGet(env, name, &value)) {
+    /* Read-through string slot (design/str_memory.txt): variable
+     * dideklarasikan 'string' DAN membawa handle Contract string →
+     * baca slot, bukan handle mentah. */
+    if (value.type == VALUE_PTR && value.as.ptr) {
+      RuntimeValue slot = valueNull();
+      if (memoryStringSlotRead(value.as.ptr, &slot, error))
+        return resultNormal(slot);
+    }
+    return resultNormal(value);
+  }
 
   if (name) {
     static char message[256];

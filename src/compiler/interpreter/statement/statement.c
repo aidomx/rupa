@@ -41,21 +41,92 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     return interpretFunction(n, a, e, x);
   case NODE_ASSIGN: {
     const char *k = nameOf(n, a->assign.target);
-    InterpreterResult r = interpretNode(n, a->assign.value, e, x);
-    if (r.flow != FLOW_NORMAL) return r;
+    /* new Contract (C1–C4): di-intercept SEBELUM evaluasi value —
+     * alokasi dari anotasi; tanpa anotasi = error (C1). */
+    bool contractHandled = false;
+    RuntimeValue contractValue = valueNull();
+    bool contractOk = false;
+    if (a->assign.type >= 0) {
+      const char *ann = typeOf(n, a->assign.type);
+      contractOk = memoryContractAssign(n, a->assign.value, ann, true, e,
+                                        &contractValue, x, &contractHandled);
+      if (contractHandled && !contractOk) return resultFlow(FLOW_ERROR, valueNull());
+    }
+    InterpreterResult r;
+    if (contractOk) {
+      r = resultNormal(contractValue);
+    } else {
+      r = interpretNode(n, a->assign.value, e, x);
+      if (r.flow != FLOW_NORMAL) return r;
+    }
     if (a->assign.type >= 0) {
       analyzerSetErrorLocation(n, a->assign.type);
-      if (!validateAnnotation(n, a->assign.type, r.value, x))
+      /* Handle pin family (VALUE_PTR): view type check via provenance
+       * sizeof — scalar check tidak berlaku (handle opaque).
+       * Contract (VALUE_PTR dari anotasi): provenance registry v3 —
+       * skip view check sizeof. */
+      if (r.value.type == VALUE_PTR && !contractOk) {
+        if (!memoryPinViewCheck(n, a->assign.value, typeOf(n, a->assign.type), x))
+          return resultFlow(FLOW_ERROR, valueNull());
+      } else if (r.value.type != VALUE_PTR && !contractOk &&
+                 !validateAnnotation(n, a->assign.type, r.value, x)) {
         return resultFlow(FLOW_ERROR, valueNull());
+      }
     }
     if (k) {
-      /* Preserve the explicit type on the binding so later assignments are
-       * checked too (`x: number[] = []; x = [1]`). */
+      /* Kontrak type permanen: binding menyimpan type deklarasi, dan
+       * SEMUA assignment (dengan/tanpa anotasi) divalidasi terhadapnya
+       * (`x: number[] = []; x = [1]`; `p: People = ...; p = {age: 1}`).
+       * new T() type-driven: `x = new Number()` mencatat type `number` */
       const char *declaredType = a->assign.type >= 0 ? typeOf(n, a->assign.type) : NULL;
+      if (!declaredType && r.value.type == VALUE_PTR) {
+        char newType[256];
+        if (memoryNewTypeName(n, a->assign.value, newType, sizeof(newType)))
+          semDeclare(e, k, newType);
+      }
       if (declaredType) semDeclare(e, k, declaredType);
 
-      const char *type = semType(e, k);
-      if (type && !validateTypeName(type, r.value, x)) return resultFlow(FLOW_ERROR, valueNull());
+      /* Write-through string slot (design/str_memory.txt): name = "rudi"
+       * / name = dupl(...) menulis ke slot handle Contract string —
+       * bukan rebind. Non-ptr & ptr tanpa tipe (dupl) dicoba; handle
+       * typed lain (Contract number, dsb) langsung rebind. */
+      {
+        bool slotCandidate =
+            r.value.type != VALUE_PTR ||
+            (r.value.as.ptr && !gcregtype(r.value.as.ptr));
+        RuntimeValue old;
+        if (slotCandidate && semGet(e, k, &old) && old.type == VALUE_PTR && old.as.ptr) {
+          if (memoryStringSlotWrite(k, old.as.ptr, r.value, x))
+            return resultNormal(old);
+        }
+      }
+
+      /* Reassignment handle Contract: VALUE_PTR vs declared scalar type
+       * dilewati via provenance registry v3 — cek di memoryContractCheck. */
+      if (r.value.type == VALUE_PTR && declaredType &&
+          gcregtype(r.value.as.ptr) && strcmp(gcregtype(r.value.as.ptr), declaredType) &&
+          strcmp(declaredType, "ptr")) {
+        char elem[256];
+        snprintf(elem, sizeof(elem), "%s", gcregtype(r.value.as.ptr));
+        const char *check = declaredType;
+        size_t dl = strlen(declaredType);
+        if (dl >= 2 && !strcmp(declaredType + dl - 2, "[]")) {
+          /* anotasi T[]: cocokkan elemen */
+          char elem2[256];
+          snprintf(elem2, sizeof(elem2), "%.*s", (int)(dl - 2), declaredType);
+          check = elem2;
+        }
+        if (strcmp(elem, check)) {
+          char message[512];
+          snprintf(message, sizeof(message),
+                   "handle of '%s' cannot be assigned to '%s'", elem, declaredType);
+          addRuntimeError(x, ERR_TYPE_MISMATCH, declaredType, message);
+          return resultFlow(FLOW_ERROR, valueNull());
+        }
+      }
+
+      if (!validateDeclaredType(n, a->assign.value, e, k, r.value, x))
+        return resultFlow(FLOW_ERROR, valueNull());
       semSet(e, k, r.value);
     }
     return r;
@@ -65,6 +136,10 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     RuntimeValue old;
     if (k && semGet(e, k, &old) && valueTruthy(old)) return resultNormal(old);
     InterpreterResult r = interpretNode(n, a->conditionalAssign.value, e, x);
+    if (r.flow != FLOW_NORMAL) return r;
+    /* Kontrak type permanen berlaku juga di sini (x ?= v). */
+    if (k && !validateDeclaredType(n, a->conditionalAssign.value, e, k, r.value, x))
+      return resultFlow(FLOW_ERROR, valueNull());
     if (k) semSet(e, k, r.value);
     return r;
   }
@@ -77,11 +152,34 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       return resultNormal(valueNull());
     }
 
-    InterpreterResult r = interpretNode(n, a->annotation.value, e, x);
-    if (r.flow != FLOW_NORMAL) return r;
+    /* new Contract (C1–C4): intercept sebelum evaluasi — alokasi dari
+     * anotasi; tanpa anotasi = error (C1). */
+    bool contractHandled = false;
+    RuntimeValue contractValue = valueNull();
+    bool contractOk = memoryContractAssign(n, a->annotation.value, type, true, e,
+                                           &contractValue, x, &contractHandled);
+    if (contractHandled && !contractOk) return resultFlow(FLOW_ERROR, valueNull());
+
+    InterpreterResult r;
+    if (contractOk) {
+      r = resultNormal(contractValue);
+    } else {
+      r = interpretNode(n, a->annotation.value, e, x);
+      if (r.flow != FLOW_NORMAL) return r;
+    }
     analyzerSetErrorLocation(n, a->annotation.type);
-    if (!validateAnnotation(n, a->annotation.type, r.value, x))
+    /* Pin family: view type check (design/rupa_memory_batch_1.txt).
+     * p: number = pin(sizeof(number)) OK; pin(sizeof(string)) error
+     * (dicek per TYPE, bukan per byte); tanpa sizeof = generic, hanya
+     * type "ptr" yang menerima. Handle VALUE_PTR skip scalar check.
+     * Contract: alokasi SUDAH dari anotasi — skip view check sizeof. */
+    if (r.value.type == VALUE_PTR && !contractOk) {
+      if (!memoryPinViewCheck(n, a->annotation.value, type, x))
+        return resultFlow(FLOW_ERROR, valueNull());
+    } else if (r.value.type != VALUE_PTR && !contractOk &&
+               !validateAnnotation(n, a->annotation.type, r.value, x)) {
       return resultFlow(FLOW_ERROR, valueNull());
+    }
     if (k) {
       semDeclare(e, k, type);
       semSet(e, k, r.value);
@@ -141,6 +239,10 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     return interpretCase(n, a, e, x);
   case NODE_STRUCT_DECL:
     return interpretStruct(n, a, e, x);
+  case NODE_CLASS_DECL:
+    /* Class (design/new_class.txt): registrasi type sama dengan struct;
+     * method dalam body dikenali sebagai function decl biasa saat dipakai. */
+    return interpretClass(n, a, e, x);
   case NODE_MEMBER_ASSIGN:
     return interpretMemberAssign(n, a, e, x);
   default:

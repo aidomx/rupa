@@ -60,11 +60,46 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
     }
   }
 
-  if (c + 1 < limit && t->data[c + 1].type == LBRACE) {
-    int close = grammarMatchClose(t, c + 1, limit, LBRACE, RBRACE);
-    int body = close >= 0 ? grammarParseBlock(r, c + 1, close) : -1;
-    int id = createFunctionDecl(r->node, name, ps, n, body);
+  /* Return-type annotation (design/rupa_types_const_void_bigint.txt poin 3):
+   * `foo(params): void { }` / `foo(params): number { }` — colon setelah
+   * ')'. Lexer sudah menandai posisinya via flags->isReturnType dan TIDAK
+   * memperlakukannya sebagai colon-body, jadi token ':' + nama tipe ada
+   * di sini antara ')' dan '{'. */
+  int returnType = -1;
+  int head = c + 1;
+  if (head < limit && t->data[head].type == COLON) {
+    int typeStart = head + 1;
+    /* Tipe boleh punya postfix array: `foo(): number[] { }` — lexer
+     * normalizer tidak jalan di posisi ini (tidak ada `name: Type`
+     * statement), jadi scan manual: word + nol atau lebih `[]`. */
+    if (typeStart < limit && (t->data[typeStart].type == IDENTIFIER ||
+                              t->data[typeStart].type == LITERAL_ID ||
+                              t->data[typeStart].type == KEYWORD)) {
+      int typeEnd = typeStart;
+      while (typeEnd + 1 < limit && t->data[typeEnd + 1].type == LBLOCK &&
+             typeEnd + 2 < limit && t->data[typeEnd + 2].type == RBLOCK)
+        typeEnd += 2;
+      int typeId = createTypeNode(r->node, t->data[typeStart].value);
+      for (int q = typeStart + 1; q <= typeEnd && typeId >= 0; q += 2)
+        typeId = createArrayType(r->node, typeId);
+      returnType = typeId;
+      head = typeEnd + 1;
+    }
+  }
+
+  if (head < limit && t->data[head].type == LBRACE) {
+    int close = grammarMatchClose(t, head, limit, LBRACE, RBRACE);
+    int body = close >= 0 ? grammarParseBlock(r, head, close) : -1;
+    int id = createFunctionDecl(r->node, name, ps, n, body, returnType);
     *pos = close >= 0 ? close + 1 : b;
+    return id;
+  }
+
+  /* `foo(params): Type` tanpa body + tanpa call-arg = deklarasi function
+   * dengan return type saja (tanpa body) — bukan call. */
+  if (returnType >= 0) {
+    int id = createFunctionDecl(r->node, name, ps, n, -1, returnType);
+    *pos = head;
     return id;
   }
 

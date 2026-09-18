@@ -135,7 +135,7 @@ struct AstIdentifier {
  * Menyimpan nilai integer.
  */
 struct AstNumber {
-  int value;
+  long long value; /* number rupa 64-bit */
 };
 
 /**
@@ -227,10 +227,20 @@ struct AstFunctionDecl {
   int *params;
   int paramLength;
   int body;
+  int returnType; /* node id tipe kembalian (`foo(): void`) — -1 jika tanpa anotasi */
 };
 
 struct AstStructDecl {
   int name;
+  int body;
+};
+
+/* Class decl (design/new_class.txt): `Monster: MonsterType {}` — tanpa
+ * keyword, penanda class adalah `: Type` (atau `extends`). TypeNode
+ * kini terekam di AST (sebelumnya dibuang parser struct). */
+struct AstClassDecl {
+  int name;
+  int type;
   int body;
 };
 
@@ -373,6 +383,7 @@ struct AstNode {
     struct AstLoop loop;
     struct AstFunctionDecl function;
     struct AstStructDecl asStruct;
+    struct AstClassDecl asClass;
     struct AstAnnotation annotation;
     struct AstMod mod;
     struct AstModule module;

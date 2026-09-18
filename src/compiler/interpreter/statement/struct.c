@@ -89,3 +89,34 @@ InterpreterResult interpretStruct(Node *node, AstNode *ast, RuntimeEnv *env,
 
   return resultNormal(valueNull());
 }
+
+/* Class (design/new_class.txt): registrasi runtime sama dengan struct —
+ * type name dikenal analyzer, layout = field di body. Method (function
+ * decl) dalam body tidak dieksekusi di sini; binding terjadi saat dipakai. */
+InterpreterResult interpretClass(Node *node, AstNode *ast, RuntimeEnv *env,
+                                  Error *error) {
+  (void)error;
+  if (!node || !ast || ast->type != NODE_CLASS_DECL)
+    return resultNormal(valueNull());
+
+  const char *name = NULL;
+  if (ast->asClass.name >= 0 && ast->asClass.name < node->length) {
+    AstNode *n = &node->ast[ast->asClass.name];
+    if (n->type == NODE_IDENTIFIER)
+      name = n->identifier.name;
+    else if (n->type == NODE_LITERAL_ID)
+      name = n->string.value;
+  }
+
+  if (name) {
+    semDeclare(env, name, "class");
+
+    /* Layout field dari body (annotation tanpa value) — sama pola dengan
+     * struct supaya validasi annotation struct-first menerima class. */
+    struct StructField *fields = NULL;
+    int count = extractFields(node, ast->asClass.body, &fields);
+    analyzerDeclareStruct(name, fields, count);
+  }
+
+  return resultNormal(valueNull());
+}

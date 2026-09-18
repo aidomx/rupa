@@ -8,6 +8,7 @@ typedef struct Formatter {
   int indent;
   bool needsIndent;
   bool lastWasNewline;
+  int pendingNewline; /* newline tertunda: komentar inline boleh menempel */
 } Formatter;
 
 /* ==================== Helpers ==================== */
@@ -54,6 +55,7 @@ extern void fmtIf(Formatter *f, Node *node, int id);
 extern void fmtLoop(Formatter *f, Node *node, int id);
 extern void fmtFunctionDecl(Formatter *f, Node *node, int id);
 extern void fmtStructDecl(Formatter *f, Node *node, int id);
+extern void fmtClassDecl(Formatter *f, Node *node, int id);
 extern void fmtMod(Formatter *f, Node *node, int id);
 extern void fmtAsync(Formatter *f, Node *node, int id);
 extern void fmtCase(Formatter *f, Node *node, int id);
@@ -66,6 +68,7 @@ extern void fmtNode(Formatter *f, Node *node, int id);
 
 extern void fmtSingleComment(Formatter *f, const char *text, int len);
 extern void fmtBlockComment(Formatter *f, const char *text, int len);
+extern void formatCommentTo(FILE *out, const char *source, int *pos, int length);
 extern void formatComment(const char *source, int *pos, int length);
 
 /* ==================== Entry points ==================== */
@@ -73,5 +76,8 @@ extern void formatComment(const char *source, int *pos, int length);
 extern int formatFile(const char *path);
 extern int formatString(const char *source);
 extern int formatStdin(void);
+extern int formatList(const char *path, bool listOnly);
+extern int formatSelect(const char *select, const char *path, const char **excludes,
+                        int excludeCount);
 
 #endif

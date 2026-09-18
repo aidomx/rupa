@@ -2,6 +2,8 @@
 
 static const char *keyword_name(KeywordType type) {
   switch (type) {
+  case KEYWORD_VOID:
+    return "void";
   case KEYWORD_IF:
     return "if";
   case KEYWORD_ELSEIF:
@@ -99,6 +101,10 @@ int processKeyword(State *state, KeywordType type, int start, int next, int end,
   case KEYWORD_CASE:
     state->input->flags->isCase = true;
     break;
+  case KEYWORD_VOID:
+    /* void muncul sebagai return-type annotation: `foo(): void { }`.
+     * Token KEYWORD cukup — tidak perlu flag khusus. */
+    break;
   case KEYWORD_BREAK:
   case KEYWORD_CONTINUE:
     break;
@@ -120,6 +126,8 @@ int processKeyword(State *state, KeywordType type, int start, int next, int end,
     case KEYWORD_WHILE:
     case KEYWORD_PRINT:
     case KEYWORD_RETURN:
+    /* `return` di akhir body: konstruk berikutnya ({ }) menyusul di
+     * baris lain — tunggu, jangan anggap statement selesai. */
     case KEYWORD_IMPORT:
     case KEYWORD_EXPORT:
     case KEYWORD_EXTENDS:

@@ -67,7 +67,7 @@ InterpreterResult interpretStringInterp(Node *node, AstNode *ast, RuntimeEnv *en
       switch (r.value.type) {
       case VALUE_NUMBER: {
         char tmp[64];
-        int n = snprintf(tmp, sizeof(tmp), "%d", r.value.as.number);
+        int n = snprintf(tmp, sizeof(tmp), "%lld", r.value.as.number);
         ENSURE(n);
         memcpy(buf + len, tmp, n);
         len += n;
@@ -116,7 +116,7 @@ InterpreterResult interpretStringInterp(Node *node, AstNode *ast, RuntimeEnv *en
           if (j > 0 && pos < 255) tmp[pos++] = ' ';
           RuntimeValue item = r.value.as.array.items[j];
           if (item.type == VALUE_NUMBER)
-            pos += snprintf(tmp + pos, sizeof(tmp) - pos, "%d", item.as.number);
+            pos += snprintf(tmp + pos, sizeof(tmp) - pos, "%lld", item.as.number);
           else if (item.type == VALUE_STRING && item.as.string)
             pos += snprintf(tmp + pos, sizeof(tmp) - pos, "%s", item.as.string);
           else if (item.type == VALUE_BOOLEAN)

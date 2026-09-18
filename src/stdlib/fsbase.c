@@ -101,7 +101,8 @@ static InterpreterResult fsSize(int argc, RuntimeValue *argv, RuntimeEnv *env,
   struct stat st;
   if (stat(argv[0].as.string, &st) != 0)
     return resultNormal(valueNumber(-1));
-  return resultNormal(valueNumber((int)st.st_size));
+  /* number 64-bit: ukuran file tidak terpotong 2 GB. */
+  return resultNormal(valueNumber((long long)st.st_size));
 }
 
 /* ==================== fsbase.isDir(path) ==================== */

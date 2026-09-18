@@ -23,9 +23,9 @@ void printId(char *id, int level) {
   printf("Identifier: %s\n", id ? id : "null");
 }
 
-void printNumber(int value, int level) {
+void printNumber(long long value, int level) {
   printIndent(level);
-  printf("Number: %d\n", value);
+  printf("Number: %lld\n", value);
 }
 
 void printNullable(char *value, int level) {

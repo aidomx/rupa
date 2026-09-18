@@ -29,5 +29,11 @@ int grammarParseReturnKeyword(Request *r, int a, int b, int *pos) {
 
   int e = grammarParseExpr(r, a + 1, b);
   *pos = b;
-  return e >= 0 ? createReturn(r->node, e) : -1;
+  /* return telanjang (tanpa ekspresi) sah: node RETURN dengan expression
+   * -1, interpreter & IR mengembalikan null (foo(): void { return }). */
+  if (e < 0) {
+    *pos = b;
+    return createReturn(r->node, -1);
+  }
+  return createReturn(r->node, e);
 }

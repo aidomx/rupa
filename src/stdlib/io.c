@@ -51,11 +51,11 @@ static InterpreterResult ioToNumber(int argc, RuntimeValue *argv,
 
   const char *str = argv[0].as.string;
 
-  /* Try integer first */
+  /* Try integer first (number 64-bit: strtoll, bukan strtol). */
   char *end;
-  long intval = strtol(str, &end, 10);
+  long long intval = strtoll(str, &end, 10);
   if (*end == '\0')
-    return resultNormal(valueNumber((int)intval));
+    return resultNormal(valueNumber(intval));
 
   /* Try float */
   double dblval = strtod(str, &end);

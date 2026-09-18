@@ -27,6 +27,7 @@ Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](.
 - [Array](array.md)
 - [Object](object.md)
 - [Struct](struct.md)
+- [Class](class.md)
 
 ## Function
 

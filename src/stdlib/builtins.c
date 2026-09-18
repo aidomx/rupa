@@ -1,4 +1,5 @@
 #include <rupa.h>
+#include <math.h>
 
 /* ==================== type(value) ==================== */
 /* Returns the type name of a value as a string */
@@ -35,6 +36,9 @@ static InterpreterResult builtinType(int argc, RuntimeValue *argv, RuntimeEnv *e
     break;
   case VALUE_NATIVE_FUNCTION:
     typeName = "native";
+    break;
+  case VALUE_PTR:
+    typeName = "ptr";
     break;
   default:
     typeName = "unknown";
@@ -92,7 +96,9 @@ static InterpreterResult builtinToNumber(int argc, RuntimeValue *argv, RuntimeEn
     if (argv[0].as.string) {
       char *end;
       double val = strtod(argv[0].as.string, &end);
-      if (end != argv[0].as.string) return resultNormal(valueNumber((int)val));
+      if (end != argv[0].as.string && isfinite(val) && floor(val) == val &&
+          val >= -(double)LLONG_MAX && val <= (double)LLONG_MAX)
+        return resultNormal(valueNumber((long long)val));
     }
     return resultNormal(valueNumber(0));
   case VALUE_BOOLEAN:
@@ -118,7 +124,7 @@ static InterpreterResult builtinToString(int argc, RuntimeValue *argv, RuntimeEn
   case VALUE_NULL:
     return resultNormal(valueString(gcstrdup("null")));
   case VALUE_NUMBER:
-    snprintf(buf, sizeof(buf), "%d", argv[0].as.number);
+    snprintf(buf, sizeof(buf), "%lld", argv[0].as.number);
     return resultNormal(valueString(gcstrdup(buf)));
   case VALUE_DECIMAL:
     snprintf(buf, sizeof(buf), "%g", argv[0].as.decimal);
@@ -132,6 +138,12 @@ static InterpreterResult builtinToString(int argc, RuntimeValue *argv, RuntimeEn
 
 /* ==================== Register builtins ==================== */
 
+/* rupamemory.c — sistem memori rupa (sizeof/pin family) */
+extern void rupaMemoryInit(RuntimeEnv *env);
+
+/* memory.c — sistem memori type-driven (new/del Contract, dupl/compare) */
+extern void memoryInit(RuntimeEnv *env);
+
 void builtinsInit(RuntimeEnv *env) {
   if (!env) return;
 
@@ -140,4 +152,8 @@ void builtinsInit(RuntimeEnv *env) {
   semSet(env, "isNull", valueNativeFunction("isNull", builtinIsNull, 1));
   semSet(env, "toNumber", valueNativeFunction("toNumber", builtinToNumber, 1));
   semSet(env, "toString", valueNativeFunction("toString", builtinToString, 1));
+  // memory management (pin family) — global, tanpa import
+  rupaMemoryInit(env);
+  // memory management type-driven (new/del/Contract, dupl/compare)
+  memoryInit(env);
 }

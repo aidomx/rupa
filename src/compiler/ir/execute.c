@@ -1,4 +1,5 @@
 #include <rupa.h>
+#include <math.h>
 
 /* ============================================================
  * execute.c — IR -> interpreter
@@ -39,6 +40,11 @@ typedef struct IRMachine {
   bool *stored;
   int valLen;
   int valCap;
+  /* Flag halt: error fatal (FLOW_ERROR) menghentikan eksekusi. Frame
+   * anak berbagi flag mesin root via haltLink agar nested call ikut
+   * berhenti. */
+  bool halt;
+  bool *haltLink;
 } IRMachine;
 
 static void machineInit(IRMachine *m, IRModule *ir, RuntimeEnv *env, Error *error, Node *astRef) {
@@ -47,6 +53,17 @@ static void machineInit(IRMachine *m, IRModule *ir, RuntimeEnv *env, Error *erro
   m->env = env;
   m->error = error;
   m->astRef = astRef;
+}
+
+static void machineHalt(IRMachine *m) {
+  if (m->haltLink)
+    *m->haltLink = true;
+  else
+    m->halt = true;
+}
+
+static bool machineHalted(const IRMachine *m) {
+  return m->haltLink ? *m->haltLink : m->halt;
 }
 
 static void machineFree(IRMachine *m) {
@@ -83,7 +100,7 @@ static RuntimeValue machineGet(IRMachine *m, IRValue *v) {
   case IR_VALUE_CONSTANT: {
     switch (v->data.constant.kind) {
     case IR_CONST_NUMBER:
-      return valueNumber((int)v->data.constant.as.number);
+      return valueNumber(v->data.constant.as.number);
     case IR_CONST_DECIMAL:
       return valueDecimal(v->data.constant.as.decimal);
     case IR_CONST_BOOLEAN:
@@ -140,19 +157,32 @@ static bool machineTruthy(IRMachine *m, IRValue *v) {
   return valueTruthy(machineGet(m, v));
 }
 
+/* number 64-bit: number op number tetap number (integer, range 64) —
+ * identik dengan numericResult di interpreter (expression/binary.c).
+ * l/r adalah operand; val hasil double-nya. */
+static RuntimeValue irNumericResult(RuntimeValue l, RuntimeValue r, double val) {
+  if (l.type == VALUE_NUMBER && r.type == VALUE_NUMBER) {
+    if (isfinite(val) && floor(val) == val &&
+        val >= -(double)LLONG_MAX && val <= (double)LLONG_MAX)
+      return valueNumber((long long)val);
+    return valueDecimal(val);
+  }
+  return valueDecimal(val);
+}
+
 /* Konversi opcode biner ke RuntimeValue dengan semantik interpretBinary:
  * dua number -> number, campuran -> decimal, string pada IR_ADD -> concat. */
 static RuntimeValue evalBinaryValue(IROpcode op, RuntimeValue l, RuntimeValue r) {
   bool numericL = l.type == VALUE_NUMBER || l.type == VALUE_DECIMAL;
   bool numericR = r.type == VALUE_NUMBER || r.type == VALUE_DECIMAL;
+
   double a = l.type == VALUE_DECIMAL ? l.as.decimal : (double)l.as.number;
   double b = r.type == VALUE_DECIMAL ? r.as.decimal : (double)r.as.number;
 
   switch (op) {
   case IR_ADD: {
     if (numericL && numericR) {
-      if (l.type == VALUE_NUMBER && r.type == VALUE_NUMBER) return valueNumber((int)(a + b));
-      return valueDecimal(a + b);
+      return irNumericResult(l, r, a + b);
     }
     /* Concat ala interpreter: textOf kiri + textOf kanan — object,
      * array, dan function di-stringify persis seperti interpretBinary. */
@@ -174,19 +204,13 @@ static RuntimeValue evalBinaryValue(IROpcode op, RuntimeValue l, RuntimeValue r)
   }
 
   case IR_SUB:
-    if (numericL && numericR)
-      return l.type == VALUE_NUMBER && r.type == VALUE_NUMBER ? valueNumber((int)(a - b))
-                                                              : valueDecimal(a - b);
+    if (numericL && numericR) return irNumericResult(l, r, a - b);
     return valueNull();
   case IR_MUL:
-    if (numericL && numericR)
-      return l.type == VALUE_NUMBER && r.type == VALUE_NUMBER ? valueNumber((int)(a * b))
-                                                              : valueDecimal(a * b);
+    if (numericL && numericR) return irNumericResult(l, r, a * b);
     return valueNull();
   case IR_DIV:
-    if (numericL && numericR && b != 0)
-      return l.type == VALUE_NUMBER && r.type == VALUE_NUMBER ? valueNumber((int)(a / b))
-                                                              : valueDecimal(a / b);
+    if (numericL && numericR && b != 0) return irNumericResult(l, r, a / b);
     return valueNull();
   case IR_MOD:
     if (numericL && numericR && b != 0)
@@ -260,6 +284,9 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
       argv[i + offset] = machineGet(m, args[i]);
     InterpreterResult result = nf->func(argc, argv, m->env, m->error);
     free(argv);
+    /* FLOW_ERROR dari native (TypeError, MemoryError, ...) = fatal:
+     * hentikan seluruh eksekusi via halt flag. */
+    if (result.flow == FLOW_ERROR) machineHalt(m);
     return result.value;
   }
 
@@ -277,6 +304,24 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
       if (pname) semSet(local, pname, machineGet(m, args[i]));
     }
     InterpreterResult r = interpretNode(function->node, function->body, local, m->error);
+    /* void enforcement (sejajar IR_RETURN & interpretCall):
+     * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
+    if (r.flow == FLOW_RETURN && r.value.type != VALUE_NULL &&
+        function->returnType >= 0) {
+      char typeName[256];
+      if (formatAstTypeName(function->node, function->returnType, typeName,
+                            sizeof(typeName)) &&
+          !strcmp(typeName, "void")) {
+        if (m->error)
+          addError(m->error, (ErrorInfo){.code = "TypeError",
+                                         .message = "void function cannot return a value",
+                                         .line = 0,
+                                         .row = 0,
+                                         .type = ERR_TYPE_MISMATCH});
+        machineHalt(m);
+      }
+    }
+    if (r.flow == FLOW_ERROR) machineHalt(m);
     return r.value;
   }
 
@@ -326,6 +371,8 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
 
   IRMachine frame;
   machineInit(&frame, m->module, local, m->error, m->astRef);
+  /* Berbagi halt flag dengan mesin root agar nested call ikut berhenti. */
+  frame.haltLink = m->haltLink ? m->haltLink : &m->halt;
 
   int bound = argc < (int)fn->param_count ? argc : (int)fn->param_count;
   for (int i = 0; i < bound; i++) {
@@ -337,13 +384,14 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
     IRBlock *next = NULL;
 
     for (IRInstruction *i = block->first; i; i = i->next) {
+      if (machineHalted(&frame)) break; /* error fatal — hentikan */
       switch (i->op) {
       case IR_CONST:
       case IR_LOAD:
         if (i->result) machineSet(&frame, i->result, machineGet(&frame, i->data.unary.value));
-        break;      case IR_STORE:
-        if (i->data.store.target &&
-            i->data.store.target->kind == IR_VALUE_FUNCTION) {
+        break;
+      case IR_STORE:
+        if (i->data.store.target && i->data.store.target->kind == IR_VALUE_FUNCTION) {
           /* Deklarasi fungsi: slot IR_VALUE_FUNCTION = bind fungsi AST
            * ke env sebagai VALUE_FUNCTION (closure AST) — sejajar
            * interpretFunction. Dipakai trampoline interpretNode
@@ -365,14 +413,14 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
             rf->params = an->function.params;
             rf->paramLength = an->function.paramLength;
             rf->body = an->function.body;
+            rf->returnType = an->function.returnType;
             rf->closure = frame.env;
             machineSet(&frame, i->data.store.target, valueFunction(rf));
             break;
           }
           break;
         }
-        machineSet(&frame, i->data.store.target,
-                   machineGet(&frame, i->data.store.value));
+        machineSet(&frame, i->data.store.target, machineGet(&frame, i->data.store.value));
         break;
       case IR_ADD:
       case IR_SUB:
@@ -414,14 +462,112 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           out = valueNumber(obj.as.array.length);
         else if (obj.type == VALUE_STRING && key && !strcmp(key, "length"))
           out = valueNumber(obj.as.string ? (int)strlen(obj.as.string) : 0);
+        else if (obj.type == VALUE_PTR) {
+          /* Struct handle ptr (C3): field access via layout offset.
+           * Registry v3 menyimpan nama struct-nya. Handle non-struct
+           * (pin tanpa type) tetap ditolak seperti sebelumnya. */
+          bool fatal = false;
+          RuntimeValue fieldOut = valueNull();
+          if (obj.as.ptr && memoryMemberGet(obj.as.ptr, key, &fieldOut, frame.error, &fatal)) {
+            out = fieldOut;
+          } else if (!fatal && obj.as.ptr && !gcregtype(obj.as.ptr) && frame.error) {
+            /* pin() sengaja mengembalikan handle opaque tanpa operasi
+             * pointer di fase ini (lihat design/pointer.txt, keputusan #3:
+             * "POINTER SYNTAX — DITUNDA"). Tanpa cabang ini, field access
+             * pada handle pin diam-diam jatuh ke valueNull() di bawah,
+             * kelihatan seperti nilainya "hilang" alih-alih ditolak. */
+            static char message[256];
+            snprintf(message, sizeof(message),
+                     "cannot access property '%s' on a pin handle — pointer dereference is not "
+                     "implemented yet",
+                     key ? key : "?");
+            addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                              .message = message,
+                                              .line = 0,
+                                              .row = 0,
+                                              .type = ERR_TYPE_MISMATCH});
+          }
+        } else if (frame.error && key) {
+          static char message[256];
+          snprintf(message, sizeof(message), "cannot access property '%s' on value of type '%s'",
+                   key, valueTypeName(obj.type));
+          addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                            .message = message,
+                                            .line = 0,
+                                            .row = 0,
+                                            .type = ERR_TYPE_MISMATCH});
+        }
         if (i->result) machineSet(&frame, i->result, out);
         break;
       }
       case IR_MEMBER_SET: {
         RuntimeValue obj = machineGet(&frame, i->data.member_set.object);
         RuntimeValue val = machineGet(&frame, i->data.member_set.value);
-        if (obj.type == VALUE_OBJECT) valueObjectSet(&obj, i->data.member_set.member, val);
+        if (obj.type == VALUE_OBJECT) {
+          valueObjectSet(&obj, i->data.member_set.member, val);
+        } else if (obj.type == VALUE_PTR) {
+          /* Struct handle ptr (C3): field write via layout offset.
+           * Handle non-struct (pin) tetap ditolak eksplisit. */
+          bool fatal = false;
+          if (obj.as.ptr && memoryMemberSet(obj.as.ptr, i->data.member_set.member, val,
+                                            frame.error, &fatal)) {
+            if (fatal) machineHalt(&frame);
+          } else if (fatal) {
+            machineHalt(&frame);
+          } else if (frame.error) {
+            /* pin() belum mendukung dereference — tolak eksplisit. */
+            static char message[256];
+            snprintf(message, sizeof(message),
+                     "cannot assign property '%s' on a pin handle — pointer dereference is not "
+                     "implemented yet",
+                     i->data.member_set.member ? i->data.member_set.member : "?");
+            addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                              .message = message,
+                                              .line = 0,
+                                              .row = 0,
+                                              .type = ERR_TYPE_MISMATCH});
+          }
+        } else if (frame.error) {
+          static char message[256];
+          snprintf(message, sizeof(message), "cannot assign property '%s' on value of type '%s'",
+                   i->data.member_set.member ? i->data.member_set.member : "?",
+                   valueTypeName(obj.type));
+          addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                            .message = message,
+                                            .line = 0,
+                                            .row = 0,
+                                            .type = ERR_TYPE_MISMATCH});
+        }
         machineSet(&frame, i->data.member_set.object, obj);
+        break;
+      }
+      case IR_STRSLOT_GET: {
+        /* Read-through string slot (design/str_memory.txt). */
+        RuntimeValue ptr = machineGet(&frame, i->data.strslot_get.pointer);
+        RuntimeValue out = valueNull();
+        bool fatal = false;
+        if (ptr.type == VALUE_PTR && ptr.as.ptr)
+          memoryStringSlotRead(ptr.as.ptr, &out, frame.error);
+        else if (frame.error && ptr.type != VALUE_NULL) {
+          addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                            .message = "string slot read on non-handle",
+                                            .line = 0, .row = 0,
+                                            .type = ERR_TYPE_MISMATCH});
+          machineHalt(&frame);
+        }
+        (void)fatal;
+        if (i->result) machineSet(&frame, i->result, out);
+        break;
+      }
+      case IR_STRSLOT_SET: {
+        /* Write-through string slot: string biasa -> gcstrdup; ptr tanpa
+         * tipe (dupl) -> pointer pindah ke slot. Gagal tulis (handle
+         * bukan string slot / RHS ptr typed lain) BUKAN error —
+         * irStore berikutnya di jalur normal melakukan rebind. */
+        RuntimeValue ptr = machineGet(&frame, i->data.strslot_set.pointer);
+        RuntimeValue val = machineGet(&frame, i->data.strslot_set.value);
+        if (ptr.type == VALUE_PTR && ptr.as.ptr)
+          memoryStringSlotWrite("", ptr.as.ptr, val, frame.error);
         break;
       }
       case IR_INDEX_GET: {
@@ -429,8 +575,13 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue idx = machineGet(&frame, i->data.index_get.index);
         RuntimeValue out = valueNull();
         if (arr.type == VALUE_ARRAY && idx.type == VALUE_NUMBER) {
-          int n = idx.as.number;
+          int n = (int)idx.as.number;
           if (n >= 0 && n < arr.as.array.length) out = arr.as.array.items[n];
+        } else if (arr.type == VALUE_PTR) {
+          /* Handle new T() — baca elemen via registry v2 (memory.c). */
+          bool fatal = false;
+          out = memoryPtrGet(arr, idx, frame.error, &fatal);
+          if (fatal) machineHalt(&frame);
         }
         if (i->result) machineSet(&frame, i->result, out);
         break;
@@ -439,8 +590,15 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue arr = machineGet(&frame, i->data.index_set.array);
         RuntimeValue idx = machineGet(&frame, i->data.index_set.index);
         RuntimeValue val = machineGet(&frame, i->data.index_set.value);
+        if (arr.type == VALUE_PTR) {
+          /* Handle new T() — tulis elemen via registry v2 (memory.c). */
+          bool fatal = false;
+          memoryPtrSet(arr, idx, val, frame.error, &fatal);
+          if (fatal) machineHalt(&frame);
+          break;
+        }
         if (arr.type == VALUE_ARRAY && idx.type == VALUE_NUMBER) {
-          int n = idx.as.number;
+          int n = (int)idx.as.number;
           if (n >= 0 && n < arr.as.array.length)
             arr.as.array.items[n] = val;
           else if (n == arr.as.array.length) {
@@ -459,6 +617,30 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         break;
       }
       case IR_ALLOC: {
+        /* IR_TYPE_POINTER = new Contract (C1–C4): gccalloc(n, sizeof(T))
+         * dari nama tipe di alloc.type->name; elemen type tercatat di
+         * registry v3 (C2: 'T[]' direduksi ke 'T'). */
+        if (i->data.alloc.type && i->data.alloc.type->kind == IR_TYPE_POINTER) {
+          const char *tname = i->data.alloc.type->name;
+          char type[256] = {0};
+          if (tname) snprintf(type, sizeof(type), "%s", tname);
+          size_t len = strlen(type);
+          if (len >= 2 && !strcmp(type + len - 2, "[]")) type[len - 2] = '\0';
+          int elemSize = 0;
+          RuntimeValue out = valueNull();
+          if (type[0] && rupaMemorySizeOf(type, &elemSize) && elemSize > 0) {
+            long long n = 1;
+            if (i->data.alloc.count) {
+              RuntimeValue c = machineGet(&frame, i->data.alloc.count);
+              if (c.type == VALUE_NUMBER && c.as.number > 0) n = c.as.number;
+            }
+            void *handle = gccalloc((size_t)n, (size_t)elemSize);
+            if (handle) gcregsettype(handle, type);
+            out = valuePtr(handle);
+          }
+          if (i->result) machineSet(&frame, i->result, out);
+          break;
+        }
         /* Buat VALUE_ARRAY / VALUE_OBJECT di register hasil.
          * count = panjang array awal; zeroed = object kosong. */
         RuntimeValue v = valueNull();
@@ -466,7 +648,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           int n = 0;
           if (i->data.alloc.count) {
             RuntimeValue c = machineGet(&frame, i->data.alloc.count);
-            if (c.type == VALUE_NUMBER) n = c.as.number;
+            if (c.type == VALUE_NUMBER) n = (int)c.as.number;
           }
           v.type = VALUE_ARRAY;
           v.as.array.length = n;
@@ -494,21 +676,54 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
             interpretNode(m->astRef, (int)i->data.call.count, frame.env, m->error);
         if (i->result) machineSet(&frame, i->result, r.value);
         /* FLOW_ERROR (type check gagal) menghentikan fungsi ini. */
-        if (r.flow == FLOW_ERROR)
+        if (r.flow == FLOW_ERROR) {
+          machineHalt(&frame);
+          machineFree(&frame);
           return valueNull();
+        }
         break;
       }
       case IR_CHECK: {
         /* Semantic check struct-first: validasi value terhadap tipe
-         * (scalar/struct/array-of-struct) via analyzer registry. */
+         * (scalar/struct/array-of-struct) via analyzer registry.
+         * Handle pin family (VALUE_PTR): view type check via provenance
+         * sizeof pada sisi kanan — scalar check tidak berlaku.
+         * Lokasi error: node value sisi kanan (presisi baris:kolom). */
         RuntimeValue v = machineGet(&frame, i->data.check.value);
-        if (!analyzerCheckType(i->data.check.type, v, m->error))
+        if (i->data.check.nodeId >= 0 && i->data.check.nodeId < m->astRef->length) {
+          AstNode *vn = &m->astRef->ast[i->data.check.nodeId];
+          setRuntimeErrorLocation(vn->line, vn->row);
+        }
+        if (v.type == VALUE_PTR) {
+          if (!memoryPinViewCheck(m->astRef, i->data.check.nodeId, i->data.check.type, m->error)) {
+            machineHalt(&frame);
+            machineFree(&frame);
+            return valueNull();
+          }
+        } else if (!analyzerCheckType(i->data.check.type, v, m->error)) {
+          machineHalt(&frame);
+          machineFree(&frame);
           return valueNull(); /* bailing out — error sudah ditambahkan */
+        }
         break;
       }
-      case IR_RETURN:
+      case IR_RETURN: {
+        RuntimeValue ret = machineGet(&frame, i->data.return_value.value);
+        /* void enforcement (sejajar interpretCall interpreter):
+         * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
+        if (fn->return_type && fn->return_type->name &&
+            !strcmp(fn->return_type->name, "void") && ret.type != VALUE_NULL) {
+          if (frame.error)
+            addError(frame.error, (ErrorInfo){.code = "TypeError",
+                                              .message = "void function cannot return a value",
+                                              .line = 0,
+                                              .row = 0,
+                                              .type = ERR_TYPE_MISMATCH});
+          machineHalt(&frame);
+        }
         machineFree(&frame);
-        return machineGet(&frame, i->data.return_value.value);
+        return ret;
+      }
       case IR_JUMP:
         next = i->data.jump.target;
         break;

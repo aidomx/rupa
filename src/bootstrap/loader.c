@@ -81,19 +81,98 @@ int loader(const char *args[], int length) {
     }
 
     else if (strcmp(args[i], "fmt") == 0) {
-      if (i + 1 < length) {
-        int result;
-        if (strcmp(args[i + 1], "-") == 0)
-          result = formatStdin();
-        else
-          result = formatFile(args[i + 1]);
-        gcclean();
-        return result;
-      } else {
-        fprintf(stderr, "fmt: no file specified\n");
+      int result = 0;
+      if (i + 1 >= length) {
+        showFmtHelp();
         gcclean();
         return 1;
       }
+      const char *sub = args[i + 1];
+      if (strcmp(sub, "help") == 0 || strcmp(sub, "--help") == 0 || strcmp(sub, "-h") == 0) {
+        showFmtHelp();
+        gcclean();
+        return 0;
+      }
+      if (strcmp(sub, "-") == 0) {
+        result = formatStdin();
+        gcclean();
+        return result;
+      }
+
+      /* Flag fmt bersifat composable: --list, --path, --select dan --exclude
+       * boleh dikombinasikan dalam urutan apa pun, mis.:
+       *   rupa fmt --path syntax --select 41
+       *   rupa fmt --select 41 --path syntax
+       * Path kategori juga tetap diterima sebagai argumen posisi tunggal
+       * agar kompatibel: rupa fmt --select 41 syntax */
+      bool wantList = false;
+      bool wantPath = false;
+      const char *pathArg = NULL;
+      const char *selectArg = NULL;
+      const char *excludes[64];
+      int excludeCount = 0;
+      bool badUsage = false;
+
+      for (int j = i + 1; j < length; j++) {
+        const char *arg = args[j];
+        if (strcmp(arg, "--list") == 0) {
+          wantList = true;
+        } else if (strcmp(arg, "--path") == 0) {
+          if (j + 1 >= length || args[j + 1][0] == '-') {
+            fprintf(stderr, "fmt: --path requires a path (e.g. syntax)\n");
+            badUsage = true;
+            break;
+          }
+          pathArg = args[++j];
+          wantPath = true;
+        } else if (strcmp(arg, "--select") == 0) {
+          if (j + 1 >= length || args[j + 1][0] == '-') {
+            fprintf(stderr, "fmt: --select requires indexes (e.g. 1,2,3)\n");
+            badUsage = true;
+            break;
+          }
+          selectArg = args[++j];
+        } else if (strcmp(arg, "--exclude") == 0) {
+          if (j + 1 >= length || args[j + 1][0] == '-') {
+            fprintf(stderr, "fmt: --exclude requires a path\n");
+            badUsage = true;
+            break;
+          }
+          if (excludeCount < 64) excludes[excludeCount++] = args[++j];
+        } else if (strncmp(arg, "--exclude=", 10) == 0) {
+          if (excludeCount < 64) excludes[excludeCount++] = arg + 10;
+        } else if (arg[0] == '-') {
+          fprintf(stderr, "fmt: unknown option '%s'\n", arg);
+          badUsage = true;
+          break;
+        } else if (!pathArg) {
+          pathArg = arg; /* kategori/path posisi tunggal, mis. "syntax" */
+        } else {
+          fprintf(stderr, "fmt: unexpected argument '%s'\n", arg);
+          badUsage = true;
+          break;
+        }
+      }
+
+      if (badUsage) {
+        gcclean();
+        return 1;
+      }
+
+      if (wantList) {
+        result = formatList(pathArg ? pathArg : "tests", true);
+      } else if (selectArg) {
+        result = formatSelect(selectArg, pathArg, excludes, excludeCount);
+      } else if (pathArg && wantPath) {
+        result = formatList(pathArg, false);
+      } else if (pathArg) {
+        result = formatFile(pathArg);
+      } else {
+        showFmtHelp();
+        result = 1;
+      }
+      gcclean();
+      return result;
     }
 
     else if (strcmp(args[i], "--test-exec") == 0) {

@@ -12,15 +12,34 @@ int run(const char *paths[], int length) {
     return 1;
   }
 
-  State *state = createGlobalState(length, true);
+  /* File mode: bukan REPL. isRepl=false membuat lexer memperlakukan
+   * newline dalam block sebagai boundary statement (bare `return` di
+   * akhir body sah), dan print() tidak menambah newline REPL. */
+  State *state = createGlobalState(length, false);
   if (!state || !state->buffer) {
     fprintf(stderr, "Failed to create state.\n");
     return 1;
   }
 
   const char *index = paths[length];
-  // Atur nilai menjadi false jika IR sedang dalam perbaikan
+  /**
+   * Menjalankan rupa <file.rp> dengan IR
+   * Atur nilai runWithIR=false jika IR sedang dalam masa
+   * perbaikan dan gunakan command :
+   *  rupa --test-ir <file.rp>
+   *  rupa --test-irexec <file.rp>
+   *
+   * Karena jika tetap menggunakam rupa <file.rp>
+   * program akan selalu menghasilkan dari interpreter
+   * bukan dari sistem IR.
+   *
+   * Noted: perkembangan IR dan Interpreter harus sesuai,
+   * karena itu sangat menguntungkan jika interpreter-v1.0 tetapi IR-v1.1 artinya IR dalam masa perkembangan.
+   *
+   * dan user tidak terdampak oleh perkembangan karena secara default akan menggunakan IR-v1.0.
+   */
   bool runWithIR = true;
+
   if (isDirectory(index)) {
     static char indexBuf[1024];
     snprintf(indexBuf, sizeof(indexBuf), "%s/index.rp", index);

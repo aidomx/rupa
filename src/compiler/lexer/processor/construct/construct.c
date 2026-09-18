@@ -131,6 +131,26 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
         continue;
       }
       if (expectValue) {
+        /* Bare `return` diikuti newline: di file mode (non-REPL) tanpa
+         * delimiter terbuka, newline mengakhiri statement — return
+         * telanjang sah (mengembalikan null), dipakai untuk early-exit
+         * (mis. `foo(): void { return }`). REPL tetap menunggu karena
+         * kelanjutan multiline (`return {` dst.) disatukan di sana.
+         * Cek token terakhir, bukan flag: `return 1` (last = NUMBER)
+         * tetap jalur waiting lama. */
+        Token *tk = state->tokens;
+        bool bareReturn = tk && tk->length > 0 &&
+                          tk->data[tk->length - 1].type == KEYWORD &&
+                          !strcmp(tk->data[tk->length - 1].value, "return");
+        /* brace > 0 sah: bare return memang hidup di dalam block body
+         * fungsi, dan newline di block = boundary statement. Yang tidak
+         * boleh: di dalam [] / () (newline hanya whitespace di sana). */
+        if (bareReturn && !state->isRepl && !bracket && !paren) {
+          addDelim(state->tokens, '\n', NULL, state->input->line, p++);
+          expectValue = false;
+          *waiting = false;
+          continue;
+        }
         *waiting = true;
         if (ctx) {
           ctx->brace = brace;
@@ -223,6 +243,9 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
         ctx->brace = brace;
         ctx->bracket = bracket;
         ctx->paren = paren;
+        /* Reset marker return-type setelah '{' body dimakan — marker
+         * hanya hidup untuk `): Type {` (grammar_function membaca). */
+        if (c == '{') state->input->flags->isReturnType = false;
         if (c == '{') {
           TokenType previous = state->tokens->length > 1
                                    ? state->tokens->data[state->tokens->length - 2].type
@@ -237,8 +260,21 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
           /* A colon inside an object is a property separator, not a
              single-statement marker. */
           if (ctx->objectDepth <= 0 || brace < ctx->objectDepth) {
-            ctx->colon = 1;
-            singleStatement = true;
+            /* Return-type annotation (design/rupa_types_const_void_bigint.txt
+             * poin 3): `foo(): void { }` / `foo(): number { }` — colon
+             * langsung setelah ')' tutup parameter BUKAN colon-body
+             * satu statement. Tandai & lewati: token ':' tetap diemit
+             * (processDelimiter di atas), tapi jangan aktifkan
+             * singleStatement agar `void { }` tidak dibaca sebagai body. */
+            TokenType prev = state->tokens->length > 0
+                                 ? state->tokens->data[state->tokens->length - 1].type
+                                 : UNKNOWN;
+            if (prev == RPAREN && paren == 0) {
+              state->input->flags->isReturnType = true;
+            } else {
+              ctx->colon = 1;
+              singleStatement = true;
+            }
           }
         } else if (c == '}') {
           if (ctx->objectDepth > 0 && brace < ctx->objectDepth)
@@ -293,8 +329,18 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
   }
 
   if (brace || bracket || paren || expectValue) {
-    *waiting = true;
-    return p;
+    /* EOF dengan expectValue: bare `return` tanpa newline di akhir file
+     * tetap statement sah (file mode). Kondisi lain (assignment/operator
+     * yang masih menunggu value, delimiter terbuka) tetap waiting. */
+    Token *tk = state->tokens;
+    bool bareReturn = expectValue && !bracket && !paren &&
+                      !state->isRepl && tk && tk->length > 0 &&
+                      tk->data[tk->length - 1].type == KEYWORD &&
+                      !strcmp(tk->data[tk->length - 1].value, "return");
+    if (!bareReturn) {
+      *waiting = true;
+      return p;
+    }
   }
 
   *waiting = false;

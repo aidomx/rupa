@@ -50,6 +50,74 @@ static const char *calleeName(Node *node, int id) {
 }
 
 /*
+ * sizeof(TypeName) — kasus khusus: argumennya nama tipe, bukan value
+ * (identifier `number` tidak ada di env). Logika ukuran ada di
+ * rupamemory.c (rupaMemorySizeOf), di sini hanya ekstrak nama tipe
+ * dari AST argumen. Bila argumen bukan nama tipe (mis. sizeof(x)) —
+ * untuk sekarang tetap lewat jalur ini: identifier yang bukan tipe
+ * akan return null.
+ */
+static InterpreterResult sizeofCall(Node *node, AstNode *ast, RuntimeEnv *env,
+                                    Error *error, bool *handled) {
+  (void)error;
+  *handled = false;
+  if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
+
+  AstNode *calleeAst = &node->ast[ast->call.callee];
+  const char *name = NULL;
+  if (calleeAst->type == NODE_IDENTIFIER)
+    name = calleeAst->identifier.name;
+  else if (calleeAst->type == NODE_LITERAL_ID)
+    name = calleeAst->string.value;
+  if (!name || strcmp(name, "sizeof") != 0) return resultNormal(valueNull());
+
+  *handled = true;
+  if (ast->call.length != 1) {
+    /* tanpa argumen: tidak ada konteks error baris di sini — cukup null */
+    return resultNormal(valueNull());
+  }
+
+  /* Tipe argumen: biasanya NODE_ARRAY_TYPE/identifier via
+   * formatAstTypeName — tapi di konteks ekspresi `number[]` terparse
+   * sebagai NODE_SUBSCRIPT kosong; format manual ke "T[]". */
+  char type[256];
+  AstNode *arg = &node->ast[ast->call.args[0]];
+  bool formatted = false;
+  if (arg->type == NODE_SUBSCRIPT && arg->subscript.index < 0) {
+    AstNode *base = &node->ast[arg->subscript.posId];
+    const char *baseName = base->type == NODE_IDENTIFIER   ? base->identifier.name
+                           : base->type == NODE_LITERAL_ID ? base->string.value
+                                                           : NULL;
+    if (baseName) {
+      snprintf(type, sizeof(type), "%s[]", baseName);
+      formatted = true;
+    }
+  }
+  if (!formatted && !formatAstTypeName(node, ast->call.args[0], type, sizeof(type)))
+    return resultNormal(valueNull());
+
+  int size = 0;
+  if (!rupaMemorySizeOf(type, &size)) {
+    /* Bukan nama tipe — mungkin handle: sizeof(p) pada VALUE_PTR
+     * mengembalikan ukuran blok terdaftar (registry v2). Baca binding
+     * MENTAH via semGet — evaluasi node memicu read-through slot
+     * string Contract (hasil string, bukan ptr). */
+    if (env) {
+      const char *argName = arg->type == NODE_IDENTIFIER   ? arg->identifier.name
+                            : arg->type == NODE_LITERAL_ID ? arg->string.value
+                                                           : NULL;
+      RuntimeValue raw = valueNull();
+      if (argName && semGet(env, argName, &raw) && raw.type == VALUE_PTR && raw.as.ptr) {
+        size_t bytes = gcsize(raw.as.ptr);
+        return resultNormal(valueNumber((int)bytes));
+      }
+    }
+    return resultNormal(valueNull());
+  }
+  return resultNormal(valueNumber(size));
+}
+
+/*
  * Array builtin methods: push / pop.
  *
  * These mutate the array in place, so they are handled here (with access to
@@ -164,6 +232,20 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
 InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error) {
   if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
 
+  /* sizeof(TypeName) — nama tipe, bukan value: intercept sebelum evaluasi. */
+  bool sizeHandled = false;
+  InterpreterResult sizeResult = sizeofCall(node, ast, env, error, &sizeHandled);
+  if (sizeHandled) return sizeResult;
+
+  /* new T()/del(x) — type-driven memory (design/new_memory.txt):
+   * arg pertama `new` nama tipe (tidak dievaluasi), del free variadic. */
+  bool newHandled = false;
+  InterpreterResult newResult = memoryNewCall(node, ast, env, error, &newHandled);
+  if (newHandled) return newResult;
+  bool delHandled = false;
+  InterpreterResult delResult = memoryDelCall(node, ast, env, error, &delHandled);
+  if (delHandled) return delResult;
+
   /* Array builtin methods (push/pop) mutate in place — see arrayBuiltinCall. */
   bool handled = false;
   InterpreterResult builtin =
@@ -245,6 +327,25 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   }
 
   InterpreterResult result = interpretNode(function->node, function->body, local, error);
-  if (result.flow == FLOW_RETURN) return resultNormal(result.value);
+  if (result.flow == FLOW_RETURN) {
+    /* void function: hasil call tak boleh dipakai sebagai value —
+     * `x = voidFn()` error; panggilan statement biasa aman. */
+    if (function->returnType >= 0 && function->returnType < node->length &&
+        result.value.type != VALUE_NULL) {
+      char typeName[256];
+      if (formatAstTypeName(function->node, function->returnType, typeName,
+                            sizeof(typeName)) &&
+          !strcmp(typeName, "void")) {
+        if (error)
+          addError(error, (ErrorInfo){.code = "TypeError",
+                                      .message = "void function returns no value",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_TYPE_MISMATCH});
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
+    }
+    return resultNormal(result.value);
+  }
   return result;
 }

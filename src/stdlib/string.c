@@ -223,8 +223,8 @@ InterpreterResult stdStringSlice(int argc, RuntimeValue *argv,
                            "string.slice() expects (start, end?) numbers");
 
   int length = (int)strlen(value);
-  int start = argv[1].as.number;
-  int end = (argc >= 3 && argv[2].type == VALUE_NUMBER) ? argv[2].as.number
+  int start = (int)argv[1].as.number;
+  int end = (argc >= 3 && argv[2].type == VALUE_NUMBER) ? (int)argv[2].as.number
                                                         : length;
 
   /* Negative indices count from the end, then clamp into [0, length]. */

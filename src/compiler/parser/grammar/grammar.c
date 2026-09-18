@@ -46,6 +46,10 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
 
   int id;
   if ((id = grammarParseFunction(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+  /* Class SEBELUM struct: `Name: Type {}` (safetyType + block) adalah
+   * class (design/new_class.txt), bukan struct. Struct hanya bentuk
+   * `Name {}` polos. */
+  if ((id = grammarParseClass(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseStruct(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseAnnotation(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
   if ((id = grammarParseUpdate(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;

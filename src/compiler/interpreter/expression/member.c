@@ -16,6 +16,16 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
 
   const char *key = memberName(node, ast->member.member);
 
+  /* Struct handle ptr (C3): field access via layout offset. */
+  if (obj.value.type == VALUE_PTR && obj.value.as.ptr && key) {
+    RuntimeValue fieldOut = valueNull();
+    bool fatal = false;
+    if (memoryMemberGet(obj.value.as.ptr, key, &fieldOut, error, &fatal))
+      return resultNormal(fieldOut);
+    if (fatal) return resultFlow(FLOW_ERROR, valueNull());
+    /* bukan struct handle — jalur lama lanjut */
+  }
+
   if (obj.value.type == VALUE_OBJECT) {
     RuntimeValue val;
     if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
@@ -111,6 +121,16 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
 
     const char *key = memberName(node, target->member.member);
 
+    /* Struct handle ptr (C3): field write via layout offset. */
+    if (base.value.type == VALUE_PTR && base.value.as.ptr && key) {
+      bool fatal = false;
+      if (memoryMemberSet(base.value.as.ptr, key, val.value, error, &fatal)) {
+        return resultNormal(val.value);
+      }
+      if (fatal) return resultFlow(FLOW_ERROR, valueNull());
+      /* bukan struct handle — jalur lama lanjut */
+    }
+
     if (base.value.type == VALUE_OBJECT) {
       if (!valueObjectSet(&base.value, key, val.value)) {
         if (error)
@@ -190,6 +210,15 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
     InterpreterResult base = interpretNode(node, target->subscript.posId, env, error);
     if (base.flow != FLOW_NORMAL) return base;
 
+    /* VALUE_PTR (handle new T()) — tulis elemen via registry v2. */
+    if (base.value.type == VALUE_PTR) {
+      bool ptrHandled = false;
+      InterpreterResult ptrResult =
+          memoryIndexSet(node, target->subscript.posId, target->subscript.index,
+                         val.value, env, error, &ptrHandled);
+      if (ptrHandled) return ptrResult;
+    }
+
     if (base.value.type != VALUE_ARRAY) {
       static char message[256];
       snprintf(message, sizeof(message), "cannot index into value of type '%s'",
@@ -216,7 +245,7 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
       return resultFlow(FLOW_ERROR, valueNull());
     }
 
-    int i = idx.value.as.number;
+    int i = (int)idx.value.as.number;
     int len = base.value.as.array.length;
     /* Auto-grow: arr[len] = v menambah elemen baru (push semantics).
      * Indeks di luar itu tetap out of bounds. */

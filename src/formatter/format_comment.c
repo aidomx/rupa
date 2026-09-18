@@ -7,18 +7,18 @@
  */
 
 /* Output a line, stripping \r and converting \t to spaces. */
-static void fmtCleanLine(const char *s, int len) {
+static void fmtCleanLine(FILE *out, const char *s, int len) {
   for (int i = 0; i < len; i++) {
     if (s[i] == '\r')
       continue;
     if (s[i] == '\t')
-      fprintf(stdout, "    ");
+      fprintf(out, "    ");
     else
-      fputc(s[i], stdout);
+      fputc(s[i], out);
   }
 }
 
-void formatComment(const char *source, int *pos, int length) {
+void formatCommentTo(FILE *out, const char *source, int *pos, int length) {
   char c = source[*pos];
   char next = (*pos + 1 < length) ? source[*pos + 1] : 0;
 
@@ -31,7 +31,7 @@ void formatComment(const char *source, int *pos, int length) {
     int end = *pos;
     while (end > start && source[end - 1] == '\r')
       end--;
-    fprintf(stdout, "%.*s\n", end - start, source + start);
+    fprintf(out, "%.*s\n", end - start, source + start);
     return;
   }
 
@@ -43,7 +43,7 @@ void formatComment(const char *source, int *pos, int length) {
     int end = *pos;
     while (end > start && source[end - 1] == '\r')
       end--;
-    fprintf(stdout, "%.*s\n", end - start, source + start);
+    fprintf(out, "%.*s\n", end - start, source + start);
     return;
   }
 
@@ -82,8 +82,8 @@ void formatComment(const char *source, int *pos, int length) {
       while (outLen > 0 && (source[start + outLen - 1] == '\n' ||
                             source[start + outLen - 1] == '\r'))
         outLen--;
-      fmtCleanLine(source + start, outLen);
-      fputc('\n', stdout);
+      fmtCleanLine(out, source + start, outLen);
+      fputc('\n', out);
       return;
     }
 
@@ -103,8 +103,8 @@ void formatComment(const char *source, int *pos, int length) {
 
         if (first) {
           /* First line: output as-is (clean) */
-          fmtCleanLine(line, lineLen);
-          fputc('\n', stdout);
+          fmtCleanLine(out, line, lineLen);
+          fputc('\n', out);
           first = false;
         } else {
           /* Trim leading whitespace (space, tab, \r) */
@@ -116,18 +116,18 @@ void formatComment(const char *source, int *pos, int length) {
           if (p < lineLen && line[p] == '*' && p + 1 < lineLen &&
               line[p + 1] == '/') {
             /* Closing star-slash -- output with leading space */
-            fprintf(stdout, " */\n");
+            fprintf(out, " */\n");
           } else if (p < lineLen && line[p] == '*') {
             /* Line with star -- ensure space after star */
-            fprintf(stdout, " *");
+            fprintf(out, " *");
             /* Output remaining content after star, cleaned */
             int contentStart = p + 1;
             int contentLen = lineLen - contentStart;
             /* Trim trailing \r */
             while (contentLen > 0 && line[contentStart + contentLen - 1] == '\r')
               contentLen--;
-            fmtCleanLine(line + contentStart, contentLen);
-            fputc('\n', stdout);
+            fmtCleanLine(out, line + contentStart, contentLen);
+            fputc('\n', out);
           } else {
             /* No star -- add star-space prefix */
             int contentLen = lineLen - p;
@@ -135,12 +135,12 @@ void formatComment(const char *source, int *pos, int length) {
             while (contentLen > 0 && line[p + contentLen - 1] == '\r')
               contentLen--;
             if (contentLen > 0) {
-              fprintf(stdout, " * ");
-              fmtCleanLine(line + p, contentLen);
+              fprintf(out, " * ");
+              fmtCleanLine(out, line + p, contentLen);
             } else {
-              fprintf(stdout, " *");
+              fprintf(out, " *");
             }
-            fputc('\n', stdout);
+            fputc('\n', out);
           }
         }
         lineStart = i + 1;
@@ -148,4 +148,8 @@ void formatComment(const char *source, int *pos, int length) {
     }
     return;
   }
+}
+
+void formatComment(const char *source, int *pos, int length) {
+  formatCommentTo(stdout, source, pos, length);
 }

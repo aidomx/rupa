@@ -1,0 +1,52 @@
+# String slot first-class pada handle Contract (design/str_memory.txt)
+# name: string = new Contract() — assignment write-through, pembacaan
+# read-through: handle transparan penuh sebagai string.
+
+People {
+  name: string
+  age: number
+}
+
+# Slot string kosong — zeroed
+name: string = new Contract()
+assertEq(name, "")
+
+# Write-through: assignment string biasa menulis ke slot
+name = "rudi"
+assertEq(name, "rudi")
+assertType(name, "string")
+
+# Read-through menembus konkatenasi & sizeof (ukuran blok = 8 char*)
+assertEq("X" + name, "Xrudi")
+assertEq(sizeof(name), 8)
+
+# Write-through: ptr hasil dupl ditulis ke slot
+p = dupl("kartika")
+name = p
+assertEq(name, "kartika")
+
+# compare membaca slot
+assertEq(compare(name, "kartika"), 0)
+
+# Reassignment handle Contract string (handle swap)
+other: string = new Contract()
+other = "kita"
+name = other
+assertEq(name, "kita")
+
+# Tulis ulang slot dari handle yang sama
+name = "second"
+assertEq(name, "second")
+assertEq(other, "kita") # handle lain tidak ikut berubah
+
+# Field string pada struct handle — first-class (bukan snapshot)
+data: People = new Contract()
+data.age = 30
+data.name = "ayu"
+assertEq(data.name, "ayu")
+assertEq(data.age, 30)
+
+# Field string menimpa nilai sebelumnya
+data.name = "budi"
+assertEq(data.name, "budi")
+assertEq(data.age, 30) # field lain tetap utuh

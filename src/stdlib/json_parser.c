@@ -71,8 +71,9 @@ RuntimeValue parseJsonNumber(JsonParser *parser, bool *ok) {
     return valueNull();
   }
   parser->position = (size_t)(end - parser->text);
-  if (floor(value) == value && value >= INT_MIN && value <= INT_MAX)
-    return valueNumber((int)value);
+  /* number 64-bit: bilangan bulat JSON masuk long long. */
+  if (floor(value) == value && value >= -(double)LLONG_MAX && value <= (double)LLONG_MAX)
+    return valueNumber((long long)value);
   return valueDecimal(value);
 }
 

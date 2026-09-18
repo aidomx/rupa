@@ -3,6 +3,9 @@
 #if defined(RUPA_PACKAGE_H)
 
 struct Flags {
+  /* Return-type annotation setelah ')' — set oleh construct lexer saat
+   * menemukan `: void` / `: Type` di posisi return-type. */
+  bool isReturnType;
   bool isArgument;
   bool isArray;
   bool isAssignment;

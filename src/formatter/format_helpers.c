@@ -17,6 +17,11 @@ void fmtChar(Formatter *f, char c) {
 }
 
 void fmtNewline(Formatter *f) {
+  /* Newline tertunda: komentar inline belum menempel — flush sekarang. */
+  if (f->pendingNewline > 0) {
+    fprintf(f->out, "\n");
+    f->pendingNewline = 0;
+  }
   fprintf(f->out, "\n");
   f->needsIndent = true;
   f->lastWasNewline = true;

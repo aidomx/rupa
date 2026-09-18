@@ -208,8 +208,9 @@ int grammarParseNamespace(struct Request *r, struct Token *t, int a, int limit, 
 /* ====================== Grammar deklarasi ================================= */
 
 /**
- * @brief Grammar deklarasi/pemanggilan function: `nama(...) { ... }` atau
- *        `nama(...)` sebagai call statement.
+ * @brief Grammar deklarasi/pemanggilan function: `nama(...) { ... }`,
+ *        `nama(...): Type { ... }` (return-type annotation, mis. void),
+ *        atau `nama(...)` sebagai call statement.
  * @return GRAMMAR_NO_MATCH jika token[a] bukan awal pola ini.
  */
 int grammarParseFunction(struct Request *r, int a, int b, int limit, int *pos);
@@ -219,6 +220,7 @@ int grammarParseFunction(struct Request *r, int a, int b, int limit, int *pos);
  * @return GRAMMAR_NO_MATCH jika token[a] bukan awal pola ini.
  */
 int grammarParseStruct(struct Request *r, int a, int b, int limit, int *pos);
+int grammarParseClass(struct Request *r, int a, int b, int limit, int *pos);
 
 /* ====================== Grammar annotation & assignment ==================== */
 

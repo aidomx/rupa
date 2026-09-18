@@ -191,7 +191,8 @@ gcresize(ptr, old, new);       // resize + zero-initialize bagian baru
 
 gcstrdup(str);                 // duplicate string yang dikelola GC
 gcstrndup(str, n);             // duplicate string dengan panjang tertentu
-gcarray(count, size);          // alokasi array
+gcarray(ptr, count, size);     // semantik reallocarray (NULL jika overflow)
+gcset(dest, value, n);         // memset-like pada blok yang ada (gc_extra.c)
 
 gcreg(ptr);                    // register pointer
 gcremove(ptr);                 // hapus dari registry tanpa free

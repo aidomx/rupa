@@ -1,6 +1,6 @@
 #include <rupa.h>
 
-static bool evalRevCondition(int value, int bound, const char *op) {
+static bool evalRevCondition(long long value, long long bound, const char *op) {
   return !strcmp(op, ">") ? value > bound : value >= bound;
 }
 
@@ -22,8 +22,9 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
   AstNode *condition = &node->ast[ast->loop.condition];
   const char *name = NULL;
   RuntimeValue current = valueNull();
-  int bound = 0;
-  int value = 0;
+  /* number 64-bit: counter loop long long. */
+  long long bound = 0;
+  long long value = 0;
   const char *op = NULL;
   bool range = false;
 
