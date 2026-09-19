@@ -3,7 +3,7 @@ WALL_FLAGS = -Wall -Wextra
 HEADER_FLAGS = -Iinclude -I.
 STD_FLAGS = -std=gnu11
 CFLAGS = $(HEADER_FLAGS) $(WALL_FLAGS) $(STD_FLAGS)
-LD_FLAGS = -lm -lpthread -lssl -lcrypto
+LD_FLAGS =-lm -lpthread -lssl -lcrypto
 SRC_DIR = src
 OBJ_DIR = build
 TARGET = bin/rupa

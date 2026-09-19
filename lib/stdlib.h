@@ -41,10 +41,10 @@
 // #include <stdnoreturn.h>  /* Noreturn function specifier (C11) */
 
 /* --- Date and Time --- */
-#include <sys/time.h>  /* POSIX time structures (gettimeofday) */
-#include <time.h>      /* [USED] Date and time functions */
-#include <sys/timeb.h> /*ftime() function (legacy) */
-#include <bits/wordsize.h>
+#include <sys/time.h> /* POSIX time structures (gettimeofday) */
+#include <time.h>     /* [USED] Date and time functions */
+/*#include <sys/timeb.h> [>ftime() function (legacy) <]*/
+/*#include <bits/wordsize.h>*/
 
 /* --- Error Handling --- */
 #include <errno.h> /* [USED] Error number definitions */
@@ -80,17 +80,17 @@
                          // #include <glob.h>         /* Pathname pattern expansion */
 
 /* --- Process Management (POSIX) --- */
-#include <sys/wait.h>     /* Wait for process termination */
 #include <sys/resource.h> /* Resource usage */
 #include <sys/syscall.h>  /* System call numbers */
+#include <sys/wait.h>     /* Wait for process termination */
 
 /* --- IPC (POSIX) --- */
 // #include <sys/ipc.h>      /* IPC */
 // #include <sys/shm.h>      /* Shared memory */
 // #include <sys/mman.h>     /* Memory-mapped files */
-#include <sys/socket.h> /* Socket programming */
-#include <netinet/in.h> /* Internet address family */
 #include <arpa/inet.h>  /* Internet operations */
+#include <netinet/in.h> /* Internet address family */
+#include <sys/socket.h> /* Socket programming */
 // #include <netdb.h>        /* Network database operations */
 
 /* --- Terminal I/O (POSIX) --- */

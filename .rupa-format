@@ -1,0 +1,31 @@
+# .rupa-format — konfigurasi tetap formatter Rupa.
+
+Indentation:
+  - width: 2
+  - tabWidth: 2
+  - useTab: never
+
+Lines:
+  - limit: 100
+  - maxEmpty: 1
+  - insertNewline: EOF
+
+ObjectLiteral:
+  - limit: 100
+  - collapse: true
+  - spaceTrim: false
+
+Blocks:
+  - keepEmpty: false
+
+ClassBlock:
+  - keepEmpty: false
+  - members:
+    - keepEmptyBlock: false
+    - keepEmptyMember: false
+
+Sort:
+  - modules: false
+
+Comments:
+  - reflow: false

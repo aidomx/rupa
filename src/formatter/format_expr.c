@@ -93,18 +93,99 @@ void fmtArray(Formatter *f, Node *node, int id) {
   fmtChar(f, ']');
 }
 
-void fmtObject(Formatter *f, Node *node, int id) {
-  AstNode *n = &node->ast[id];
+static void fmtObjectInline(Formatter *f, Node *node, AstNode *n) {
+  bool trim = f->config && f->config->objectSpaceTrim;
   fmtChar(f, '{');
+
+  if (!trim && n->object.length > 0) fmtChar(f, ' ');
+
   for (int i = 0; i < n->object.length; i++) {
-    if (i > 0) fmtStr(f, ", ");
+    if (i > 0) {
+      fmtChar(f, ',');
+      if (!trim) fmtChar(f, ' ');
+    }
+
+    fmtNode(f, node, n->object.entries[i].key);
+
+    if (n->object.entries[i].key != n->object.entries[i].value) {
+      fmtChar(f, ':');
+      if (!trim) fmtChar(f, ' ');
+
+      fmtNode(f, node, n->object.entries[i].value);
+    }
+  }
+
+  if (!trim && n->object.length > 0) fmtChar(f, ' ');
+
+  fmtChar(f, '}');
+}
+
+static void fmtObjectMultiline(Formatter *f, Node *node, AstNode *n) {
+  fmtChar(f, '{');
+  if (n->object.length == 0) {
+    fmtNewline(f);
+    fmtStr(f, "}");
+    return;
+  }
+  fmtNewline(f);
+  f->indent++;
+  for (int i = 0; i < n->object.length; i++) {
     fmtNode(f, node, n->object.entries[i].key);
     if (n->object.entries[i].key != n->object.entries[i].value) {
       fmtStr(f, ": ");
       fmtNode(f, node, n->object.entries[i].value);
     }
+    if (i + 1 < n->object.length) fmtStr(f, ",");
+    fmtNewline(f);
   }
-  fmtChar(f, '}');
+  f->indent--;
+  fmtStr(f, "}");
+}
+
+static bool fmtObjectWasMultiline(AstNode *n) {
+  return n && n->row > n->line;
+}
+
+static size_t fmtObjectInlineLength(Formatter *f, Node *node, AstNode *n) {
+  char *buf = NULL;
+  size_t len = 0;
+  FILE *mem = open_memstream(&buf, &len);
+  if (!mem) return SIZE_MAX;
+
+  Formatter tmp = *f;
+  tmp.out = mem;
+  tmp.needsIndent = false;
+  tmp.lastWasNewline = false;
+  tmp.pendingNewline = 0;
+  fmtObjectInline(&tmp, node, n);
+  fflush(mem);
+  fclose(mem);
+  free(buf);
+  return len;
+}
+
+void fmtObject(Formatter *f, Node *node, int id) {
+  AstNode *n = &node->ast[id];
+  const FormatterConfig *c = f->config;
+  bool wasMultiline = fmtObjectWasMultiline(n);
+
+  /* collapse=false means preserve the source layout of the object. */
+  if (wasMultiline && c && !c->objectCollapse) {
+    fmtObjectMultiline(f, node, n);
+    return;
+  }
+
+  size_t inlineLength = fmtObjectInlineLength(f, node, n);
+  int limit = c ? c->objectLimit : 100;
+  if (inlineLength != SIZE_MAX && (limit <= 0 || (int)inlineLength <= limit)) {
+    fmtObjectInline(f, node, n);
+    return;
+  }
+
+  if (wasMultiline || (c && c->objectCollapse))
+    fmtObjectMultiline(f, node, n);
+  else
+    fmtObjectInline(f, node, n);
 }
 
 void fmtMember(Formatter *f, Node *node, int id) {

@@ -1,32 +1,9 @@
 #include <rupa.h>
 
 /*
- * Rupa Code Formatter
- *
- * Walks the AST and outputs properly formatted code.
- * Usage: rupa fmt <file.rp>
- *
- * - Preserves comments (//, block, #)
- * - Preserves blank lines outside blocks
- * - 2-space indentation inside blocks
- * - Opening brace on same line
- *
- * Modular structure:
- * - format_helpers.c: shared helpers (fmtIndent, fmtStr, fmtChar, etc.)
- * - format_node.c: basic node formatters (identifier, literal, number, etc.)
- * - format_expr.c: expression formatters (binary, call, print, array, etc.)
- * - format_stmt.c: statement formatters (assign, if, loop, function, etc.)
- * - format_dispatch.c: main fmtNode dispatch switch
- * - format_comment.c: comment formatting
- * - formatter.c: entry points and source-based formatting (this file)
- */
-
-/* ==================== Source comment scanner ==================== */
-
-/*
- * Skip over a comment at position *p in source[0..end).
- * Returns true and advances *p past the comment if found.
- * Returns false if *p is not at a comment start.
+ * Mesin inti formatter: memetakan declaration AST kembali ke posisi
+ * source aslinya (getDeclNeedle/findDeclStart) dan menjalankan loop
+ * format utama (runFormat).
  */
 
 /* ==================== Source-based formatting ==================== */
@@ -161,7 +138,7 @@ static int findDeclStart(const char *src, int srcPos, int srcLen, const char *ne
   return fallback;
 }
 
-static int runFormat(State *state, Formatter *fmt) {
+int runFormat(State *state, Formatter *fmt) {
   Buffer *buffer = state->buffer;
   const char *src = buffer->value;
   int srcLen = buffer->length;
@@ -202,6 +179,15 @@ static int runFormat(State *state, Formatter *fmt) {
                      state->input->cursor, ERR_SYNTAX);
     printErrors(state->error);
     return 1;
+  }
+
+  if (fmt->config) {
+    size_t normalizedLen = 0;
+    char *normalized = fmtNormalizeSource(src, (size_t)srcLen, fmt->config, &normalizedLen);
+    if (!normalized) return 1;
+    fwrite(normalized, 1, normalizedLen, fmt->out);
+    free(normalized);
+    return 0;
   }
 
   AstNode *prog = &node->ast[root];
@@ -278,13 +264,25 @@ static int runFormat(State *state, Formatter *fmt) {
           peek++;
         if (peek < srcLen && src[peek] == '\n') {
           /* Blank line — preserve it only after the declaration terminator
-           * has been emitted. */
+           * has been emitted. Cap at SATU baris kosong per run (maxEmpty: 1,
+           * .rupa-format): sebelumnya fmtNewline dipanggil per '\n' sehingga
+           * run panjang bocor melebihi cap (dan jumlahnya tergantung posisi
+           * while-loop berhenti). Scan seluruh run, whitespace di antaranya
+           * termasuk ("\n \n" tetap satu run), lalu emit satu blank. */
+          int scan = peek;
+          while (scan < srcLen) {
+            if (src[scan] == ' ' || src[scan] == '\t' || src[scan] == '\r' || src[scan] == '\n') {
+              scan++;
+              continue;
+            }
+            break;
+          }
           if (fmt->pendingNewline) {
             fprintf(fmt->out, "\n");
             fmt->pendingNewline = 0;
           }
           fmtNewline(fmt);
-          srcPos = peek + 1;
+          srcPos = scan;
         } else {
           /* Regular top-level newline: it terminates the formatted
            * declaration, so flush its deferred newline. */
@@ -399,11 +397,19 @@ static int runFormat(State *state, Formatter *fmt) {
       continue;
     }
     if (c == '\n') {
+      /* Newline pertama menutup deklarasi terakhir; sisa run = baris
+       * kosong — emit MAKSIMAL SATU (maxEmpty: 1, .rupa-format), lalu
+       * lewati seluruh run (whitespace di antaranya termasuk). */
       srcPos++;
-      /* Skip consecutive newlines (blank lines) */
-      while (srcPos < srcLen && src[srcPos] == '\n') {
-        fmtNewline(fmt);
+      int sawBlank = 0;
+      while (srcPos < srcLen && (src[srcPos] == '\n' || src[srcPos] == ' ' || src[srcPos] == '\t' ||
+                                 src[srcPos] == '\r')) {
+        if (src[srcPos] == '\n') sawBlank = 1;
         srcPos++;
+      }
+      if (sawBlank) {
+        int maxEmpty = fmt->config ? fmt->config->maxEmpty : 1;
+        if (maxEmpty > 0) fmtNewline(fmt);
       }
       continue;
     }
@@ -417,375 +423,3 @@ static int runFormat(State *state, Formatter *fmt) {
   return 0;
 }
 
-/* ==================== Batch formatter / test selection ==================== */
-
-typedef struct FmtPathList {
-  char **items;
-  int count;
-  int capacity;
-} FmtPathList;
-
-static void fmtPathListFree(FmtPathList *list) {
-  if (!list) return;
-  for (int i = 0; i < list->count; i++)
-    free(list->items[i]);
-  free(list->items);
-  list->items = NULL;
-  list->count = 0;
-  list->capacity = 0;
-}
-
-static int fmtPathListAdd(FmtPathList *list, const char *path) {
-  if (!list || !path) return 1;
-  if (list->count >= list->capacity) {
-    int cap = list->capacity ? list->capacity * 2 : 32;
-    char **items = realloc(list->items, (size_t)cap * sizeof(*items));
-    if (!items) return 1;
-    list->items = items;
-    list->capacity = cap;
-  }
-  list->items[list->count] = strdup(path);
-  if (!list->items[list->count]) return 1;
-  list->count++;
-  return 0;
-}
-
-static int fmtPathCmp(const void *a, const void *b) {
-  const char *pa = *(const char *const *)a;
-  const char *pb = *(const char *const *)b;
-  return strcmp(pa, pb);
-}
-
-static bool fmtHasRpExtension(const char *path) {
-  const char *dot = strrchr(path, '.');
-  return dot && strcmp(dot, ".rp") == 0;
-}
-
-static int fmtCollectRp(const char *root, FmtPathList *list) {
-  struct stat st;
-  if (stat(root, &st) != 0) {
-    fprintf(stderr, "fmt: path not found: %s\n", root);
-    return 1;
-  }
-  if (S_ISREG(st.st_mode)) {
-    return fmtHasRpExtension(root) ? fmtPathListAdd(list, root) : 0;
-  }
-  if (!S_ISDIR(st.st_mode)) return 0;
-
-  DIR *dir = opendir(root);
-  if (!dir) {
-    fprintf(stderr, "fmt: cannot open directory '%s'\n", root);
-    return 1;
-  }
-
-  struct dirent *entry;
-  int result = 0;
-  while ((entry = readdir(dir)) != NULL) {
-    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-    size_t len = strlen(root) + strlen(entry->d_name) + 2;
-    char *path = malloc(len);
-    if (!path) {
-      result = 1;
-      break;
-    }
-    snprintf(path, len, "%s/%s", root, entry->d_name);
-    result = fmtCollectRp(path, list);
-    free(path);
-    if (result) break;
-  }
-  closedir(dir);
-  return result;
-}
-
-static bool fmtPathExcluded(const char *path, const char **excludes, int count) {
-  for (int i = 0; i < count; i++) {
-    const char *ex = excludes[i];
-    if (!ex || !*ex) continue;
-    size_t n = strlen(ex);
-    if (strncmp(path, ex, n) == 0 &&
-        (path[n] == '\0' || path[n] == '/' || (n > 0 && ex[n - 1] == '/')))
-      return true;
-  }
-  return false;
-}
-
-static int fmtResolveTestPath(const char *path, char *out, size_t outSize) {
-  if (!path || !*path || !out || outSize == 0) return 1;
-  struct stat st;
-  if (stat(path, &st) == 0) {
-    snprintf(out, outSize, "%s", path);
-    return 0;
-  }
-  if (strncmp(path, "tests/", 6) == 0) {
-    snprintf(out, outSize, "%s", path);
-    return 0;
-  }
-  snprintf(out, outSize, "tests/%s", path);
-  return 0;
-}
-
-static void fmtPrintList(const FmtPathList *list, const char **excludes, int excludeCount) {
-  int index = 0;
-  for (int i = 0; i < list->count; i++) {
-    if (fmtPathExcluded(list->items[i], excludes, excludeCount)) continue;
-    printf("%d. %s\n", ++index, list->items[i]);
-  }
-  if (index == 0) printf("No .rp files found.\n");
-}
-
-/* Read a file's raw source text (malloc'd, NUL-terminated) or NULL. */
-static char *fmtReadSource(const char *path) {
-  FILE *fp = fopen(path, "rb");
-  if (!fp) return NULL;
-  char *text = NULL;
-  if (fseek(fp, 0, SEEK_END) == 0) {
-    long size = ftell(fp);
-    if (size >= 0) {
-      rewind(fp);
-      text = malloc((size_t)size + 1);
-      if (text) {
-        size_t got = fread(text, 1, (size_t)size, fp);
-        text[got] = '\0';
-      }
-    }
-  }
-  fclose(fp);
-  return text;
-}
-
-/* Run the formatter over one file into `out`. Owns its GC cleanup;
- * caller must reinitialize GC before each invocation in batch mode. */
-static int fmtRunFile(const char *path, FILE *out) {
-  if (!path || !*path || !out) return 1;
-
-  State *state = createGlobalState(1, false);
-  if (!state || !state->buffer) return 1;
-
-  if (!readfile(path, state->buffer)) {
-    fprintf(stderr, "fmt: cannot read '%s'\n", path);
-    gcclean();
-    return 1;
-  }
-
-  Formatter fmt = {0};
-  fmt.out = out;
-  fmt.indent = 0;
-  fmt.needsIndent = false;
-  fmt.lastWasNewline = false;
-
-  int result = runFormat(state, &fmt);
-  gcclean();
-  return result;
-}
-
-/* Format one file into a malloc'd buffer (caller frees with free()). */
-static int fmtFormatToBuffer(const char *path, char **out, size_t *outLen) {
-  *out = NULL;
-  if (outLen) *outLen = 0;
-
-  char *buf = NULL;
-  size_t len = 0;
-  FILE *fp = open_memstream(&buf, &len);
-  if (!fp) return 1;
-
-  int result = fmtRunFile(path, fp);
-  if (fclose(fp) != 0 && result == 0) result = 1;
-  if (result != 0) {
-    free(buf);
-    return result;
-  }
-  *out = buf;
-  if (outLen) *outLen = len;
-  return 0;
-}
-
-static int fmtRunPaths(const FmtPathList *list, const int *selected, int selectedCount,
-                       const char **excludes, int excludeCount) {
-  int result = 0;
-  int listed = 0;
-  int printed = 0;
-  int modified = 0;
-  int unchanged = 0;
-  int failed = 0;
-  for (int i = 0; i < list->count; i++) {
-    if (fmtPathExcluded(list->items[i], excludes, excludeCount)) continue;
-    /* Numbering counts non-excluded entries so indexes match fmtPrintList(). */
-    listed++;
-    bool use = selectedCount == 0;
-    if (!use) {
-      for (int j = 0; j < selectedCount; j++) {
-        if (selected[j] == listed) {
-          use = true;
-          break;
-        }
-      }
-    }
-    if (!use) continue;
-
-    if (printed++) printf("\n");
-
-    char *source = fmtReadSource(list->items[i]);
-    char *formatted = NULL;
-    size_t formattedLen = 0;
-    /* fmtRunFile owns its GC cleanup; reinitialize it before each file
-     * when batch mode invokes it repeatedly. */
-    gcinit(100);
-    int r = source ? fmtFormatToBuffer(list->items[i], &formatted, &formattedLen) : 1;
-    if (r != 0) {
-      failed++;
-      result = r;
-      printf("%-9s %s\n", "FAILED", list->items[i]);
-      free(source);
-      free(formatted);
-      continue;
-    }
-
-    bool changed = !source || formattedLen != strlen(source) ||
-                   memcmp(source, formatted, formattedLen) != 0;
-    printf("%-9s %s\n", changed ? "MODIFIED" : "UNCHANGED", list->items[i]);
-    if (changed)
-      modified++;
-    else
-      unchanged++;
-    fwrite(formatted, 1, formattedLen, stdout);
-    if (formattedLen == 0 || formatted[formattedLen - 1] != '\n') printf("\n");
-    free(source);
-    free(formatted);
-  }
-  if (!printed) {
-    fprintf(stderr, "fmt: no selected .rp files\n");
-    return 1;
-  }
-  printf("\n%d file(s): %d modified, %d unchanged", printed, modified, unchanged);
-  if (failed) printf(", %d failed", failed);
-  printf("\n");
-  return result;
-}
-
-int formatList(const char *path, bool listOnly) {
-  char resolved[4096];
-  if (fmtResolveTestPath(path ? path : "tests", resolved, sizeof(resolved)) != 0) return 1;
-  FmtPathList list = {0};
-  int result = fmtCollectRp(resolved, &list);
-  if (result == 0) qsort(list.items, (size_t)list.count, sizeof(*list.items), fmtPathCmp);
-  if (result == 0) {
-    if (listOnly)
-      fmtPrintList(&list, NULL, 0);
-    else
-      result = fmtRunPaths(&list, NULL, 0, NULL, 0);
-  }
-  fmtPathListFree(&list);
-  return result;
-}
-
-static int fmtParseCsvInts(const char *value, int **out, int *count) {
-  *out = NULL;
-  *count = 0;
-  if (!value || !*value) return 1;
-  char *copy = strdup(value);
-  if (!copy) return 1;
-  int capacity = 8;
-  int *items = malloc((size_t)capacity * sizeof(*items));
-  if (!items) {
-    free(copy);
-    return 1;
-  }
-  char *save = NULL;
-  for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
-    char *end = NULL;
-    long n = strtol(tok, &end, 10);
-    if (end == tok || *end != '\0' || n <= 0 || n > INT_MAX) {
-      free(items);
-      free(copy);
-      return 1;
-    }
-    if (*count >= capacity) {
-      capacity *= 2;
-      int *tmp = realloc(items, (size_t)capacity * sizeof(*items));
-      if (!tmp) {
-        free(items);
-        free(copy);
-        return 1;
-      }
-      items = tmp;
-    }
-    items[(*count)++] = (int)n;
-  }
-  free(copy);
-  *out = items;
-  return *count > 0 ? 0 : 1;
-}
-
-int formatSelect(const char *select, const char *path, const char **excludes, int excludeCount) {
-  FmtPathList list = {0};
-  int *selected = NULL;
-  int selectedCount = 0;
-  char root[4096];
-  int result = fmtResolveTestPath(path && *path ? path : "tests", root, sizeof(root));
-  if (result == 0) result = fmtCollectRp(root, &list);
-  if (result == 0) result = fmtParseCsvInts(select, &selected, &selectedCount);
-  if (result == 0) {
-    qsort(list.items, (size_t)list.count, sizeof(*list.items), fmtPathCmp);
-    /* Valid range follows the post-exclusion numbering shown by --list. */
-    int available = 0;
-    for (int i = 0; i < list.count; i++) {
-      if (!fmtPathExcluded(list.items[i], excludes, excludeCount)) available++;
-    }
-    for (int i = 0; i < selectedCount; i++) {
-      if (selected[i] > available) {
-        fprintf(stderr, "fmt: selection %d is out of range (1-%d)\n", selected[i], available);
-        result = 1;
-        break;
-      }
-    }
-  }
-  if (result == 0) result = fmtRunPaths(&list, selected, selectedCount, excludes, excludeCount);
-  free(selected);
-  fmtPathListFree(&list);
-  return result;
-}
-
-/* ==================== Public API ==================== */
-
-int formatFile(const char *path) {
-  /* Single-file mode keeps the raw formatter output (no batch status). */
-  return fmtRunFile(path, stdout);
-}
-
-int formatString(const char *source) {
-  if (!source || !*source) return 1;
-
-  State *state = createGlobalState(1, false);
-  if (!state || !state->buffer) return 1;
-
-  Buffer *buffer = state->buffer;
-  int len = strlen(source);
-  if (buffer->capacity < len + 1) {
-    buffer->capacity = len + 256;
-    buffer->value = realloc(buffer->value, buffer->capacity);
-  }
-  memcpy(buffer->value, source, len);
-  buffer->value[len] = '\0';
-  buffer->length = len;
-
-  Formatter fmt = {0};
-  fmt.out = stdout;
-  fmt.indent = 0;
-  fmt.needsIndent = false;
-  fmt.lastWasNewline = false;
-
-  int result = runFormat(state, &fmt);
-  gcclean();
-  return result;
-}
-
-int formatStdin(void) {
-  char buf[65536];
-  int total = 0;
-  int n;
-  while ((n = fread(buf + total, 1, sizeof(buf) - total - 1, stdin)) > 0)
-    total += n;
-  buf[total] = '\0';
-  if (total == 0) return 0;
-  return formatString(buf);
-}

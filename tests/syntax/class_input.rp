@@ -10,19 +10,22 @@
 # Test ini deterministic tanpa stdin interaktif: handler dijalankan,
 # spec terdaftar; get tidak dipanggil di sini (butuh stdin), yang
 # diverifikasi hanya struktur + lifecycle handler.
+// ambil semua yang di export dari io
+// dan tanpa namespace io untuk menggunakan
+// io.toNumber() akses langsung toNumber()
+import io.* from rupa
 
-import io
-
+// struct Monster
 MonsterType {
   name: string
   health: number
 }
-
+// class Monster
 Monster: MonsterType {
   construct(input: Input) {
     this.set({
       name: input.get("name"),
-      health: io.toNumber(input.get("health"))
+      health: toNumber(input.get("health"))
     })
   }
 

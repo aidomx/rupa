@@ -3,13 +3,34 @@
 
 /* ==================== Formatter state ==================== */
 
+typedef struct FormatterConfig {
+  int indentWidth;
+  int maxEmpty;
+  int objectLimit;
+  bool objectCollapse;
+  bool objectSpaceTrim;
+  bool keepEmptyBlock;
+  bool classKeepEmptyBlock;
+  bool classMemberKeepEmptyBlock;
+  bool classMemberKeepEmptyMember;
+} FormatterConfig;
+
 typedef struct Formatter {
   FILE *out;
   int indent;
   bool needsIndent;
   bool lastWasNewline;
   int pendingNewline; /* newline tertunda: komentar inline boleh menempel */
+  const FormatterConfig *config;
+  bool inClassMembers;
 } Formatter;
+
+/* Daftar path .rp yang dikumpulkan untuk mode batch (format_paths.c). */
+typedef struct FmtPathList {
+  char **items;
+  int count;
+  int capacity;
+} FmtPathList;
 
 /* ==================== Helpers ==================== */
 
@@ -64,6 +85,10 @@ extern void fmtCase(Formatter *f, Node *node, int id);
 
 extern void fmtNode(Formatter *f, Node *node, int id);
 
+/* Blank-line preservation di dalam body blok (class/struct). */
+extern int fmtNodeEndLine(Node *node, int id);
+extern void fmtMemberGap(Formatter *f, Node *node, int prevId, int nextId);
+
 /* ==================== Comment formatting ==================== */
 
 extern void fmtSingleComment(Formatter *f, const char *text, int len);
@@ -79,5 +104,33 @@ extern int formatStdin(void);
 extern int formatList(const char *path, bool listOnly);
 extern int formatSelect(const char *select, const char *path, const char **excludes,
                         int excludeCount);
+
+/* ==================== Config (format_config.c) ==================== */
+
+extern FormatterConfig fmtLoadConfig(void);
+
+/* ==================== Source normalization (format_normalize.c) ========= */
+
+extern bool fmtSourceConfigCompliant(const char *src, size_t len, const FormatterConfig *c);
+extern char *fmtNormalizeSource(const char *src, size_t len, const FormatterConfig *c,
+                                size_t *outLen);
+
+/* ==================== Format engine (format_engine.c) =================== */
+
+extern int runFormat(State *state, Formatter *fmt);
+
+/* ==================== Path utilities (format_paths.c) =================== */
+
+extern void fmtPathListFree(FmtPathList *list);
+extern int fmtPathCmp(const void *a, const void *b);
+extern int fmtCollectRp(const char *root, FmtPathList *list);
+extern bool fmtPathExcluded(const char *path, const char **excludes, int count);
+extern int fmtResolveTestPath(const char *path, char *out, size_t outSize);
+extern void fmtPrintList(const FmtPathList *list, const char **excludes, int excludeCount);
+extern char *fmtReadSource(const char *path);
+
+/* ==================== Batch orchestration (format_batch.c) ============== */
+
+extern int fmtRunFile(const char *path, FILE *out);
 
 #endif

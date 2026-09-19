@@ -22,3 +22,5 @@ commands/*.c
 commands/*.o
 commands/*.txt
 commands/main
+rbot
+rbot.*

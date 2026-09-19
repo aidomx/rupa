@@ -13,7 +13,15 @@ int grammarParseBlock(Request *r, int open, int close) {
     else
       p++;
   }
-  return createBlock(r->node, ids, n);
+  int blockId = createBlock(r->node, ids, n);
+  /* Simpan line token penutup '}' di .row NODE_BLOCK. Node block mewarisi
+   * .line token pembuka '{', jadi formatter (fmtNodeEndLine) tidak bisa
+   * tahu baris akhir block empty `{}\n}` tanpa info ini — dipakai untuk
+   * preservasi blank line antar member class/struct. .row NODE_BLOCK
+   * tidak dibaca di unit lain. */
+  if (blockId >= 0 && close >= 0 && close < r->tokens->length)
+    r->node->ast[blockId].row = r->tokens->data[close].line;
+  return blockId;
 }
 
 /* Build a keyword body. A ':' body is exactly one physical line; a '{...}'

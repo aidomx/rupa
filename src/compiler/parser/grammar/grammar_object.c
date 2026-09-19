@@ -48,5 +48,8 @@ int grammarParseObjectLiteral(Request *r, int a, int b) {
       start = i + 1;
     }
   }
-  return createObject(r->node, entries, n);
+  int objectId = createObject(r->node, entries, n);
+  if (objectId >= 0 && c >= 0 && c < r->tokens->length)
+    r->node->ast[objectId].row = r->tokens->data[c].line;
+  return objectId;
 }

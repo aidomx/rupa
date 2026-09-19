@@ -2,7 +2,7 @@
 
 void fmtIndent(Formatter *f) {
   for (int i = 0; i < f->indent; i++)
-    fprintf(f->out, "  ");
+    for (int j = 0; j < (f->config ? f->config->indentWidth : 2); j++) fputc(' ', f->out);
   f->needsIndent = false;
 }
 

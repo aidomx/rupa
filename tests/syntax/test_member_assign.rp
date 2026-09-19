@@ -1,5 +1,5 @@
 # Member assignment: obj.field = value
-person = { name: "Budi", age: 25 }
+person = {name: "Budi", age: 25}
 person.name = "Andi"
 person.age = 30
 print(person.name + "\n")
@@ -25,7 +25,7 @@ print(config.port + "\n")
 
 # Mixed: function returning object, then modify
 createPerson(n) {
-    return { name: n, age: 0 }
+  return { name: n, age: 0 }
 }
 p = createPerson("Test")
 p.age = 25

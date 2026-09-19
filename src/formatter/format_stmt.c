@@ -18,8 +18,109 @@ void fmtConditionalAssign(Formatter *f, Node *node, int id) {
   fmtNode(f, node, n->conditionalAssign.value);
 }
 
+static bool fmtKeepEmptyBlock(const Formatter *f) {
+  if (!f || !f->config) return false;
+  if (f->inClassMembers) return f->config->classMemberKeepEmptyBlock;
+  return f->config->keepEmptyBlock;
+}
+
+/* ==================== Blank-line preservation (class/struct body) ==== */
+
+/*
+ * Baris sumber TERAKHIR yang dikonsumsi node statement (inklusif).
+ *
+ * Setiap AstNode membawa .line dari token pertamanya (createAst), jadi
+ * baris awal statement selalu tersedia. Untuk baris akhir, statement
+ * yang membentang beberapa baris harus dieksplisitkan: node container
+ * mewarisi .line token PEMBUKA (mis. block '{' → NODE_BLOCK sendiri
+ * ber-line '{'), bukan baris penutup '}' — sehingga endLine-nya harus
+ * diambil dari statement anak TERAKHIR (rekursif ke body). Gap antar
+ * member class/struct kemudian = next.line - endLine(prev); gap >= 2
+ * berarti user menulis blank line dan formatter mempertahankannya.
+ */
+int fmtNodeEndLine(Node *node, int id) {
+  if (!node || id < 0 || id >= node->length) return -1;
+  AstNode *n = &node->ast[id];
+  int end = n->line;
+  switch (n->type) {
+  case NODE_BLOCK:
+    /* .row = line token penutup '}' (diisi grammarParseBlock). Untuk
+     * block empty `{}\n}` ini satu-satunya info baris akhir — statement
+     * anak tidak ada untuk mewarisi. */
+    if (n->row > n->line)
+      end = n->row;
+    else if (n->block.length > 0 && n->block.statements)
+      end = fmtNodeEndLine(node, n->block.statements[n->block.length - 1]);
+    break;
+  case NODE_FUNCTION_DECL:
+    if (n->function.body >= 0)
+      end = fmtNodeEndLine(node, n->function.body);
+    break;
+  case NODE_STRUCT_DECL:
+    if (n->asStruct.body >= 0)
+      end = fmtNodeEndLine(node, n->asStruct.body);
+    break;
+  case NODE_CLASS_DECL:
+    if (n->asClass.body >= 0)
+      end = fmtNodeEndLine(node, n->asClass.body);
+    break;
+  case NODE_MARKER:
+    /* @marker membungkus method decl berikutnya — endLine = method-nya. */
+    if (n->asClass.body >= 0)
+      end = fmtNodeEndLine(node, n->asClass.body);
+    break;
+  case NODE_IF: {
+    int branch = n->asIf.elseBlock >= 0 ? n->asIf.elseBlock : n->asIf.thenBlock;
+    if (branch >= 0)
+      end = fmtNodeEndLine(node, branch);
+    break;
+  }
+  case NODE_LOOP:
+    if (n->loop.body >= 0)
+      end = fmtNodeEndLine(node, n->loop.body);
+    break;
+  default:
+    break;
+  }
+  return end > 0 ? end : -1;
+}
+
+/*
+ * Baris sumber AWAL member. NODE_MARKER mewarisi .line token statement
+ * yang di-wrap (method decl) — bukan baris '@'-nya. Baris '@' = baris
+ * node NAMA marker (parseAtom pada token LITERAL_ID setelah '@'), jadi
+ * unwrap dulu bila perlu.
+ */
+static int fmtMemberStartLine(Node *node, int id) {
+  if (!node || id < 0 || id >= node->length) return -1;
+  const AstNode *n = &node->ast[id];
+  if (n->type == NODE_MARKER && n->asClass.name >= 0 && n->asClass.name < node->length)
+    return node->ast[n->asClass.name].line;
+  return n->line;
+}
+
+/*
+ * Pemisah antar member dalam body class/struct (design/new_class.txt):
+ * user yang menentukan ada tidaknya blank line — formatter hanya
+ * menormalkan jumlahnya (maks SATU). Gap >= 2 baris sumber (di sini:
+ * next.line - endLine(prev) >= 2, mis. '}' di baris 7 dan 'handler'
+ * di baris 9) berarti ada blank line di sumber → dipertahankan;
+ * `}\n@input` yang menempel tanpa blank line tetap rapat.
+ */
+void fmtMemberGap(Formatter *f, Node *node, int prevId, int nextId) {
+  (void)node;
+  (void)prevId;
+  (void)nextId;
+  fmtNewline(f);
+}
+
 void fmtBlock(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
+  if (n->block.length == 0 && !fmtKeepEmptyBlock(f)) {
+    fmtChar(f, '{');
+    fmtChar(f, '}');
+    return;
+  }
   fmtChar(f, '{');
   fmtNewline(f);
   f->indent++;
@@ -46,6 +147,9 @@ void fmtIf(Formatter *f, Node *node, int id) {
       fmtStr(f, " ");
       fmtNode(f, node, n->asIf.thenBlock);
     }
+  } else if (thenNode && thenNode->type == NODE_BLOCK && thenNode->block.length == 0 &&
+             !fmtKeepEmptyBlock(f)) {
+    fmtStr(f, " {}");
   } else {
     fmtStr(f, " {");
     fmtNewline(f);
@@ -66,6 +170,9 @@ void fmtIf(Formatter *f, Node *node, int id) {
     if (elseNode->type == NODE_IF) {
       fmtStr(f, " ");
       fmtIf(f, node, n->asIf.elseBlock);
+    } else if (elseNode->type == NODE_BLOCK && elseNode->block.length == 0 &&
+               !fmtKeepEmptyBlock(f)) {
+      fmtStr(f, " {}");
     } else {
       fmtStr(f, " {");
       fmtNewline(f);
@@ -91,10 +198,14 @@ void fmtLoop(Formatter *f, Node *node, int id) {
   fmtSep(f);
   fmtNode(f, node, n->loop.condition);
   fmtSep(f);
+  AstNode *body = (n->loop.body >= 0) ? &node->ast[n->loop.body] : NULL;
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 && !fmtKeepEmptyBlock(f)) {
+    fmtStr(f, "{}");
+    return;
+  }
   fmtChar(f, '{');
   fmtNewline(f);
   f->indent++;
-  AstNode *body = (n->loop.body >= 0) ? &node->ast[n->loop.body] : NULL;
   if (body && body->type == NODE_BLOCK) {
     for (int i = 0; i < body->block.length; i++) {
       fmtNode(f, node, body->block.statements[i]);
@@ -126,11 +237,15 @@ void fmtFunctionDecl(Formatter *f, Node *node, int id) {
     }
   }
   fmtSep(f);
+  AstNode *body = n->function.body >= 0 ? &node->ast[n->function.body] : NULL;
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 && !fmtKeepEmptyBlock(f)) {
+    fmtStr(f, "{}");
+    return;
+  }
   fmtChar(f, '{');
   fmtNewline(f);
   f->indent++;
   if (n->function.body >= 0) {
-    AstNode *body = &node->ast[n->function.body];
     if (body->type == NODE_BLOCK) {
       for (int i = 0; i < body->block.length; i++) {
         fmtNode(f, node, body->block.statements[i]);
@@ -149,6 +264,11 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
   fmtNode(f, node, n->asStruct.name);
   fmtSep(f);
+  AstNode *body = n->asStruct.body >= 0 ? &node->ast[n->asStruct.body] : NULL;
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 && !fmtKeepEmptyBlock(f)) {
+    fmtStr(f, "{}");
+    return;
+  }
   fmtChar(f, '{');
   fmtNewline(f);
   f->indent++;
@@ -157,11 +277,12 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
     if (body->type == NODE_BLOCK) {
       for (int i = 0; i < body->block.length; i++) {
         fmtNode(f, node, body->block.statements[i]);
-        fmtNewline(f);
+        fmtMemberGap(f, node, body->block.statements[i],
+                     i + 1 < body->block.length ? body->block.statements[i + 1] : -1);
       }
     } else {
       fmtNode(f, node, n->asStruct.body);
-      fmtNewline(f);
+      fmtMemberGap(f, node, n->asStruct.body, -1);
     }
   }
   f->indent--;
@@ -182,19 +303,30 @@ void fmtClassDecl(Formatter *f, Node *node, int id) {
     fmtNode(f, node, n->asClass.parent);
   }
   fmtSep(f);
+  AstNode *body = n->asClass.body >= 0 ? &node->ast[n->asClass.body] : NULL;
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 &&
+      f->config && !f->config->classKeepEmptyBlock) {
+    fmtStr(f, "{}");
+    return;
+  }
   fmtChar(f, '{');
   fmtNewline(f);
   f->indent++;
   if (n->asClass.body >= 0) {
-    AstNode *body = &node->ast[n->asClass.body];
     if (body->type == NODE_BLOCK) {
       for (int i = 0; i < body->block.length; i++) {
+        bool oldClassMembers = f->inClassMembers;
+        f->inClassMembers = true;
         fmtNode(f, node, body->block.statements[i]);
-        fmtNewline(f);
+        f->inClassMembers = oldClassMembers;
+        /* Baris kosong antar member mengikuti sumber (maks satu) —
+         * `}\n@input` menempel tetap rapat, `}\n\n@input` dipertahankan. */
+        fmtMemberGap(f, node, body->block.statements[i],
+                     i + 1 < body->block.length ? body->block.statements[i + 1] : -1);
       }
     } else {
       fmtNode(f, node, n->asClass.body);
-      fmtNewline(f);
+      fmtMemberGap(f, node, n->asClass.body, -1);
     }
   }
   f->indent--;
