@@ -20,6 +20,8 @@ int loader(const char *args[], int length) {
         showModuleHelp();
       } else if (i + 1 < length && strcmp(args[i + 1], "test") == 0) {
         showTestHelp();
+      } else if (i + 1 < length && !strcmp(args[i + 1], "fmt")) {
+        showFmtHelp();
       } else {
         help(false);
       }

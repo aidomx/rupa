@@ -7,7 +7,8 @@
 .logs
 build
 compile_commands.json
-bin/rupa
+bin/*
+!.gitkeep
 cscope.out
 docs/node_modules
 tags
@@ -18,9 +19,5 @@ modules/*.tar.gz
 !.gitkeep
 build-report.txt
 design
-commands/*.c
-commands/*.o
-commands/*.txt
-commands/main
-rbot
-rbot.*
+examples/*
+!calculator

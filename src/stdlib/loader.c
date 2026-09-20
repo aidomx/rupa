@@ -18,16 +18,41 @@ static char extractedSystemDir[1024] = {0};
 static char extractedGlobalDir[1024] = {0};
 static char extractedLocalDir[1024] = {0};
 
-/* The system archive is embedded into the executable by the build. */
+/*
+ * The embedded system archive is produced by rbot (Buildfile: embedded).
+ * rbot generates build/embedded.h with generic per-entry macros — for an
+ * entry named `modules` these are EMBED_MODULES_ARCHIVE_NAME, _EXTRACT_DIR,
+ * _SYMBOL, _SYMBOL_END. rupa's loader consumes the `modules` entry; the
+ * weak externs below are the fallback layout used when the generated header
+ * is unavailable (e.g. plain `make` without rbot).
+ */
+#if __has_include("build/embedded.h")
+#include "build/embedded.h"
+extern const unsigned char EMBED_MODULES_SYMBOL[] __attribute__((weak));
+extern const unsigned char EMBED_MODULES_SYMBOL_END[] __attribute__((weak));
+#define RUPA_EMBEDDED_START        EMBED_MODULES_SYMBOL
+#define RUPA_EMBEDDED_END          EMBED_MODULES_SYMBOL_END
+#define RUPA_EMBEDDED_ARCHIVE_NAME EMBED_MODULES_ARCHIVE_NAME
+#define RUPA_EMBEDDED_EXTRACT_DIR  EMBED_MODULES_EXTRACT_DIR
+#else
+#define RUPA_EMBEDDED_ARCHIVE_NAME "rupa_modules.tar.gz"
+#define RUPA_EMBEDDED_EXTRACT_DIR "/tmp/rupa-system"
 extern const unsigned char _binary_modules_rupa_modules_tar_gz_start[] __attribute__((weak));
 extern const unsigned char _binary_modules_rupa_modules_tar_gz_end[] __attribute__((weak));
+#define RUPA_EMBEDDED_START _binary_modules_rupa_modules_tar_gz_start
+#define RUPA_EMBEDDED_END   _binary_modules_rupa_modules_tar_gz_end
+#endif
 
 /**
  * Get the extraction path for the embedded system archive.
  */
 static char *getSystemExtractDir(void) {
   static char dir[1024];
-  snprintf(dir, sizeof(dir), "/tmp/rupa-system");
+  /* Configured by the build (Buildfile: embedded.extract), e.g. /tmp/rupa-system */
+  const char *custom = RUPA_EMBEDDED_EXTRACT_DIR;
+  const char *env = getenv("RUPA_EXTRACT_DIR");
+  snprintf(dir, sizeof(dir), "%s", (env && *env) ? env : ((custom && *custom) ? custom : ""));
+  if (dir[0] == '\0') snprintf(dir, sizeof(dir), "/tmp/rupa-system");
   return dir;
 }
 
@@ -133,19 +158,18 @@ static int extractArchive(const char *archivePath, const char *extractDir);
  * Extract the archive embedded in the executable.
  */
 static int extractEmbeddedArchive(const char *extractDir) {
-  if (!_binary_modules_rupa_modules_tar_gz_start || !_binary_modules_rupa_modules_tar_gz_end ||
-      _binary_modules_rupa_modules_tar_gz_end <= _binary_modules_rupa_modules_tar_gz_start)
-    return -1;
+  const unsigned char *embStart = RUPA_EMBEDDED_START;
+  const unsigned char *embEnd = RUPA_EMBEDDED_END;
+  if (!embStart || !embEnd || embEnd <= embStart) return -1;
 
   char archivePath[1024];
-  snprintf(archivePath, sizeof(archivePath), "%s/rupa_modules.tar.gz", extractDir);
+  snprintf(archivePath, sizeof(archivePath), "%s/%s", extractDir, RUPA_EMBEDDED_ARCHIVE_NAME);
   mkdirp(extractDir, 0755);
 
   FILE *archive = fopen(archivePath, "wb");
   if (!archive) return -1;
-  size_t size =
-      (size_t)(_binary_modules_rupa_modules_tar_gz_end - _binary_modules_rupa_modules_tar_gz_start);
-  bool written = fwrite(_binary_modules_rupa_modules_tar_gz_start, 1, size, archive) == size;
+  size_t size = (size_t)(embEnd - embStart);
+  bool written = fwrite(embStart, 1, size, archive) == size;
   fclose(archive);
   if (!written) return -1;
 
@@ -169,9 +193,13 @@ static int extractArchive(const char *archivePath, const char *extractDir) {
   /* Create extraction directory */
   mkdirp(extractDir, 0755);
 
-  /* Extract */
+  /* Extract; plain tar when there is no .gz suffix, tar.gz otherwise */
+  size_t alen = strlen(archivePath);
+  bool gz = alen > 3 && strcmp(archivePath + alen - 3, ".gz") == 0;
   char cmd[2048];
-  snprintf(cmd, sizeof(cmd), "tar xzf \"%s\" -C \"%s\" 2>/dev/null", archivePath, extractDir);
+  snprintf(cmd, sizeof(cmd), gz ? "tar xzf \"%s\" -C \"%s\" 2>/dev/null"
+                                : "tar xf \"%s\" -C \"%s\" 2>/dev/null",
+           archivePath, extractDir);
   return system(cmd);
 }
 
