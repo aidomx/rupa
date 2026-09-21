@@ -5,4 +5,6 @@
 #define ARROW_RIGHT 1002
 #define ARROW_LEFT 1003
 
+#if !defined(CTRL)
 #define CTRL(c) ((c) & 0x1f)
+#endif

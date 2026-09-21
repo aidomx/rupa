@@ -1,7 +1,5 @@
 #pragma once
 
-#if defined(RUPA_PACKAGE_H)
-
 extern int getString(const char *buffer, int *pos);
 extern int getUnderscore(const char *buffer, int *pos);
 extern int removeChar(const char *str, char c, int pos);
@@ -13,5 +11,3 @@ extern void trimbracket(char *value, char open, char close);
 extern char *trimspace(char *value);
 extern int consumeToEnd(const char *buffer, int pos);
 extern void skipWhitespace(const char *buffer, int *position);
-
-#endif

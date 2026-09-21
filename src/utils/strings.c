@@ -7,3 +7,164 @@ void clearScreen() {
   system("clear");
 #endif
 }
+
+int getString(const char *buffer, int *pos) {
+  if (!buffer || *pos == -1) return -1;
+
+  bool has_string = false;
+  while (isalpha((unsigned char)buffer[*pos])) {
+    has_string = true;
+    (*pos)++;
+  }
+
+  return !has_string ? -1 : (*pos);
+}
+
+int getUnderscore(const char *buffer, int *pos) {
+  if (!buffer || *pos == -1) return -1;
+
+  bool has_underscore = false;
+  while (isunderscore(buffer[*pos])) {
+    has_underscore = true;
+    (*pos)++;
+  }
+
+  return !has_underscore ? -1 : (*pos);
+}
+
+int removeChar(const char *str, char c, int pos) {
+  if (!str || pos == -1) return -1;
+
+  while (pos > 0 && str[pos] == '\0' && str[pos - 1] == c)
+    pos--;
+  return pos;
+}
+
+void replace(const char *str, const char *key, const char *value, char output[]) {
+  if (!str || !key || !value || !output) return;
+
+  char *p = strstr(str, key);
+  if (!p) {
+    strncpy(output, str, MAX_MESSAGE_LENGTH - 1);
+    output[MAX_MESSAGE_LENGTH - 1] = '\0';
+    return;
+  }
+
+  int prefix_len = (int)(p - str);
+  int remaining_len = MAX_MESSAGE_LENGTH - 1;
+
+  snprintf(output, remaining_len, "%.*s%s%s", prefix_len, str, value, p + strlen(key));
+}
+
+char *serialize(const char *str, char buffer[]) {
+  if (!str || !buffer) return buffer;
+
+  int newline = 0, out = 0;
+
+  while (*str != '\0') {
+    if (isnewline(*str)) {
+      if (!newline) {
+        buffer[out++] = '\x1F';
+        newline = 1;
+      }
+    } else {
+      buffer[out++] = *str;
+      newline = 0;
+    }
+    str++;
+  }
+  buffer[out] = '\0';
+
+  return buffer;
+}
+
+char *substring(const char *input, int start, int end) {
+  if (!input || start < 0 || end <= start) return NULL;
+
+  size_t len = (size_t)(end - start);
+  char *result = gcmall(len + 1);
+  if (!result) return NULL;
+
+  memcpy(result, input + start, len);
+  result[len] = '\0';
+
+  return result;
+}
+
+void trimbracket(char *value, char open, char close) {
+  if (!value) return;
+
+  if (open == '(') {
+    size_t n = strlen(value);
+    if (n > 0) {
+      memmove(value, value + 1, n);
+      value[n] = '\0';
+    }
+  } else if (close == ')') {
+    size_t n = strlen(value);
+    if (n > 0) {
+      memmove(value, value, n - 1);
+      value[n - 1] = '\0';
+    }
+  }
+}
+
+char *trimspace(char *value) {
+  if (value == NULL || *value == '\0') return value;
+
+  char *dest = value;
+  char *str = value;
+  int in_quote = 0;
+  char quote_char = '\0';
+
+  while (*str) {
+    if (isquote(*str)) {
+      if (!in_quote) {
+        in_quote = 1;
+        quote_char = *str;
+      } else if (*str == quote_char) {
+        in_quote = 0;
+      }
+
+      *dest++ = *str++;
+      continue;
+    }
+
+    if (in_quote) {
+      *dest++ = *str++;
+    } else {
+      if (!isspace((unsigned char)*str)) *dest++ = *str;
+      str++;
+    }
+  }
+
+  *dest = '\0';
+  return value;
+}
+
+void trimquote(char *value) {
+  if (!value) return;
+
+  size_t length = strlen(value);
+  if (length < 2) return;
+
+  if (isquote(value[0]) && isquote(value[length - 1])) {
+    memmove(value, value + 1, length - 2);
+    value[length - 2] = '\0';
+  }
+}
+
+int consumeToEnd(const char *buffer, int pos) {
+  if (!buffer || pos < 0) return -1;
+
+  while (buffer[pos])
+    pos++;
+  return pos;
+}
+
+void skipWhitespace(const char *buffer, int *position) {
+  if (!buffer || !position) return;
+
+  while (buffer[*position] && isspace((unsigned char)buffer[*position]))
+    (*position)++;
+}

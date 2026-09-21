@@ -4,15 +4,15 @@
 #include "stdlib.h"
 
 // platform layer
-#include "core/platform.h"
+#include "platform/platform.h"
 
 // forward / core types
-#include "forward.h"
 #include "core/enum.h"
 #include "core/keys.h"
 #include "core/limit.h"
 #include "core/macros.h"
 #include "core/manifest.h"
+#include "forward.h"
 
 // api
 #include "compiler/compiler.h"

@@ -3,8 +3,6 @@
 /*
  * Standard C library headers.
  * Keep this file portable and free from OS-specific APIs.
- * Platform-specific APIs belong in lib/platform/*.h and are selected by
- * lib/core/platform.h.
  */
 
 #include <assert.h>

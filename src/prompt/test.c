@@ -566,8 +566,7 @@ void testFmt(const char *paths[], int length) {
     }
 
     bool changed =
-        !source || strlen(source) != formattedLen ||
-        memcmp(source, formatted, formattedLen) != 0;
+        !source || strlen(source) != formattedLen || memcmp(source, formatted, formattedLen) != 0;
 
     printf("%s:\n", changed ? "Formatted" : "Formatted (unchanged)");
     fwrite(formatted, 1, formattedLen, stdout);
@@ -812,15 +811,15 @@ void testRepl(const char *paths[], int length) {
  * Test dispatcher — satu pintu untuk rupa test [...]
  *
  * Perilaku:
- *   rupa test --list                → tampilkan semua tests/**.rp
- *   rupa test --list ast            → tampilkan tests/ast/**.rp
- *   rupa test                       → jalankan tests/syntax/*.rp
- *   rupa test ast                   → jalankan tests/ast/**.rp
+ *   rupa test --list                → tampilkan semua tests
+ *   rupa test --list ast            → tampilkan tests/ast
+ *   rupa test                       → jalankan tests/syntax
+ *   rupa test ast                   → jalankan tests/ast
  *   rupa test --path ast            → sama dengan "rupa test ast"
- *   rupa test --select 1,3          → filter dari tests/syntax/*.rp
- *   rupa test ast --select 1        → filter dari tests/ast/**.rp
+ *   rupa test --select 1,3          → filter dari tests/syntax
+ *   rupa test ast --select 1        → filter dari tests/ast
  *   rupa test --path ast --select 1 → sama dengan di atas (urutan bebas)
- *   rupa test exec                  → tests/execution/*.rp (--test-exec)
+ *   rupa test exec                  → tests/execution (--test-exec)
  *   rupa test fmt                   → source vs hasil formatter
  *
  * Kategori yang dikenali: syntax, ast, ir, irexec, exec, semantics,
@@ -829,8 +828,8 @@ void testRepl(const char *paths[], int length) {
 
 static const struct {
   const char *name;
-  const char *dir;   /* subfolder di bawah tests/ */
-  const char *flag;  /* flag binary yang dipakai */
+  const char *dir;  /* subfolder di bawah tests/ */
+  const char *flag; /* flag binary yang dipakai */
 } testCategories[] = {
     {"syntax", "syntax", "--test"},       {"ast", "ast", "--test-ast"},
     {"ir", "syntax", "--test-ir"},        {"irexec", "syntax", "--test-irexec"},
@@ -881,7 +880,8 @@ static int testCollectPaths(const char *dir, const char *keyword, FmtPathList *l
     for (int i = 0; i < list->count; i++) {
       if (strstr(list->items[i], keyword)) list->items[kept++] = list->items[i];
     }
-    for (int i = kept; i < list->count; i++) free(list->items[i]);
+    for (int i = kept; i < list->count; i++)
+      free(list->items[i]);
     list->count = kept;
   }
   return 0;
@@ -1032,11 +1032,20 @@ static bool testArgsParse(const char *args[], int length, TestArgs *a) {
       bool ok = true;
       for (const char *c = arg + 1; *c; c++) {
         switch (*c) {
-        case 't': break; /* penanda mode test, tanpa efek */
-        case 'l': a->wantList = true; break;
-        case 'p': wantPath = true; break;
-        case 's': wantSelect = true; break;
-        default: ok = false; break;
+        case 't':
+          break; /* penanda mode test, tanpa efek */
+        case 'l':
+          a->wantList = true;
+          break;
+        case 'p':
+          wantPath = true;
+          break;
+        case 's':
+          wantSelect = true;
+          break;
+        default:
+          ok = false;
+          break;
         }
       }
       if (!ok) {

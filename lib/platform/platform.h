@@ -3,10 +3,10 @@
 #define RUPA_VERSION "1.0"
 
 #if defined(_WIN32) || defined(_WIN64)
-#include "platform/windows.h"
+#include "windows.h"
 #define RUPA_WINDOWS 1
 #elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-#include "platform/posix.h"
+#include "posix.h"
 #define RUPA_POSIX 1
 #else
 #error "Unsupported platform - PR welcome for platform support"
