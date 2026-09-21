@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <stdlib.h>
 
 /* Declared in src/editor/display/terminal.c */
 extern struct termios rupaterm;
@@ -10,12 +9,10 @@ static bool rawModeActive = false;
 /* ioInput dibuka non-static: dipakai juga oleh sistem @input class
  * (design/new_class.txt poin 5) — input.get("field") membaca stdin
  * dengan prompt dari spec handler @input. */
-InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
-                              RuntimeEnv *env, Error *error);
+InterpreterResult rupaIoInput(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error);
 
 /* ==================== io.input(prompt?) ==================== */
-InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
-                              RuntimeEnv *env, Error *error) {
+InterpreterResult rupaIoInput(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   /* Print prompt if provided */
   if (argc >= 1 && argv[0].type == VALUE_STRING && argv[0].as.string) {
     printf("%s", argv[0].as.string);
@@ -23,8 +20,7 @@ InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
   }
 
   /* Temporarily disable raw mode so getline works */
-  if (rawModeActive)
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &rupaterm);
+  if (rawModeActive) tcsetattr(STDIN_FILENO, TCSAFLUSH, &rupaterm);
 
   /* Read line from stdin */
   char *line = NULL;
@@ -32,8 +28,7 @@ InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
   ssize_t len = getline(&line, &capacity, stdin);
 
   /* Restore raw mode if it was active before */
-  if (rawModeActive)
-    enableRawMode();
+  if (rawModeActive) enableRawMode();
 
   if (len < 0) {
     free(line);
@@ -41,8 +36,7 @@ InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
   }
 
   /* Strip trailing newline */
-  if (len > 0 && line[len - 1] == '\n')
-    line[len - 1] = '\0';
+  if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
 
   RuntimeValue result = valueString(line);
   free(line);
@@ -50,8 +44,7 @@ InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
 }
 
 /* ==================== io.toNumber(str) ==================== */
-static InterpreterResult ioToNumber(int argc, RuntimeValue *argv,
-                                    RuntimeEnv *env, Error *error) {
+static InterpreterResult ioToNumber(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return resultNormal(valueNull());
 
@@ -60,20 +53,18 @@ static InterpreterResult ioToNumber(int argc, RuntimeValue *argv,
   /* Try integer first (number 64-bit: strtoll, bukan strtol). */
   char *end;
   long long intval = strtoll(str, &end, 10);
-  if (*end == '\0')
-    return resultNormal(valueNumber(intval));
+  if (*end == '\0') return resultNormal(valueNumber(intval));
 
   /* Try float */
   double dblval = strtod(str, &end);
-  if (*end == '\0')
-    return resultNormal(valueDecimal(dblval));
+  if (*end == '\0') return resultNormal(valueDecimal(dblval));
 
   return resultNormal(valueNull());
 }
 
 /* ==================== Module init ==================== */
-static void addEntry(struct RuntimeObjectEntry **head, const char *name,
-                     NativeFn fn, int paramCount) {
+static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
+                     int paramCount) {
   struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
   e->key = gcstrdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
@@ -86,8 +77,7 @@ void stdIoSetRawMode(bool active) {
   rawModeActive = active;
 }
 
-InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env,
-                            Error *error) {
+InterpreterResult stdIoInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   struct RuntimeObjectEntry *entries = NULL;
 
   addEntry(&entries, "input", rupaIoInput, 0);

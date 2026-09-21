@@ -1,6 +1,4 @@
 #include <rupa.h>
-#include <pthread.h>
-#include <time.h>
 
 /* ============================================================
  * Thread Module
@@ -40,11 +38,9 @@ static void *threadWrapper(void *arg) {
   ThreadWrapper *tw = (ThreadWrapper *)arg;
   InterpreterResult r = resultNormal(valueNull());
 
-  if (tw->function.type == VALUE_NATIVE_FUNCTION &&
-      tw->function.as.nativeFunc) {
+  if (tw->function.type == VALUE_NATIVE_FUNCTION && tw->function.as.nativeFunc) {
     r = tw->function.as.nativeFunc->func(tw->argc, tw->argv, NULL, NULL);
-  } else if (tw->function.type == VALUE_FUNCTION &&
-             tw->function.as.function) {
+  } else if (tw->function.type == VALUE_FUNCTION && tw->function.as.function) {
     RuntimeFunction *fn = tw->function.as.function;
     RuntimeEnv *local = semCreateEnv(fn->closure);
     if (!local) {
@@ -55,8 +51,10 @@ static void *threadWrapper(void *arg) {
         int param = fn->params[i];
         if (param >= 0 && param < fn->node->length) {
           AstNode *pn = &fn->node->ast[param];
-          if (pn->type == NODE_IDENTIFIER) name = pn->identifier.name;
-          else if (pn->type == NODE_LITERAL_ID) name = pn->string.value;
+          if (pn->type == NODE_IDENTIFIER)
+            name = pn->identifier.name;
+          else if (pn->type == NODE_LITERAL_ID)
+            name = pn->string.value;
         }
         if (name) semSet(local, name, tw->argv[i]);
       }
@@ -72,8 +70,7 @@ static void *threadWrapper(void *arg) {
   tw->entry->done = true;
   if (r.flow == FLOW_ERROR) {
     tw->entry->has_error = true;
-    snprintf(tw->entry->error_msg, sizeof(tw->entry->error_msg),
-             "Thread error");
+    snprintf(tw->entry->error_msg, sizeof(tw->entry->error_msg), "Thread error");
   }
   pthread_mutex_unlock(&tableMutex);
 
@@ -83,12 +80,9 @@ static void *threadWrapper(void *arg) {
 }
 
 /* ==================== thread.create(fn) ==================== */
-static InterpreterResult threadCreate(int argc, RuntimeValue *argv,
-                                      RuntimeEnv *env, Error *error) {
-  if (argc < 1 ||
-      (argv[0].type != VALUE_NATIVE_FUNCTION && argv[0].type != VALUE_FUNCTION))
-    return resultFlow(FLOW_ERROR,
-                      valueString("thread.create() expects a function"));
+static InterpreterResult threadCreate(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
+  if (argc < 1 || (argv[0].type != VALUE_NATIVE_FUNCTION && argv[0].type != VALUE_FUNCTION))
+    return resultFlow(FLOW_ERROR, valueString("thread.create() expects a function"));
 
   pthread_mutex_lock(&tableMutex);
   if (threadCount >= MAX_THREADS) {
@@ -123,11 +117,9 @@ static InterpreterResult threadCreate(int argc, RuntimeValue *argv,
 }
 
 /* ==================== thread.join(handle) ==================== */
-static InterpreterResult threadJoin(int argc, RuntimeValue *argv,
-                                    RuntimeEnv *env, Error *error) {
+static InterpreterResult threadJoin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   if (argc < 1 || argv[0].type != VALUE_NUMBER)
-    return resultFlow(FLOW_ERROR,
-                      valueString("thread.join() expects a thread handle"));
+    return resultFlow(FLOW_ERROR, valueString("thread.join() expects a thread handle"));
 
   int id = (int)argv[0].as.number;
   pthread_mutex_lock(&tableMutex);
@@ -140,18 +132,14 @@ static InterpreterResult threadJoin(int argc, RuntimeValue *argv,
 
   pthread_join(entry->pthread, NULL);
 
-  if (entry->has_error)
-    return resultFlow(FLOW_ERROR, valueString(entry->error_msg));
+  if (entry->has_error) return resultFlow(FLOW_ERROR, valueString(entry->error_msg));
 
   return resultNormal(entry->result);
 }
 
 /* ==================== thread.sleep(ms) ==================== */
-static InterpreterResult threadSleep(int argc, RuntimeValue *argv,
-                                     RuntimeEnv *env, Error *error) {
-  if (argc < 1)
-    return resultFlow(FLOW_ERROR,
-                      valueString("thread.sleep() expects milliseconds"));
+static InterpreterResult threadSleep(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
+  if (argc < 1) return resultFlow(FLOW_ERROR, valueString("thread.sleep() expects milliseconds"));
 
   long ms = 0;
   if (argv[0].type == VALUE_NUMBER)
@@ -159,8 +147,7 @@ static InterpreterResult threadSleep(int argc, RuntimeValue *argv,
   else if (argv[0].type == VALUE_DECIMAL)
     ms = (long)argv[0].as.decimal;
   else
-    return resultFlow(FLOW_ERROR,
-                      valueString("thread.sleep() expects a number"));
+    return resultFlow(FLOW_ERROR, valueString("thread.sleep() expects a number"));
 
   struct timespec ts;
   ts.tv_sec = ms / 1000;
@@ -171,8 +158,7 @@ static InterpreterResult threadSleep(int argc, RuntimeValue *argv,
 }
 
 /* ==================== thread.id() ==================== */
-static InterpreterResult threadId(int argc, RuntimeValue *argv,
-                                  RuntimeEnv *env, Error *error) {
+static InterpreterResult threadId(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   /* Return a hash of the current pthread_t as an integer */
   pthread_t self = pthread_self();
   long id = 0;
@@ -183,8 +169,8 @@ static InterpreterResult threadId(int argc, RuntimeValue *argv,
 }
 
 /* ==================== thread.count() ==================== */
-static InterpreterResult threadCountFn(int argc, RuntimeValue *argv,
-                                       RuntimeEnv *env, Error *error) {
+static InterpreterResult threadCountFn(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                       Error *error) {
   pthread_mutex_lock(&tableMutex);
   int active = 0;
   for (int i = 0; i < threadCount; i++)
@@ -194,8 +180,8 @@ static InterpreterResult threadCountFn(int argc, RuntimeValue *argv,
 }
 
 /* ==================== Module init ==================== */
-static void addEntry(struct RuntimeObjectEntry **head, const char *name,
-                     NativeFn fn, int paramCount) {
+static void addEntry(struct RuntimeObjectEntry **head, const char *name, NativeFn fn,
+                     int paramCount) {
   struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
   e->key = gcstrdup(name);
   e->value = valueNativeFunction(name, fn, paramCount);
@@ -203,8 +189,7 @@ static void addEntry(struct RuntimeObjectEntry **head, const char *name,
   *head = e;
 }
 
-InterpreterResult stdThreadInit(Node *node, int id, RuntimeEnv *env,
-                                Error *error) {
+InterpreterResult stdThreadInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   struct RuntimeObjectEntry *entries = NULL;
 
   addEntry(&entries, "create", threadCreate, 1);

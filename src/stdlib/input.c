@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <stdio.h>
 
 /* input.c — sistem @input class (design/new_class.txt poin 5).
  *
@@ -27,8 +26,7 @@
  * sendiri di-bind ke `input` param construct main oleh runtime
  * (classRunConstruct), bukan dibuat user. */
 
-extern InterpreterResult rupaIoInput(int argc, RuntimeValue *argv,
-                                     RuntimeEnv *env, Error *error);
+extern InterpreterResult rupaIoInput(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error);
 
 /* ===== Registry spec @input (per run) ===== */
 struct InputSpec {
@@ -49,8 +47,7 @@ void inputSpecReset(void) {
 void inputSpecRegister(RuntimeValue spec) {
   if (spec.type != VALUE_OBJECT || !spec.as.object.entries) return;
   for (struct RuntimeObjectEntry *e = spec.as.object.entries; e; e = e->next) {
-    if (!e->key || e->value.type != VALUE_STRING || !e->value.as.string)
-      continue;
+    if (!e->key || e->value.type != VALUE_STRING || !e->value.as.string) continue;
     struct InputSpec *s = gccalloc(1, sizeof(*s));
     if (!s) return;
     s->field = gcstrdup(e->key);
@@ -61,7 +58,9 @@ void inputSpecRegister(RuntimeValue spec) {
   g_active = true;
 }
 
-bool inputSpecActive(void) { return g_active && g_specs != NULL; }
+bool inputSpecActive(void) {
+  return g_active && g_specs != NULL;
+}
 
 const char *inputSpecPrompt(const char *field) {
   if (!field) return NULL;
@@ -75,15 +74,14 @@ const char *inputSpecPrompt(const char *field) {
 /* input.get("field") — strict terhadap spec handler @input.
  * Dipanggil via member call `input.get(...)`; receiver = object Input
  * (opaque, identitas tidak dipakai — spec-nya global per run). */
-static InterpreterResult inputGet(int argc, RuntimeValue *argv,
-                                  RuntimeEnv *env, Error *error) {
+static InterpreterResult inputGet(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (!inputSpecActive()) {
     if (error)
       addError(error, (ErrorInfo){.code = "ReferenceError",
-                                  .message =
-                                      "input is not active (no @input handler)",
-                                  .line = 0, .row = 0,
+                                  .message = "input is not active (no @input handler)",
+                                  .line = 0,
+                                  .row = 0,
                                   .type = ERR_UNDEFINED_VAR});
     return resultFlow(FLOW_ERROR, valueNull());
   }
@@ -94,7 +92,8 @@ static InterpreterResult inputGet(int argc, RuntimeValue *argv,
     if (error)
       addError(error, (ErrorInfo){.code = "TypeError",
                                   .message = "input.get expects a field name string",
-                                  .line = 0, .row = 0,
+                                  .line = 0,
+                                  .row = 0,
                                   .type = ERR_TYPE_MISMATCH});
     return resultFlow(FLOW_ERROR, valueNull());
   }
@@ -104,12 +103,12 @@ static InterpreterResult inputGet(int argc, RuntimeValue *argv,
   if (!prompt) {
     /* STRICT: field di luar deklarasi @input ditolak. */
     char msg[256];
-    snprintf(msg, sizeof(msg),
-             "'%s' is not declared in the @input handler", field);
+    snprintf(msg, sizeof(msg), "'%s' is not declared in the @input handler", field);
     if (error)
       addError(error, (ErrorInfo){.code = "ReferenceError",
                                   .message = msg,
-                                  .line = 0, .row = 0,
+                                  .line = 0,
+                                  .row = 0,
                                   .type = ERR_UNDEFINED_VAR});
     return resultFlow(FLOW_ERROR, valueNull());
   }

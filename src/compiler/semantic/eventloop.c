@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <time.h>
 
 extern struct EventLoop *g_event_loop;
 

@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <time.h>
 
 extern struct EventLoop *getEventLoop(void);
 
@@ -9,8 +8,7 @@ static long currentTimeMs(void) {
   return (long)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
-static RuntimeValue makeAsyncHandle(const char *status, RuntimeValue data,
-                                    RuntimeValue errVal) {
+static RuntimeValue makeAsyncHandle(const char *status, RuntimeValue data, RuntimeValue errVal) {
   struct RuntimeObjectEntry *head = NULL;
   struct RuntimeObjectEntry *tail = NULL;
 
@@ -34,16 +32,16 @@ static RuntimeValue makeAsyncHandle(const char *status, RuntimeValue data,
   return valueObject(head);
 }
 
-static void callLoader(Node *node, int loaderId, RuntimeEnv *env,
-                       Error *error, RuntimeValue thisVal) {
+static void callLoader(Node *node, int loaderId, RuntimeEnv *env, Error *error,
+                       RuntimeValue thisVal) {
   if (loaderId < 0) return;
   semSet(env, "this", thisVal);
   int callId = createCall(node, loaderId, NULL, 0);
   if (callId >= 0) interpretNode(node, callId, env, error);
 }
 
-static void callHandler(Node *node, int handlerId, RuntimeEnv *env,
-                        Error *error, RuntimeValue thisVal) {
+static void callHandler(Node *node, int handlerId, RuntimeEnv *env, Error *error,
+                        RuntimeValue thisVal) {
   if (handlerId < 0 || handlerId >= node->length) return;
   semSet(env, "this", thisVal);
   interpretNode(node, handlerId, env, error);
@@ -58,10 +56,8 @@ static void callHandler(Node *node, int handlerId, RuntimeEnv *env,
  *   3. Check timeout — if exceeded, call loader(ERROR)
  *   4. Call loader(SUCCESS) → data replaces "loading..."
  */
-InterpreterResult interpretAsync(Node *node, int id, AstNode *ast,
-                                 RuntimeEnv *env, Error *error) {
-  if (!node || !ast || ast->type != NODE_ASYNC)
-    return resultNormal(valueNull());
+InterpreterResult interpretAsync(Node *node, int id, AstNode *ast, RuntimeEnv *env, Error *error) {
+  if (!node || !ast || ast->type != NODE_ASYNC) return resultNormal(valueNull());
 
   /* Evaluate timeout if present */
   int timeoutMs = -1;

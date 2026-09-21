@@ -1,13 +1,15 @@
 #include <rupa.h>
+
+#if defined(__linux__)
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
+#endif
 
 /* ==================== Validation helpers ==================== */
 
-static InterpreterResult cryptoError(Error *error, const char *name,
-                                    const char *message) {
+static InterpreterResult cryptoError(Error *error, const char *name, const char *message) {
   if (error)
     addError(error, (ErrorInfo){.code = (char *)"CryptoError",
                                 .message = (char *)message,
@@ -30,8 +32,7 @@ static char *bytesToHex(const unsigned char *bytes, int len) {
 
 /* ==================== Generic EVP hash ==================== */
 
-static InterpreterResult evpHash(const char *algo, const char *input,
-                                 int inputLen, Error *error) {
+static InterpreterResult evpHash(const char *algo, const char *input, int inputLen, Error *error) {
   const EVP_MD *md = NULL;
   if (strcmp(algo, "md5") == 0)
     md = EVP_md5();
@@ -48,11 +49,9 @@ static InterpreterResult evpHash(const char *algo, const char *input,
   unsigned int hashLen = 0;
 
   EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-  if (!ctx)
-    return cryptoError(error, algo, "EVP_MD_CTX_new failed");
+  if (!ctx) return cryptoError(error, algo, "EVP_MD_CTX_new failed");
 
-  if (EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
-      EVP_DigestUpdate(ctx, input, inputLen) != 1 ||
+  if (EVP_DigestInit_ex(ctx, md, NULL) != 1 || EVP_DigestUpdate(ctx, input, inputLen) != 1 ||
       EVP_DigestFinal_ex(ctx, hash, &hashLen) != 1) {
     EVP_MD_CTX_free(ctx);
     return cryptoError(error, algo, "digest failed");
@@ -64,8 +63,7 @@ static InterpreterResult evpHash(const char *algo, const char *input,
 
 /* ==================== crypto.md5(str) ==================== */
 
-static InterpreterResult cryptoMd5(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                   Error *error) {
+static InterpreterResult cryptoMd5(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return cryptoError(error, "md5", "crypto.md5() expects a string");
@@ -74,8 +72,7 @@ static InterpreterResult cryptoMd5(int argc, RuntimeValue *argv, RuntimeEnv *env
 
 /* ==================== crypto.sha1(str) ==================== */
 
-static InterpreterResult cryptoSha1(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                    Error *error) {
+static InterpreterResult cryptoSha1(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return cryptoError(error, "sha1", "crypto.sha1() expects a string");
@@ -84,8 +81,7 @@ static InterpreterResult cryptoSha1(int argc, RuntimeValue *argv, RuntimeEnv *en
 
 /* ==================== crypto.sha256(str) ==================== */
 
-static InterpreterResult cryptoSha256(int argc, RuntimeValue *argv,
-                                      RuntimeEnv *env, Error *error) {
+static InterpreterResult cryptoSha256(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return cryptoError(error, "sha256", "crypto.sha256() expects a string");
@@ -94,8 +90,7 @@ static InterpreterResult cryptoSha256(int argc, RuntimeValue *argv,
 
 /* ==================== crypto.sha512(str) ==================== */
 
-static InterpreterResult cryptoSha512(int argc, RuntimeValue *argv,
-                                      RuntimeEnv *env, Error *error) {
+static InterpreterResult cryptoSha512(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return cryptoError(error, "sha512", "crypto.sha512() expects a string");
@@ -104,11 +99,9 @@ static InterpreterResult cryptoSha512(int argc, RuntimeValue *argv,
 
 /* ==================== crypto.hmac(key, message) ==================== */
 
-static InterpreterResult cryptoHmac(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                    Error *error) {
+static InterpreterResult cryptoHmac(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
-  if (argc < 2)
-    return cryptoError(error, "hmac", "crypto.hmac() expects key and message");
+  if (argc < 2) return cryptoError(error, "hmac", "crypto.hmac() expects key and message");
   if (argv[0].type != VALUE_STRING || !argv[0].as.string)
     return cryptoError(error, "hmac", "key must be string");
   if (argv[1].type != VALUE_STRING || !argv[1].as.string)
@@ -124,28 +117,25 @@ static InterpreterResult cryptoHmac(int argc, RuntimeValue *argv, RuntimeEnv *en
 
   unsigned char *result =
       HMAC(EVP_sha256(), key, keyLen, (unsigned char *)msg, msgLen, mac, &macLen);
-  if (!result)
-    return cryptoError(error, "hmac", "HMAC failed");
+  if (!result) return cryptoError(error, "hmac", "HMAC failed");
 
   return resultNormal(valueString(bytesToHex(mac, macLen)));
 }
 
 /* ==================== crypto.base64Encode(str) ==================== */
 
-static InterpreterResult cryptoBase64Encode(int argc, RuntimeValue *argv,
-                                            RuntimeEnv *env, Error *error) {
+static InterpreterResult cryptoBase64Encode(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                            Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
-    return cryptoError(error, "base64Encode",
-                       "crypto.base64Encode() expects a string");
+    return cryptoError(error, "base64Encode", "crypto.base64Encode() expects a string");
 
   const char *input = argv[0].as.string;
   int inputLen = strlen(input);
   int outputLen = 4 * ((inputLen + 2) / 3);
   char *output = gcmall(outputLen + 1);
 
-  const char *chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const char *chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   int i, j;
   for (i = 0, j = 0; i < inputLen;) {
     unsigned int a = i < inputLen ? (unsigned char)input[i++] : 0;
@@ -163,12 +153,11 @@ static InterpreterResult cryptoBase64Encode(int argc, RuntimeValue *argv,
 
 /* ==================== crypto.base64Decode(str) ==================== */
 
-static InterpreterResult cryptoBase64Decode(int argc, RuntimeValue *argv,
-                                            RuntimeEnv *env, Error *error) {
+static InterpreterResult cryptoBase64Decode(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                            Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
-    return cryptoError(error, "base64Decode",
-                       "crypto.base64Decode() expects a string");
+    return cryptoError(error, "base64Decode", "crypto.base64Decode() expects a string");
 
   const char *input = argv[0].as.string;
   int inputLen = strlen(input);
@@ -177,8 +166,7 @@ static InterpreterResult cryptoBase64Decode(int argc, RuntimeValue *argv,
 
   int vals[256];
   memset(vals, 0, sizeof(vals));
-  const char *chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const char *chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   for (int i = 0; i < 64; i++)
     vals[(unsigned char)chars[i]] = i;
 
@@ -189,12 +177,9 @@ static InterpreterResult cryptoBase64Decode(int argc, RuntimeValue *argv,
     int c = (i + 2 < inputLen) ? vals[(unsigned char)input[i + 2]] : 0;
     int d = (i + 3 < inputLen) ? vals[(unsigned char)input[i + 3]] : 0;
     unsigned int triple = (a << 18) | (b << 12) | (c << 6) | d;
-    if (j < outputLen)
-      output[j++] = (triple >> 16) & 0xFF;
-    if (j < outputLen && input[i + 2] != '=')
-      output[j++] = (triple >> 8) & 0xFF;
-    if (j < outputLen && input[i + 3] != '=')
-      output[j++] = triple & 0xFF;
+    if (j < outputLen) output[j++] = (triple >> 16) & 0xFF;
+    if (j < outputLen && input[i + 2] != '=') output[j++] = (triple >> 8) & 0xFF;
+    if (j < outputLen && input[i + 3] != '=') output[j++] = triple & 0xFF;
   }
   output[j] = '\0';
   return resultNormal(valueString(output));
@@ -202,8 +187,7 @@ static InterpreterResult cryptoBase64Decode(int argc, RuntimeValue *argv,
 
 /* ==================== Module init ==================== */
 
-InterpreterResult stdCryptoInit(Node *node, int id, RuntimeEnv *env,
-                               Error *error) {
+InterpreterResult stdCryptoInit(Node *node, int id, RuntimeEnv *env, Error *error) {
   (void)node;
   (void)id;
   (void)env;
