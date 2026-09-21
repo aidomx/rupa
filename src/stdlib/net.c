@@ -1,5 +1,3 @@
-#pragma once
-
 #include <rupa.h>
 
 #ifdef _WIN32
@@ -9,8 +7,7 @@ static bool rupaInitWinsock(void) {
   if (rupaWinsockInitialized) return true;
 
   WSADATA wsa;
-  if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-    return false;
+  if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
 
   rupaWinsockInitialized = true;
   return true;
