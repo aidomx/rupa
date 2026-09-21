@@ -371,7 +371,7 @@ static char *fmtObjectInlineSource(const char *src, size_t len, size_t open, siz
     }
 
     if (ch == '"' || ch == '\'') {
-      if (pendingSpace && wroteValue && !trim) {
+      if (pendingSpace && wroteValue && !trim && w > 0 && out[w - 1] != ' ') {
         FMT_OBJECT_PUT(' ');
       }
 
@@ -432,7 +432,7 @@ static char *fmtObjectInlineSource(const char *src, size_t len, size_t open, siz
       FMT_OBJECT_PUT(':');
       pendingSpace = false;
 
-      if (!trim && !isspace(src[i + 1])) FMT_OBJECT_PUT(' ');
+      if (!trim) FMT_OBJECT_PUT(' ');
 
       wroteValue = true;
       continue;
@@ -460,7 +460,8 @@ static char *fmtObjectInlineSource(const char *src, size_t len, size_t open, siz
     if (pendingSpace) {
       char prev = w > 0 ? out[w - 1] : 0;
 
-      if (prev != '{' && prev != ':' && prev != ',' && !isspace(prev)) {
+      if (prev != '{' && prev != ':' && prev != ',' &&
+          (prev == '\n' || prev == '\r' || prev == '\t')) {
         FMT_OBJECT_PUT(' ');
       }
 
