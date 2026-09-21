@@ -20,8 +20,16 @@ headers:
 library:
   - ssl
   - crypto
-  - lm
-  - pthread
+  
+  - linux:
+    - m
+    - pthread
+
+  - macos:
+    - m
+
+  - windows:
+    - ws2_32
 
 compiler:
   - gcc
