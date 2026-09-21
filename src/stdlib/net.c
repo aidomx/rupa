@@ -1,4 +1,25 @@
+#pragma once
+
 #include <rupa.h>
+
+#ifdef _WIN32
+static bool rupaWinsockInitialized = false;
+
+static bool rupaInitWinsock(void) {
+  if (rupaWinsockInitialized) return true;
+
+  WSADATA wsa;
+  if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    return false;
+
+  rupaWinsockInitialized = true;
+  return true;
+}
+
+#define RUPA_CLOSE_SOCKET closesocket
+#else
+#define RUPA_CLOSE_SOCKET close
+#endif
 
 /* ==================== Validation helpers ==================== */
 
@@ -23,6 +44,11 @@ static InterpreterResult netConnect(int argc, RuntimeValue *argv, RuntimeEnv *en
   if (argv[0].type != VALUE_STRING || !argv[0].as.string)
     return netError(error, "connect", "net.connect() host must be string");
 
+#ifdef _WIN32
+  if (!rupaInitWinsock())
+    return netError(error, "connect", "net.connect() Winsock initialization failed");
+#endif
+
   int port;
   if (argv[1].type == VALUE_NUMBER)
     port = argv[1].as.number;
@@ -34,7 +60,7 @@ static InterpreterResult netConnect(int argc, RuntimeValue *argv, RuntimeEnv *en
 
   struct hostent *server = gethostbyname(argv[0].as.string);
   if (!server) {
-    close(sockfd);
+    RUPA_CLOSE_SOCKET(sockfd);
     return netError(error, "connect", "net.connect() host not found");
   }
 
@@ -45,7 +71,7 @@ static InterpreterResult netConnect(int argc, RuntimeValue *argv, RuntimeEnv *en
   serv_addr.sin_port = htons(port);
 
   if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    close(sockfd);
+    RUPA_CLOSE_SOCKET(sockfd);
     return netError(error, "connect", "net.connect() connection failed");
   }
 
@@ -67,7 +93,7 @@ static InterpreterResult netSend(int argc, RuntimeValue *argv, RuntimeEnv *env, 
   if (argv[1].type != VALUE_STRING || !argv[1].as.string)
     return netError(error, "send", "net.send() data must be string");
 
-  ssize_t sent = send(fd, argv[1].as.string, strlen(argv[1].as.string), 0);
+  int sent = send(fd, argv[1].as.string, (int)strlen(argv[1].as.string), 0);
   if (sent < 0) return netError(error, "send", "net.send() failed");
 
   return resultNormal(valueNumber((int)sent));
@@ -88,8 +114,8 @@ static InterpreterResult netReceive(int argc, RuntimeValue *argv, RuntimeEnv *en
   int bufsize = 4096;
   if (argc >= 2 && argv[1].type == VALUE_NUMBER) bufsize = argv[1].as.number;
 
-  char *buf = gcmall(bufsize + 1);
-  ssize_t n = recv(fd, buf, bufsize, 0);
+  char *buf = gcmall((size_t)bufsize + 1);
+  int n = recv(fd, buf, bufsize, 0);
   if (n < 0) {
     gcfree(buf);
     return netError(error, "receive", "net.receive() failed");
@@ -111,7 +137,7 @@ static InterpreterResult netClose(int argc, RuntimeValue *argv, RuntimeEnv *env,
   else
     return netError(error, "close", "net.close() fd must be number");
 
-  close(fd);
+  RUPA_CLOSE_SOCKET(fd);
   return resultNormal(valueBoolean(true));
 }
 
@@ -121,6 +147,11 @@ static InterpreterResult netClose(int argc, RuntimeValue *argv, RuntimeEnv *env,
 static InterpreterResult netListen(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1) return netError(error, "listen", "net.listen() expects port");
+
+#ifdef _WIN32
+  if (!rupaInitWinsock())
+    return netError(error, "listen", "net.listen() Winsock initialization failed");
+#endif
 
   int port;
   if (argv[0].type == VALUE_NUMBER)
@@ -135,7 +166,7 @@ static InterpreterResult netListen(int argc, RuntimeValue *argv, RuntimeEnv *env
   if (sockfd < 0) return netError(error, "listen", "net.listen() socket creation failed");
 
   int opt = 1;
-  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt));
 
   struct sockaddr_in serv_addr;
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -144,12 +175,12 @@ static InterpreterResult netListen(int argc, RuntimeValue *argv, RuntimeEnv *env
   serv_addr.sin_port = htons(port);
 
   if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    close(sockfd);
+    RUPA_CLOSE_SOCKET(sockfd);
     return netError(error, "listen", "net.listen() bind failed");
   }
 
   if (listen(sockfd, backlog) < 0) {
-    close(sockfd);
+    RUPA_CLOSE_SOCKET(sockfd);
     return netError(error, "listen", "net.listen() listen failed");
   }
 
@@ -189,6 +220,11 @@ static InterpreterResult netResolve(int argc, RuntimeValue *argv, RuntimeEnv *en
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return netError(error, "resolve", "net.resolve() expects hostname");
+
+#ifdef _WIN32
+  if (!rupaInitWinsock())
+    return netError(error, "resolve", "net.resolve() Winsock initialization failed");
+#endif
 
   struct hostent *server = gethostbyname(argv[0].as.string);
   if (!server) return netError(error, "resolve", "net.resolve() host not found");
