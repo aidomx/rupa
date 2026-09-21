@@ -1,18 +1,18 @@
 #pragma once
 
-// Standard library C language
+// standard C headers
 #include "stdlib.h"
 
-// forward (enum, struct)
-#include "forward.h"
+// platform layer
+#include "core/platform.h"
 
-// core library
+// forward / core types
+#include "forward.h"
 #include "core/enum.h"
 #include "core/keys.h"
 #include "core/limit.h"
 #include "core/macros.h"
 #include "core/manifest.h"
-#include "core/platform.h"
 
 // api
 #include "compiler/compiler.h"
@@ -23,8 +23,10 @@
 #include "repl/repl.h"
 #include "runtime/runtime.h"
 #include "state/state.h"
+
 // Standard library rupa language
 #include "modules/rupa_modules.h"
+
 // support
 #include "utils/utils.h"
 
