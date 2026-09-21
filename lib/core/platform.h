@@ -16,9 +16,9 @@
 #define RUPA_WINDOWS 1
 
 /* --- Core Windows --- */
-#include <windows.h>        /* [USED] Windows API (base, file, process, etc.) */
-#include <conio.h>          /* [USED] Console I/O (getch, kbhit) */
-#include <io.h>             /* [USED] Low-level I/O (access, open, close) */
+#include <conio.h>   /* [USED] Console I/O (getch, kbhit) */
+#include <io.h>      /* [USED] Low-level I/O (access, open, close) */
+#include <windows.h> /* [USED] Windows API (base, file, process, etc.) */
 
 /* --- File System --- */
 // #include <direct.h>       /* Directory functions (mkdir, rmdir, getcwd) */
@@ -73,16 +73,16 @@
 #define RUPA_POSIX 1
 
 /* --- Core POSIX --- */
-#include <unistd.h>         /* [USED] POSIX API (read, write, fork, etc.) */
-#include <sys/types.h>      /* [USED] System data types */
+#include <sys/types.h> /* [USED] System data types */
+#include <unistd.h>    /* [USED] POSIX API (read, write, fork, etc.) */
 
 /* --- Terminal I/O --- */
-#include <termios.h>        /* [USED] Terminal I/O (tcgetattr, tcsetattr) */
-#include <sys/ioctl.h>      /* [USED] Terminal I/O control (ioctl) */
+#include <sys/ioctl.h> /* [USED] Terminal I/O control (ioctl) */
+#include <termios.h>   /* [USED] Terminal I/O (tcgetattr, tcsetattr) */
 // #include <ncurses.h>      /* ncurses terminal UI library (third-party) */
 
 /* --- File System --- */
-#include <dirent.h>         /* [USED] Directory operations */
+#include <dirent.h>    /* [USED] Directory operations */
 // #include <fcntl.h>        /* File control (open, fcntl) — moved to stdlib.h */
 // #include <sys/statvfs.h>  /* Filesystem statistics */
 // #include <sys/sendfile.h> /* Efficient file transfer (Linux) */

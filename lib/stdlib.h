@@ -89,9 +89,9 @@
 // #include <sys/shm.h>      /* Shared memory */
 // #include <sys/mman.h>     /* Memory-mapped files */
 #include <arpa/inet.h>  /* Internet operations */
+#include <netdb.h>      /* Network database operations */
 #include <netinet/in.h> /* Internet address family */
 #include <sys/socket.h> /* Socket programming */
-// #include <netdb.h>        /* Network database operations */
 
 /* --- Terminal I/O (POSIX) --- */
 // #include <termios.h>      /* Terminal I/O (moved to platform.h) */
