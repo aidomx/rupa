@@ -76,6 +76,7 @@ extern void fmtIf(Formatter *f, Node *node, int id);
 extern void fmtLoop(Formatter *f, Node *node, int id);
 extern void fmtFunctionDecl(Formatter *f, Node *node, int id);
 extern void fmtStructDecl(Formatter *f, Node *node, int id);
+extern void fmtEnumDecl(Formatter *f, Node *node, int id);
 extern void fmtClassDecl(Formatter *f, Node *node, int id);
 extern void fmtMod(Formatter *f, Node *node, int id);
 extern void fmtAsync(Formatter *f, Node *node, int id);

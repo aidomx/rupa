@@ -13,6 +13,8 @@ const char *keywordList[] = {
     "export",   // export modul
     "extends",  // extends
     "namespace", // namespace db { export ... }
+    "enum",     // enum TokenType { ... }
+    "const",    // const x: number = 1 — binding immutable
     "return",   // return
     "break",    // keluar dari loop
     "continue", // lanjut iterasi loop
@@ -24,26 +26,30 @@ const char *keywordList[] = {
 };
 
 KeywordType keywordType[] = {
-    KEYWORD_VOID,     // void
-    KEYWORD_IF,       // if
-    KEYWORD_ELSEIF,   // elseif
-    KEYWORD_ELSE,     // else
-    KEYWORD_FOR,      // for
-    KEYWORD_REV,      // rev
-    KEYWORD_WHILE,    // while
-    KEYWORD_PRINT,    // print
-    KEYWORD_IMPORT,   // import
-    KEYWORD_EXPORT,   // export
-    KEYWORD_EXTENDS,  // extends
+    /* Urutan WAJIB sama persis dengan keywordList di atas —
+     * scanKeyword() memasangkan berdasarkan index. */
+    KEYWORD_VOID,      // void
+    KEYWORD_IF,        // if
+    KEYWORD_ELSEIF,    // else if
+    KEYWORD_ELSE,      // else
+    KEYWORD_FOR,       // for
+    KEYWORD_REV,       // rev
+    KEYWORD_WHILE,     // while
+    KEYWORD_PRINT,     // print
+    KEYWORD_IMPORT,    // import
+    KEYWORD_EXPORT,    // export
+    KEYWORD_EXTENDS,   // extends
     KEYWORD_NAMESPACE, // namespace
-    KEYWORD_RETURN,   // return
-    KEYWORD_BREAK,    // break
-    KEYWORD_CONTINUE, // continue
-    KEYWORD_ASYNC,    // async
-    KEYWORD_AWAIT,    // await
-    KEYWORD_CASE,     // case
-    KEYWORD_DEFAULT,  // default
-    KEYWORD_NULL      // sentinel
+    KEYWORD_ENUM,      // enum
+    KEYWORD_CONST,     // const
+    KEYWORD_RETURN,    // return
+    KEYWORD_BREAK,     // break
+    KEYWORD_CONTINUE,  // continue
+    KEYWORD_ASYNC,     // async
+    KEYWORD_AWAIT,     // await
+    KEYWORD_CASE,      // case
+    KEYWORD_DEFAULT,   // default
+    KEYWORD_NULL       // sentinel
 };
 
 const int keywordListSize = sizeof(keywordList) / sizeof(keywordList[0]) - 1;

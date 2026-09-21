@@ -2,6 +2,7 @@
 
 void fmtAssign(Formatter *f, Node *node, int id) {
   AstNode *n = &node->ast[id];
+  if (n->assign.isConst) fmtStr(f, "const ");
   fmtNode(f, node, n->assign.target);
   if (n->assign.type >= 0) {
     fmtStr(f, ": ");
@@ -59,6 +60,10 @@ int fmtNodeEndLine(Node *node, int id) {
   case NODE_STRUCT_DECL:
     if (n->asStruct.body >= 0)
       end = fmtNodeEndLine(node, n->asStruct.body);
+    break;
+  case NODE_ENUM_DECL:
+    if (n->asEnum.body >= 0)
+      end = fmtNodeEndLine(node, n->asEnum.body);
     break;
   case NODE_CLASS_DECL:
     if (n->asClass.body >= 0)
@@ -283,6 +288,54 @@ void fmtStructDecl(Formatter *f, Node *node, int id) {
     } else {
       fmtNode(f, node, n->asStruct.body);
       fmtMemberGap(f, node, n->asStruct.body, -1);
+    }
+  }
+  f->indent--;
+  fmtStr(f, "}");
+}
+
+/* Enum decl (design/enum.txt): `enum Nama { ... }` — member berbentuk
+ * Annotation(Name, Type, Value) / Identifier bare, cukup dibaca per node. */
+void fmtEnumDecl(Formatter *f, Node *node, int id) {
+  AstNode *n = &node->ast[id];
+  fmtStr(f, "enum ");
+  fmtNode(f, node, n->asEnum.name);
+  fmtSep(f);
+  AstNode *body = n->asEnum.body >= 0 ? &node->ast[n->asEnum.body] : NULL;
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 &&
+      !fmtKeepEmptyBlock(f)) {
+    fmtStr(f, "{}");
+    return;
+  }
+  fmtChar(f, '{');
+  fmtNewline(f);
+  f->indent++;
+  if (n->asEnum.body >= 0) {
+    if (body->type == NODE_BLOCK) {
+      for (int i = 0; i < body->block.length; i++) {
+        int m = body->block.statements[i];
+        if (m < 0 || m >= node->length) continue;
+        AstNode *mem = &node->ast[m];
+        if (mem->type == NODE_ANNOTATION) {
+          /* NAME[: Type][ = Value] */
+          fmtNode(f, node, mem->annotation.name);
+          if (mem->annotation.type >= 0) {
+            fmtStr(f, ": ");
+            fmtNode(f, node, mem->annotation.type);
+          }
+          if (mem->annotation.value >= 0) {
+            fmtStr(f, " = ");
+            fmtNode(f, node, mem->annotation.value);
+          }
+        } else {
+          /* Identifier bare — auto-increment. */
+          fmtNode(f, node, m);
+        }
+        fmtNewline(f);
+      }
+    } else {
+      fmtNode(f, node, n->asEnum.body);
+      fmtNewline(f);
     }
   }
   f->indent--;

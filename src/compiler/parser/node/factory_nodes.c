@@ -209,6 +209,15 @@ int createStructDecl(Node *root, int name, int body) {
   return createAst(root, n);
 }
 
+/* Enum decl (design/enum.txt): `enum Nama { ... }` — body = block node
+ * berisi member (NODE_ASSIGN / NODE_ANNOTATION). */
+int createEnumDecl(Node *root, int name, int body) {
+  AstNode n = {.type = NODE_ENUM_DECL};
+  n.asEnum.name = name;
+  n.asEnum.body = body;
+  return createAst(root, n);
+}
+
 int createClassDecl(Node *root, int name, int typeId, int body) {
   return createClassDeclExt(root, name, typeId, body, -1);
 }

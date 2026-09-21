@@ -36,6 +36,7 @@ statement
 │   └── conditional assignment
 ├── function / call
 ├── struct
+├── enum
 ├── if / elseif / else
 ├── loop
 ├── print
@@ -73,6 +74,7 @@ muncul dalam satu AST karena grammar expression dapat dikomposisikan.
 - [Array](array.md) - Array grammar
 - [Object](object.md) - Object grammar
 - [Struct](struct.md) - Struct grammar
+- [Enum](enum.md) - Enum grammar
 - [Member](member.md) - Member access
 
 ### Function

@@ -21,8 +21,18 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   aritmetika int (interpreter + IR), literal AST, semua formatter/print `%lld`,
   stdlib yang menerima number ikut 64-bit. `sizeof(number)` = 8 (analyzer,
   rupamemory, provenance memory.c; blok 4-byte lama tetap didukung).
+- **Enum** — keyword `enum` aktif + bentuk AST eksplisit (member sebagai
+  `Annotation(Name, Type, Value)` / `Identifier` bare, bukan statement
+  acak). Akses member tak dikenal pada enum = `EnumError` (bukan null);
+  penulisan member enum ditolak. Object biasa tetap backward compatible.
+- **Const** — keyword `const` (lexer, sejajar bahasa lain): binding
+  immutable `const x: number = 1` / `const y = x + 2`. Implementasi
+  binding-level, bukan nilai: store deklarasi (IR `irStoreAt` ber-flag)
+  menulis + mengunci slot; executor menolak store berikutnya ke slot
+  terkunci (`ConstError`) saat eksekusi mencapai store — statement
+  sebelum tetap jalan. Deklarasi const di loop/fungsi re-init sah.
 - **Test baru**: `tests/syntax/number64.rp`, `tests/syntax/void_ret.rp`,
-  `tests/syntax/class.rp`.
+  `tests/syntax/class.rp`, `tests/syntax/enum.rp`, `tests/syntax/const.rp`.
 
 ### Fixed
 

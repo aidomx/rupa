@@ -3,6 +3,19 @@
 int grammarParseAssignment(Request *r, int a, int b, int *pos) {
   Token *t = r->tokens;
 
+  /* `const x: number = 1` / `const x = 1`: keyword const di-posisi a,
+   * declaration sesungguhnya mulai a+1. Flag lexer isConst memberitahu
+   * kata `const` sudah diproses — tapi karena posisi statement tetap a,
+   * deteksi di sini berbasis token KEYWORD("const"). */
+  bool isConst = false;
+  if (t->data[a].type == KEYWORD && t->data[a].value &&
+      !strcmp(t->data[a].value, "const")) {
+    isConst = true;
+    a++;
+    while (a < b && grammarIsWhitespace(t, a))
+      a++;
+  }
+
   /* Find the ASSIGN token at depth 0 to avoid matching '=' inside nested
    * parentheses/brackets/braces. */
   int assignPos = -1;
@@ -42,7 +55,8 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
       type = createTypeNode(r->node, t->data[a].safetyType);
     *pos = b;
     if (l >= 0)
-      return createAssignment(r->node, l, type, rr);
+      return isConst ? createAssignmentConst(r->node, l, type, rr, true)
+                     : createAssignment(r->node, l, type, rr);
     return -1;
   }
 

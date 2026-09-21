@@ -14,7 +14,8 @@ int loader(const char *args[], int length) {
   bool autorun = true;
   int index = 0;
 
-  for (int i = 0; i < length; i++) {
+  /* args[0] adalah nama program, mulai parsing dari args[1]. */
+  for (int i = 1; i < length; i++) {
     if (strcmp(args[i], "help") == 0) {
       if (i + 1 < length && strcmp(args[i + 1], "module") == 0) {
         showModuleHelp();
@@ -59,6 +60,33 @@ int loader(const char *args[], int length) {
       handled = true;
       autorun = false;
       break;
+    }
+
+    else if (strcmp(args[i], "--test-fmt") == 0) {
+      testFmt(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      break;
+    }
+
+    else if (strcmp(args[i], "test") == 0) {
+      int result = testDispatch(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      gcclean();
+      return result;
+    }
+
+    else if (strcmp(args[i], "-t") == 0 || strcmp(args[i], "-l") == 0 ||
+             (args[i][0] == '-' && strspn(args[i] + 1, "tlps") == strlen(args[i] + 1) &&
+              strspn(args[i] + 1, "tlps") > 0)) {
+      /* Cluster shortcut test: -t, -l, -lp, -ts, -tps, dst. diteruskan utuh
+       * agar flag dalam cluster (mis. -l pada "-lp") tetap terlihat. */
+      int result = testDispatch(args + i, length - i);
+      handled = true;
+      autorun = false;
+      gcclean();
+      return result;
     }
 
     else if (strcmp(args[i], "--test-ast") == 0) {

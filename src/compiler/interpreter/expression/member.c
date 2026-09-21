@@ -87,43 +87,6 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
     /* bukan struct handle — jalur lama lanjut */
   }
 
-  if (obj.value.type == VALUE_OBJECT) {
-    RuntimeValue val;
-    if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
-    /* this.get("key") / this.set({...}) — accessor generic pada this
-     * (design/new_class.txt contoh). get: argumen nama field; set:
-     * object literal field yang ditulis. */
-    if (key && (!strcmp(key, "get") || !strcmp(key, "set"))) {
-      RuntimeValue method = valueNativeFunction(
-          key, !strcmp(key, "get") ? stdObjectGet : stdObjectSet, 1);
-      method.as.nativeFunc->hasReceiver = true;
-      method.as.nativeFunc->receiver = gcmall(sizeof(RuntimeValue));
-      if (method.as.nativeFunc->receiver) {
-        *method.as.nativeFunc->receiver = obj.value;
-        /* Write-back: receiver object disalin by value — set() menambah
-         * field via anchor di salinan. Simpan nama binding receiver bila
-         * ada (o.set / this.set) supaya native bisa semSet kembali.
-         * this binding: this di frame method sudah menunjuk instance
-         * yang sama (tail shared), jadi cukup untuk nama top-level. */
-        if (ast->member.object >= 0 && ast->member.object < node->length) {
-          AstNode *bo = &node->ast[ast->member.object];
-          const char *bn = bo->type == NODE_IDENTIFIER     ? bo->identifier.name
-                           : bo->type == NODE_LITERAL_ID ? bo->string.value
-                                                         : NULL;
-          if (bn) {
-            RuntimeValue probe = valueNull();
-            if (strcmp(bn, "this") == 0 || semGet(env, bn, &probe)) {
-              method.as.nativeFunc->bindingName = gcstrdup(bn);
-              method.as.nativeFunc->bindingEnv = env;
-            }
-          }
-        }
-      }
-      return resultNormal(method);
-    }
-    return resultNormal(valueNull());
-  }
-
   /* Array .length property */
   if (obj.value.type == VALUE_ARRAY && key && !strcmp(key, "length"))
     return resultNormal(valueNumber(obj.value.as.array.length));
@@ -175,6 +138,61 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
     }
   }
 
+  if (obj.value.type == VALUE_OBJECT) {
+    RuntimeValue val;
+    if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
+    /* this.get("key") / this.set({...}) — accessor generic pada this
+     * (design/new_class.txt contoh). get: argumen nama field; set:
+     * object literal field yang ditulis. */
+    if (key && (!strcmp(key, "get") || !strcmp(key, "set"))) {
+      RuntimeValue method = valueNativeFunction(
+          key, !strcmp(key, "get") ? stdObjectGet : stdObjectSet, 1);
+      method.as.nativeFunc->hasReceiver = true;
+      method.as.nativeFunc->receiver = gcmall(sizeof(RuntimeValue));
+      if (method.as.nativeFunc->receiver) {
+        *method.as.nativeFunc->receiver = obj.value;
+        /* Write-back: receiver object disalin by value — set() menambah
+         * field via anchor di salinan. Simpan nama binding receiver bila
+         * ada (o.set / this.set) supaya native bisa semSet kembali.
+         * this binding: this di frame method sudah menunjuk instance
+         * yang sama (tail shared), jadi cukup untuk nama top-level. */
+        if (ast->member.object >= 0 && ast->member.object < node->length) {
+          AstNode *bo = &node->ast[ast->member.object];
+          const char *bn = bo->type == NODE_IDENTIFIER     ? bo->identifier.name
+                           : bo->type == NODE_LITERAL_ID ? bo->string.value
+                                                         : NULL;
+          if (bn) {
+            RuntimeValue probe = valueNull();
+            if (strcmp(bn, "this") == 0 || semGet(env, bn, &probe)) {
+              method.as.nativeFunc->bindingName = gcstrdup(bn);
+              method.as.nativeFunc->bindingEnv = env;
+            }
+          }
+        }
+      }
+      return resultNormal(method);
+    }
+    /* Enum object (marker "__enum" dari interpretEnum): member tak
+     * dikenal = error eksplisit, bukan null senyap. Biasanya typo
+     * casing (Color.Green vs Color.GREEN). */
+    RuntimeValue marker = valueNull();
+    if (valueObjectGet(obj.value, "__enum", &marker) &&
+        marker.type == VALUE_STRING) {
+      static char message[192];
+      snprintf(message, sizeof(message), "'%s' is not a member of enum '%s'",
+               key ? key : "?", marker.as.string ? marker.as.string : "?");
+      if (error)
+        addError(error, (ErrorInfo){.code = "EnumError",
+                                    .message = gcdup(message),
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_UNDEFINED_VAR});
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    /* Object biasa: member tidak dikenal tetap null (backward compat). */
+    return resultNormal(valueNull());
+  }
+
   if (obj.value.type == VALUE_NULL) return resultNormal(valueNull());
 
   static char message[256];
@@ -224,6 +242,22 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
     }
 
     if (base.value.type == VALUE_OBJECT) {
+      /* Enum object bersifat konstanta — tulis field ditolak. */
+      RuntimeValue marker = valueNull();
+      if (valueObjectGet(base.value, "__enum", &marker) &&
+          marker.type == VALUE_STRING) {
+        static char message[192];
+        snprintf(message, sizeof(message),
+                 "cannot assign member '%s' on enum '%s' — enum members are constants",
+                 key ? key : "?", marker.as.string ? marker.as.string : "?");
+        if (error)
+          addError(error, (ErrorInfo){.code = "EnumError",
+                                      .message = gcdup(message),
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_TYPE_MISMATCH});
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
       if (!valueObjectSet(&base.value, key, val.value)) {
         if (error)
           addError(error, (ErrorInfo){.code = "InternalError",
@@ -252,12 +286,13 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
              key ? key : "?", valueTypeName(base.value.type));
     if (error)
       addError(error, (ErrorInfo){.code = "TypeError",
-                                  .message = message,
+                                  .message = gcdup(message),
                                   .line = 0,
                                   .row = 0,
                                   .type = ERR_TYPE_MISMATCH});
     return resultFlow(FLOW_ERROR, valueNull());
-  } /* --- Object element assignment: obj["key"] = value --- */
+  }
+  /* --- Object element assignment: obj["key"] = value --- */
   if (target->type == NODE_SUBSCRIPT) {
     InterpreterResult base = interpretNode(node, target->subscript.posId, env, error);
     if (base.flow != FLOW_NORMAL) return base;

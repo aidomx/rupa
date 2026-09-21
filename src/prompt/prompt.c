@@ -23,9 +23,37 @@ static const char *test_commands[] = {
     "--test-ir <file>    - Parse, rewrite AST to IR, show the IR",
     "--test-irexec <file> - Rewrite AST to IR, execute via IR machine",
     "--test-exec <file>  - Run execution tests with assertions",
+    "--test-fmt <file>   - Show original vs formatted source",
     "--test-repl <file>  - Test multi-line REPL execution",
     "",
+    "Batch runner:",
+    "  rupa test [--list] [--path <cat>] [--select <n,n>] [category]",
+    "  Categories: syntax, ast, ir, irexec, exec, semantics, repl, fmt",
+    "  Default category is syntax (tests/syntax/*.rp).",
+    "",
+    "Options:",
+    "  -l, --list           List test files (all tests/ or one category)",
+    "  -p, --path <cat>     Pick category; same as positional category",
+    "  -s, --select <n,n>   Run selected files by listed number",
+    "  -t                   Test shortcut, e.g. rupa -t -p syntax -s 1",
+    "",
     "Examples:",
+    "  rupa test                      Run tests/syntax/*.rp",
+    "  rupa test --list               List all tests/**/*.rp",
+    "  rupa test --list ast           List tests/ast/**/*.rp",
+    "  rupa test ast                  Run tests/ast/**/*.rp",
+    "  rupa test --path ast --select 1  Combine flags in any order",
+    "  rupa test exec                 Run tests/execution/*.rp",
+    "  rupa test fmt                  Show original vs formatted output",
+    "",
+    "Shortcuts:",
+    "  rupa -t -p syntax -s 1",
+    "  rupa -tps syntax 1",
+    "  rupa -ts ast 1",
+    "  rupa -l",
+    "  rupa -lp ast",
+    "",
+    "Examples (single file):",
     "  rupa --test tests/syntax/module.rp",
     "  rupa --test-ir tests/syntax/module.rp",
     "  rupa --test-irexec tests/syntax/module.rp",
@@ -79,7 +107,7 @@ void showFmtHelp() {
 
 void showTestHelp() {
   int length = sizeof(test_commands) / sizeof(test_commands[0]);
-  printf("Usage: rupa --test[-ast|-ir|-irexec|-exec|-repl] <file>...\n\nTest commands:\n");
+  printf("Usage: rupa test [options] | rupa --test[-ast|-ir|-irexec|-exec|-fmt|-repl] <file>...\n\nTest commands:\n");
   for (int i = 0; i < length; i++) {
     printf("  %s\n", test_commands[i]);
   }

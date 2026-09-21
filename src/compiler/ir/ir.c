@@ -201,10 +201,19 @@ IRInstruction *irLoad(IRValue *result, IRValue *source) {
 }
 
 IRInstruction *irStore(IRValue *target, IRValue *value) {
+  return irStoreAt(target, value, false, -1);
+}
+
+/* Store dengan metadata deklarasi: isConst = slot dikunci setelah write
+ * pertama (executor menolak store berikutnya via ConstError); nodeId =
+ * lokasi AST untuk error reassignment. */
+IRInstruction *irStoreAt(IRValue *target, IRValue *value, bool isConst, int nodeId) {
   IRInstruction *i = newInstruction(IR_STORE);
   if (!i) return NULL;
   i->data.store.target = target;
   i->data.store.value = value;
+  i->data.store.isConst = isConst;
+  i->data.store.nodeId = nodeId;
   return i;
 }
 

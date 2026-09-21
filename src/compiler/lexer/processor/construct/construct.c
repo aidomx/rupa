@@ -139,8 +139,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
          * Cek token terakhir, bukan flag: `return 1` (last = NUMBER)
          * tetap jalur waiting lama. */
         Token *tk = state->tokens;
-        bool bareReturn = tk && tk->length > 0 &&
-                          tk->data[tk->length - 1].type == KEYWORD &&
+        bool bareReturn = tk && tk->length > 0 && tk->data[tk->length - 1].type == KEYWORD &&
                           !strcmp(tk->data[tk->length - 1].value, "return");
         /* brace > 0 sah: bare return memang hidup di dalam block body
          * fungsi, dan newline di block = boundary statement. Yang tidak
@@ -235,13 +234,10 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       int we = q;
       while (we < end && (isalnum((unsigned char)s[we]) || s[we] == '_'))
         we++;
-      if (we == q)
-        return -1; /* @ tanpa nama */
+      if (we == q) return -1; /* @ tanpa nama */
       char *name = substring(s, q, we);
-      if (!name)
-        return -1;
-      addToken(state->tokens, createDataToken(name, NULL, LITERAL_ID,
-                                              state->input->line, q));
+      if (!name) return -1;
+      addToken(state->tokens, createDataToken(name, NULL, LITERAL_ID, state->input->line, q));
       gcfree(name);
       p = we;
       expectValue = false;
@@ -364,8 +360,7 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
      * tetap statement sah (file mode). Kondisi lain (assignment/operator
      * yang masih menunggu value, delimiter terbuka) tetap waiting. */
     Token *tk = state->tokens;
-    bool bareReturn = expectValue && !bracket && !paren &&
-                      !state->isRepl && tk && tk->length > 0 &&
+    bool bareReturn = expectValue && !bracket && !paren && !state->isRepl && tk && tk->length > 0 &&
                       tk->data[tk->length - 1].type == KEYWORD &&
                       !strcmp(tk->data[tk->length - 1].value, "return");
     if (!bareReturn) {

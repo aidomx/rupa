@@ -1,0 +1,17 @@
+# design/enum.txt — enum dengan member bertipe & tanpa tipe
+enum TokenType {
+  IDENTIFIER: string = "id"
+  ASSIGN = 0
+}
+
+enum Color {
+  RED
+  GREEN = 5
+  BLUE
+}
+
+print(TokenType.IDENTIFIER)
+print(TokenType.ASSIGN)
+print(Color.RED)
+print(Color.GREEN)
+print(Color.BLUE)

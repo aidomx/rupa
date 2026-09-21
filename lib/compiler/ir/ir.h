@@ -41,6 +41,8 @@ struct IRInstruction {
     struct {
       IRValue *target;
       IRValue *value;
+      bool isConst; /* `const x = v` — store deklarasi mengunci slot setelah write */
+      int nodeId;   /* AST id assignment — lokasi ConstError */
     } store;
     struct {
       IRValue *object;
@@ -171,6 +173,7 @@ void irEmit(IRBlock *block, IRInstruction *instruction);
 IRInstruction *irConst(IRValue *result, IRValue *value);
 IRInstruction *irLoad(IRValue *result, IRValue *source);
 IRInstruction *irStore(IRValue *target, IRValue *value);
+IRInstruction *irStoreAt(IRValue *target, IRValue *value, bool isConst, int nodeId);
 IRInstruction *irBinary(IROpcode op, IRValue *result, IRValue *left, IRValue *right);
 IRInstruction *irUnary(IROpcode op, IRValue *result, IRValue *value);
 IRInstruction *irMemberGet(IRValue *result, IRValue *object, const char *member);

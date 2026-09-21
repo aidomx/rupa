@@ -56,6 +56,21 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     if (contractOk) {
       r = resultNormal(contractValue);
     } else {
+      /* const guard SEBELUM evaluasi value: assignment biasa pada
+       * binding const-locked ditolak. Deklarasi const (isConst) selalu
+       * lolos — re-init di setiap iterasi loop / call fungsi. */
+      if (!a->assign.isConst && k && semIsConst(e, k)) {
+        static char message[256];
+        snprintf(message, sizeof(message),
+                 "cannot reassign const variable '%s'", k);
+        if (x)
+          addError(x, (ErrorInfo){.code = "ConstError",
+                                  .message = message,
+                                  .line = n->ast[id].line,
+                                  .row = n->ast[id].row,
+                                  .type = ERR_TYPE_MISMATCH});
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
       r = interpretNode(n, a->assign.value, e, x);
       if (r.flow != FLOW_NORMAL) return r;
     }
@@ -127,7 +142,13 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
 
       if (!validateDeclaredType(n, a->assign.value, e, k, r.value, x))
         return resultFlow(FLOW_ERROR, valueNull());
-      semSet(e, k, r.value);
+      if (a->assign.isConst) {
+        /* Deklarasi const: tulis + kunci slot. Binding lama (iterasi
+         * loop / call berikutnya) di-reset — deklarasi selalu menang. */
+        semSetConst(e, k, r.value);
+      } else {
+        semSet(e, k, r.value);
+      }
     }
     return r;
   }
@@ -239,6 +260,9 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     return interpretCase(n, a, e, x);
   case NODE_STRUCT_DECL:
     return interpretStruct(n, a, e, x);
+  case NODE_ENUM_DECL:
+    /* Enum (design/enum.txt): bind konstanta member + object nama enum. */
+    return interpretEnum(n, a, e, x);
   case NODE_CLASS_DECL:
     /* Class (design/new_class.txt): registrasi type sama dengan struct;
      * method dalam body dikenali sebagai function decl biasa saat dipakai. */

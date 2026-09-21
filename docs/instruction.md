@@ -4,12 +4,20 @@ Dokumen ini menjelaskan cara membangun, menjalankan, memahami proyek, dan berkon
 
 ## 1. Memulai
 
-Clone repository Rupa dan masuk ke root project. Dari sana, jalur utama untuk development adalah `build.sh`.
+Clone repository Rupa dan masuk ke root project. Dari sana, jalur utama untuk development adalah `rbot` dengan konfigurasi `Buildfile`.
+
+rbot wajib terpasang sebelum build:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aidomx/rbot/main/install.sh | sh
+```
+
+Atau kunjungi reponya untuk build dari source: `https://github.com/aidomx/rbot`
 
 Build dalam mode development:
 
 ```bash
-DEV_MODE=1 ./build.sh debug
+rbot
 ```
 
 Binary hasil build berada di:
@@ -27,32 +35,31 @@ Jalankan Rupa dengan:
 Untuk melihat command yang tersedia:
 
 ```bash
-DEV_MODE=1 ./build.sh --help
+./bin/rupa --help
 ```
 
-`Makefile` tetap tersedia sebagai jalur build tambahan, tetapi `build.sh` digunakan sebagai jalur utama development.
+Seluruh konfigurasi build — compiler, flags, header, library, output, hingga embedded modules — dibaca dari `Buildfile` di root project.
 
 ## 2. Syarat yang diperlukan
 
 ### Wajib
 
-- Compiler C yang kompatibel, umumnya `gcc`
-- Bash
+- rbot (lihat [getting-started](guide/getting-started) untuk cara install)
+- Compiler C yang kompatibel, umumnya `gcc` atau `clang`
 - Utilitas dasar sistem Linux/POSIX
 
 ### Disarankan untuk development
 
 - `ccache` untuk mempercepat build ulang
-- `bear` atau `intercept-build` untuk `compile_commands.json`
+- `bear` atau `intercept-build` untuk `compile_commands.json` alternatif
 - `clangd` untuk tooling editor
 - `gdb` untuk debugging
-- `make`
 
 Contoh pada Debian:
 
 ```bash
 sudo apt update
-sudo apt install build-essential ccache bear clangd gdb make
+sudo apt install build-essential ccache clangd gdb
 ```
 
 Sesuaikan nama paket dengan distribusi atau environment yang digunakan.
@@ -62,14 +69,41 @@ Sesuaikan nama paket dengan distribusi atau environment yang digunakan.
 Build development:
 
 ```bash
-DEV_MODE=1 ./build.sh debug
+rbot
 ```
 
 Jalankan test:
 
 ```bash
-DEV_MODE=1 ./build.sh test
+./bin/rupa test
 ```
+
+Test kategori lain:
+
+```bash
+./bin/rupa test ast      # struktur AST
+./bin/rupa test exec     # execution tests
+./bin/rupa test fmt      # formatter
+```
+
+Daftar file test dan seleksi per nomor:
+
+```bash
+./bin/rupa test --list           # semua tests/**/*.rp
+./bin/rupa test --list ast       # hanya tests/ast/*.rp
+./bin/rupa test --select 1,3     # filter dari tests/syntax/*.rp
+```
+
+Bentuk pendek yang setara:
+
+```bash
+./bin/rupa -t -p syntax -s 1
+./bin/rupa -tps syntax 1
+./bin/rupa -l
+./bin/rupa -lp ast
+```
+
+Rincian lengkap: `./bin/rupa help test`.
 
 Jika ingin melakukan perubahan pada compiler atau syntax, jalankan test setelah perubahan dibuat.
 
@@ -289,7 +323,7 @@ Jika ingin menambah atau mengubah syntax:
 3. Periksa `docs/grammar/*.md` untuk dampaknya terhadap grammar dan sistem.
 4. Ubah implementasi yang memang diperlukan.
 5. Tambahkan atau perbarui test.
-6. Jalankan build dan test.
+6. Jalankan build (`rbot`) dan test (`./bin/rupa test`).
 7. Perbarui dokumentasi jika syntax resmi berubah.
 
 ### Perubahan internal
@@ -300,7 +334,7 @@ Untuk perubahan lexer, parser, AST, runtime, atau modul internal:
 2. Temukan titik ownership dan tanggung jawab modul.
 3. Ubah bagian yang relevan terlebih dahulu.
 4. Hindari merombak bagian lain tanpa kebutuhan yang jelas.
-5. Build dan test setelah perubahan.
+5. Build (`rbot`) dan test (`./bin/rupa test`) setelah perubahan.
 
 Struktur project yang ada lebih penting daripada memaksakan pola umum dari project lain. Perubahan struktur harus dilakukan karena memang menyelesaikan masalah arsitektur, bukan hanya karena terlihat lebih familiar.
 
@@ -309,8 +343,8 @@ Struktur project yang ada lebih penting daripada memaksakan pola umum dari proje
 Minimal lakukan:
 
 ```bash
-DEV_MODE=1 ./build.sh debug
-DEV_MODE=1 ./build.sh test
+rbot
+./bin/rupa test
 ```
 
 Kemudian pastikan:
@@ -335,7 +369,7 @@ Kemudian pastikan:
 | Mengubah token                 | `src/compiler/token/`                   |
 | Mengubah runtime               | `src/runtime/`                          |
 | Mengubah GC                    | `src/runtime/gc/` dan `lib/runtime/gc/` |
-| Mengubah build                 | `build.sh` dan `commands/`              |
+| Mengubah build                 | `Buildfile` (dibangun oleh rbot)        |
 | Menambah atau memperbarui test | `tests/`                                |
 
 Jika tidak yakin harus mulai dari mana, mulai dari dokumentasi terlebih dahulu. Pahami apa yang seharusnya dilakukan sistem sebelum mengubah bagaimana sistem melakukannya.

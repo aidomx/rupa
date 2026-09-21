@@ -56,6 +56,132 @@ static int extractFields(Node *node, int bodyId, struct StructField **out) {
   return count;
 }
 
+/* =====================================================================
+ * Enum runtime (design/enum.txt).
+ *
+ * Enum declaration meng-bind konstanta ke environment:
+ *   enum Color { RED, GREEN = 5, BLUE, NAME: string = "red" }
+ *   - member tanpa nilai → auto-increment (0, 1, ...) dari counter
+ *     yang berlanjut setelah member bernilai eksplisit.
+ *   - member bertipe + nilai → nilai dievaluasi (number/string/bool).
+ * Nama enum itu sendiri juga di-bind sebagai object berisi seluruh
+ * member (plus marker "__enum" = nama enum), sehingga `Color.RED` bisa
+ * dibaca lewat member access dan member tak dikenal ditolak eksplisit.
+ * ===================================================================== */
+static bool enumMemberName(Node *node, int id, const char **out) {
+  if (id < 0 || id >= node->length) return false;
+  AstNode *m = &node->ast[id];
+  /* Member bentuk baru (grammar_enum.c): Annotation(Name, Type, Value)
+   * atau Identifier bare (auto-increment). */
+  if (m->type == NODE_ANNOTATION && m->annotation.name >= 0) {
+    AstNode *t = &node->ast[m->annotation.name];
+    if (t->type == NODE_IDENTIFIER) {
+      *out = t->identifier.name;
+      return true;
+    }
+    if (t->type == NODE_LITERAL_ID) {
+      *out = t->string.value;
+      return true;
+    }
+  }
+  if (m->type == NODE_IDENTIFIER) {
+    *out = m->identifier.name;
+    return true;
+  }
+  if (m->type == NODE_LITERAL_ID) {
+    *out = m->string.value;
+    return true;
+  }
+  return false;
+}
+
+static void enumAppendEntry(struct RuntimeObjectEntry **entries, const char *key,
+                            RuntimeValue value) {
+  struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+  if (!e) return;
+  e->key = gcstrdup(key);
+  e->value = value;
+  e->next = NULL;
+  if (!*entries) {
+    *entries = e;
+    return;
+  }
+  struct RuntimeObjectEntry *tail = *entries;
+  while (tail->next)
+    tail = tail->next;
+  tail->next = e;
+}
+
+InterpreterResult interpretEnum(Node *node, AstNode *ast, RuntimeEnv *env,
+                                Error *error) {
+  if (!node || !ast || ast->type != NODE_ENUM_DECL)
+    return resultNormal(valueNull());
+
+  const char *name = NULL;
+  if (ast->asEnum.name >= 0 && ast->asEnum.name < node->length) {
+    AstNode *n = &node->ast[ast->asEnum.name];
+    if (n->type == NODE_IDENTIFIER)
+      name = n->identifier.name;
+    else if (n->type == NODE_LITERAL_ID)
+      name = n->string.value;
+  }
+
+  long long next = 0; /* counter auto-increment member tanpa nilai */
+  struct RuntimeObjectEntry *entries = NULL;
+
+  if (ast->asEnum.body >= 0 && ast->asEnum.body < node->length) {
+    AstNode *body = &node->ast[ast->asEnum.body];
+    if (body->type == NODE_BLOCK) {
+      for (int i = 0; i < body->block.length; i++) {
+        int sid = body->block.statements[i];
+        if (sid < 0 || sid >= node->length) continue;
+        AstNode *m = &node->ast[sid];
+
+        const char *mname = NULL;
+        if (!enumMemberName(node, sid, &mname)) continue;
+
+        /* Value: NODE_ANNOTATION membawa .value (-1 = tanpa nilai →
+         * auto). Nilai eksplisit dievaluasi sebagai expression biasa
+         * (number, string, bool, ...). */
+        int valueId = -1;
+        if (m->type == NODE_ANNOTATION)
+          valueId = m->annotation.value;
+
+        if (valueId >= 0) {
+          InterpreterResult r = interpretNode(node, valueId, env, error);
+          if (r.flow == FLOW_ERROR) return r;
+          if (r.value.type == VALUE_NUMBER) {
+            next = r.value.as.number + 1;
+          } else {
+            next = 0; /* non-number: counter kembali ke 0 untuk member berikutnya */
+          }
+          semSet(env, mname, r.value);
+          enumAppendEntry(&entries, mname, r.value);
+        } else {
+          /* Member tanpa nilai eksplisit → konstanta numerik auto. */
+          RuntimeValue v = valueNumber(next);
+          semSet(env, mname, v);
+          enumAppendEntry(&entries, mname, v);
+          next++;
+        }
+      }
+    }
+  }
+
+  if (name) {
+    semDeclare(env, name, "enum");
+    /* Marker metadata enum: dipakai interpretMember/interpretMemberAssign
+     * untuk error eksplisit (member tak dikenal / member write) yang
+     * menyebut nama enum. Value = nama enum (VALUE_STRING). Marker
+     * disembunyikan dari print, equality, dan salinan modul. */
+    RuntimeValue enumVal = valueObject(entries);
+    valueObjectSet(&enumVal, "__enum", valueString(name));
+    semSet(env, name, enumVal);
+  }
+
+  return resultNormal(valueNull());
+}
+
 InterpreterResult interpretStruct(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error) {
   (void)error;

@@ -492,6 +492,7 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_CASE:
   case NODE_STRUCT_DECL:
   case NODE_CLASS_DECL:
+  case NODE_ENUM_DECL:
   case NODE_MARKER: /* @created — dievaluasi via interpretStatement (no-op di sini) */
   case NODE_MEMBER_ASSIGN:
     return interpretStatement(n, id, e, x);

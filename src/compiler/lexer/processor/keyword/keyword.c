@@ -26,6 +26,10 @@ static const char *keyword_name(KeywordType type) {
     return "extends";
   case KEYWORD_NAMESPACE:
     return "namespace";
+  case KEYWORD_ENUM:
+    return "enum";
+  case KEYWORD_CONST:
+    return "const";
   case KEYWORD_RETURN:
     return "return";
   case KEYWORD_BREAK:
@@ -45,18 +49,14 @@ static const char *keyword_name(KeywordType type) {
   }
 }
 
-int processKeyword(State *state, KeywordType type, int start, int next, int end,
-                   bool *waiting) {
-  if (!state || !state->input || !state->tokens || !waiting)
-    return -1;
+int processKeyword(State *state, KeywordType type, int start, int next, int end, bool *waiting) {
+  if (!state || !state->input || !state->tokens || !waiting) return -1;
 
   const char *s = state->input->content;
   const char *name = keyword_name(type);
-  if (!name)
-    return -1;
+  if (!name) return -1;
 
-  addToken(state->tokens, createDataToken((char *)name, NULL, KEYWORD,
-                                          state->input->line, start));
+  addToken(state->tokens, createDataToken((char *)name, NULL, KEYWORD, state->input->line, start));
   state->input->keyword->type = type;
   switch (type) {
   case KEYWORD_IF:
@@ -100,6 +100,14 @@ int processKeyword(State *state, KeywordType type, int start, int next, int end,
     break;
   case KEYWORD_CASE:
     state->input->flags->isCase = true;
+    break;
+  case KEYWORD_ENUM:
+    /* enum Nama { ... } — token KEYWORD cukup; validasi body di grammar. */
+    break;
+  case KEYWORD_CONST:
+    /* const x: number = 1 — token KEYWORD cukup; grammar yang
+     * menyusun NODE_ASSIGN dengan isConst. */
+    state->input->flags->isConst = true;
     break;
   case KEYWORD_VOID:
     /* void muncul sebagai return-type annotation: `foo(): void { }`.

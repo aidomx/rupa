@@ -420,7 +420,46 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           }
           break;
         }
-        machineSet(&frame, i->data.store.target, machineGet(&frame, i->data.store.value));
+        /* Const slot (binding-level, bukan nilai): deklarasi const
+         * (store ber-flag) selalu menulis + mengunci slot — re-init di
+         * setiap iterasi loop / call. Store biasa ke slot terkunci
+         * ditolak di sini, sebelum tulis terjadi. Lokasi error = node
+         * assignment asal store (payload nodeId). */
+        {
+          IRValue *target = i->data.store.target;
+          const char *name =
+              (target && target->kind != IR_VALUE_TEMP) ? target->data.name : NULL;
+          RuntimeValue value = machineGet(&frame, i->data.store.value);
+          bool writeOk;
+          if (i->data.store.isConst) {
+            semSetConst(m->env, name, value);
+            writeOk = true;
+          } else {
+            writeOk = !(name && semIsConst(m->env, name));
+          }
+          if (writeOk) {
+            machineSet(&frame, target, value);
+          } else {
+            if (frame.error) {
+              static char message[256];
+              snprintf(message, sizeof(message), "cannot reassign const variable '%s'",
+                       name ? name : "?");
+              int line = 0, row = 0;
+              if (i->data.store.nodeId >= 0 && i->data.store.nodeId < m->astRef->length) {
+                line = m->astRef->ast[i->data.store.nodeId].line;
+                row = m->astRef->ast[i->data.store.nodeId].row;
+              }
+              addError(frame.error, (ErrorInfo){.code = "ConstError",
+                                                .message = message,
+                                                .line = line,
+                                                .row = row,
+                                                .type = ERR_TYPE_MISMATCH});
+            }
+            machineHalt(&frame);
+            machineFree(&frame);
+            return valueNull();
+          }
+        }
         break;
       case IR_ADD:
       case IR_SUB:
@@ -456,8 +495,35 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue obj = machineGet(&frame, i->data.member_get.object);
         RuntimeValue out = valueNull();
         const char *key = i->data.member_get.member;
-        if (obj.type == VALUE_OBJECT)
-          valueObjectGet(obj, key, &out);
+        if (obj.type == VALUE_OBJECT) {
+          if (valueObjectGet(obj, key, &out)) {
+            /* member ditemukan */
+          } else {
+            /* Enum object (marker "__enum" = nama enum, dari
+             * interpretEnum): member tak dikenal = error eksplisit,
+             * bukan null senyap (biasanya typo casing). Object biasa
+             * tetap mengembalikan null tanpa error. */
+            RuntimeValue marker = valueNull();
+            if (frame.error && key && strcmp(key, "__enum") != 0 &&
+                valueObjectGet(obj, "__enum", &marker) &&
+                marker.type == VALUE_STRING) {
+              static char message[256];
+              snprintf(message, sizeof(message),
+                       "'%s' is not a member of enum '%s'", key,
+                       marker.as.string ? marker.as.string : "?");
+              addError(frame.error, (ErrorInfo){.code = "EnumError",
+                                                .message = message,
+                                                .line = 0,
+                                                .row = 0,
+                                                .type = ERR_UNDEFINED_VAR});
+              /* Member enum tidak ada = fatal: berhenti eksekusi,
+               * selaras IR_CHECK (error sudah ditambahkan). */
+              machineHalt(&frame);
+              machineFree(&frame);
+              return valueNull();
+            }
+          }
+        }
         else if (obj.type == VALUE_ARRAY && key && !strcmp(key, "length"))
           out = valueNumber(obj.as.array.length);
         else if (obj.type == VALUE_STRING && key && !strcmp(key, "length"))
@@ -504,7 +570,26 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue obj = machineGet(&frame, i->data.member_set.object);
         RuntimeValue val = machineGet(&frame, i->data.member_set.value);
         if (obj.type == VALUE_OBJECT) {
-          valueObjectSet(&obj, i->data.member_set.member, val);
+          /* Enum object bersifat konstanta — tulis member ditolak. */
+          RuntimeValue marker = valueNull();
+          if (frame.error && valueObjectGet(obj, "__enum", &marker) &&
+              marker.type == VALUE_STRING) {
+            static char message[256];
+            snprintf(message, sizeof(message),
+                     "cannot assign member '%s' on enum '%s' — enum members are constants",
+                     i->data.member_set.member ? i->data.member_set.member : "?",
+                     marker.as.string ? marker.as.string : "?");
+            addError(frame.error, (ErrorInfo){.code = "EnumError",
+                                              .message = message,
+                                              .line = 0,
+                                              .row = 0,
+                                              .type = ERR_TYPE_MISMATCH});
+            machineHalt(&frame);
+            machineFree(&frame);
+            return valueNull();
+          } else {
+            valueObjectSet(&obj, i->data.member_set.member, val);
+          }
         } else if (obj.type == VALUE_PTR) {
           /* Struct handle ptr (C3): field write via layout offset.
            * Handle non-struct (pin) tetap ditolak eksplisit. */

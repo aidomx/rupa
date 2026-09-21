@@ -35,6 +35,7 @@ struct Flags {
   bool isReturn;
   bool isAsync;
   bool isAwait;
+  bool isConst; /* const — keyword sebelum declaration/assignment */
   bool isComplete;
   bool isWaiting;
   ExceptType except;

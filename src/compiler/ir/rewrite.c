@@ -371,7 +371,7 @@ static bool memoryContractIsContract(Node *node, int valueId) {
   return tname && !strcmp(tname, "Contract");
 }
 
-static void buildAssign(IRBuilder *b, Node *node, const AstNode *a) {
+static void buildAssign(IRBuilder *b, Node *node, const AstNode *a, int id) {
   (void)node;
   const char *name = nodeName(b->astRef, a->assign.target);
 
@@ -425,6 +425,10 @@ static void buildAssign(IRBuilder *b, Node *node, const AstNode *a) {
   IRValue *value = buildNode(b, a->assign.value);
   if (!name || !value) return;
 
+  /* Const binding: flag di store (irStoreAt) — executor mengunci slot
+   * setelah write pertama dan menolak store berikutnya (ConstError).
+   * Bukan properti nilai, jadi tidak ada pseudo-type check "const". */
+
   /* Typed assign (x: T = v): semantic check sebelum store + catat type
    * deklarasi di scope map — kontrak reassignment selanjutnya. */
   if (a->assign.type >= 0) {
@@ -444,7 +448,7 @@ static void buildAssign(IRBuilder *b, Node *node, const AstNode *a) {
   if (a->assign.type >= 0) {
     const char *typeName = annotationTypeName(b, a->assign.type);
     if (typeName) scopeSetType(b, name, typeName);
-  } else {
+  } else if (!a->assign.isConst) {
     /* new T() type-driven: catat type dari alokasi — kontrak permanen
      * untuk reassignment polos juga berlaku pada handle new/del. */
     char newType[256];
@@ -457,7 +461,9 @@ static void buildAssign(IRBuilder *b, Node *node, const AstNode *a) {
     }
   }
 
-  irEmit(b->block, irStore(slot, value));
+  /* nodeId = statement assign (bukan node value) — lokasi ConstError
+   * menunjuk baris assignment, bukan ekspresi sisi kanan. */
+  irEmit(b->block, irStoreAt(slot, value, a->assign.isConst, id));
 }
 
 static void buildConditionalAssign(IRBuilder *b, Node *node, const AstNode *a) {
@@ -1093,7 +1099,7 @@ static IRValue *buildStatementValue(IRBuilder *b, int id) {
 
   switch (a->type) {
   case NODE_ASSIGN:
-    buildAssign(b, node, a);
+    buildAssign(b, node, a, id);
     return NULL;
   case NODE_CONDITIONAL_ASSIGN:
     buildConditionalAssign(b, node, a);
@@ -1134,6 +1140,11 @@ static IRValue *buildStatementValue(IRBuilder *b, int id) {
     /* Struktur = kontrak type: trampoline ke interpreter agar
      * layout terdaftar di analyzer registry (validasi struct-first
      * juga berlaku di jalur IR). */
+    irEmit(b->block, irInterp(id, nullType()));
+    return NULL;
+  case NODE_ENUM_DECL:
+    /* Enum (design/enum.txt): trampoline ke interpreter — konstanta
+     * member dan object nama enum di-bind ke env. */
     irEmit(b->block, irInterp(id, nullType()));
     return NULL;
   case NODE_CLASS_DECL:

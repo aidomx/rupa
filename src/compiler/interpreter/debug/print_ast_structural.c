@@ -18,7 +18,7 @@ bool printStructuralAst(Node *node, int index, int level) {
   }
   case NODE_ASSIGN:
     printIndent(level);
-    printf("Assignment:\n");
+    printf("Assignment:%s\n", n->assign.isConst ? " (const)" : "");
     printIndent(level + 1);
     printf("Target:\n");
     if (n->assign.target >= 0 && n->assign.target < node->length)
@@ -156,6 +156,19 @@ bool printStructuralAst(Node *node, int index, int level) {
     printAst(node, n->asStruct.name, level + 1);
     if (n->asStruct.body >= 0)
       printAst(node, n->asStruct.body, level + 1);
+    return true;
+  case NODE_ENUM_DECL:
+    printIndent(level);
+    printf("Enum Declaration:\n");
+    printIndent(level + 1);
+    printf("Identifier: ");
+    if (n->asEnum.name >= 0 && n->asEnum.name < node->length &&
+        node->ast[n->asEnum.name].type == NODE_LITERAL_ID)
+      printf("%s\n", node->ast[n->asEnum.name].string.value);
+    else
+      printf("(anon)\n");
+    if (n->asEnum.body >= 0)
+      printAst(node, n->asEnum.body, level + 1);
     return true;
   case NODE_CLASS_DECL:
     printIndent(level);

@@ -18,6 +18,7 @@ Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](.
 - [Literal](literal.md)
 - [Expression](expression.md)
 - [Assignment](assignment.md)
+- [Const](const.md)
 - [Update](update.md)
 - [Fallback](fallback.md)
 
@@ -27,6 +28,7 @@ Dokumentasi grammar dan implementasi syntax dapat dilihat di [`docs/grammar/`](.
 - [Array](array.md)
 - [Object](object.md)
 - [Struct](struct.md)
+- [Enum](enum.md)
 - [Class](class.md)
 
 ## Function

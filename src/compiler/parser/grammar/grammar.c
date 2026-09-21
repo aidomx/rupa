@@ -41,7 +41,13 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
     if ((id = grammarParseCase(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
     if ((id = grammarParseIf(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
     if ((id = grammarParseLoop(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+    if ((id = grammarParseEnum(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
     if ((id = grammarParseModule(r, a, b, limit, pos)) != GRAMMAR_NO_MATCH) return id;
+    /* `const x: number = 1` — keyword const membuka assignment decl;
+     * didelegasikan ke grammarParseAssignment (mengonsumsi keyword). */
+    if (t->data[a].value && !strcmp(t->data[a].value, "const")) {
+      if ((id = grammarParseAssignment(r, a, b, pos)) != GRAMMAR_NO_MATCH) return id;
+    }
   }
 
   int id;

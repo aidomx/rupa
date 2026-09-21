@@ -27,6 +27,7 @@
  *   grammar_module_export.c - export grammar
  *   grammar_function.c      - grammar deklarasi & pemanggilan function
  *   grammar_struct.c        - grammar deklarasi struct/blueprint
+ *   grammar_enum.c          - grammar deklarasi enum (design/enum.txt)
  *   grammar_annotation.c    - grammar type annotation (`name: Type [=v]`)
  *                              including postfix array types (`number[]`)
  *   grammar_assignment.c    - grammar assignment & fallback expression
@@ -220,6 +221,7 @@ int grammarParseFunction(struct Request *r, int a, int b, int limit, int *pos);
  * @return GRAMMAR_NO_MATCH jika token[a] bukan awal pola ini.
  */
 int grammarParseStruct(struct Request *r, int a, int b, int limit, int *pos);
+int grammarParseEnum(struct Request *r, int a, int b, int limit, int *pos);
 int grammarParseClass(struct Request *r, int a, int b, int limit, int *pos);
 int grammarParseMarker(struct Request *r, int a, int b, int limit, int *pos);
 

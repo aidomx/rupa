@@ -89,6 +89,9 @@ void fmtNode(Formatter *f, Node *node, int id) {
   case NODE_STRUCT_DECL:
     fmtStructDecl(f, node, id);
     break;
+  case NODE_ENUM_DECL:
+    fmtEnumDecl(f, node, id);
+    break;
   case NODE_CLASS_DECL:
     fmtClassDecl(f, node, id);
     break;

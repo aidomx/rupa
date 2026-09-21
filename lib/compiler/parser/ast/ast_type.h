@@ -21,6 +21,7 @@ struct AstAssignment {
   int target;
   int type; // -1 jika tidak ada explicit type annotation
   int value;
+  bool isConst; /* `const x: number = 1` — binding immutable (ConstError saat reassign) */
 };
 
 /* Comment */
@@ -235,6 +236,20 @@ struct AstStructDecl {
   int body;
 };
 
+/* Enum decl (design/enum.txt):
+ *   enum TokenType {
+ *     IDENTIFIER: string = "id"
+ *     ASSIGN = 0
+ *   }
+ * Member = daftar node id di body block, dibangun eksplisit oleh
+ * grammar_enum.c: NODE_ANNOTATION (Name, Type, Value) atau NODE_IDENTIFIER
+ * bare (tanpa nilai -> auto-increment 0, 1, 2, ...). Tipe opsional per
+ * member; nilai eksplisit dievaluasi saat runtime. */
+struct AstEnumDecl {
+  int name;
+  int body;
+};
+
 /* Class decl (design/new_class.txt): `Monster: MonsterType {}` — tanpa
  * keyword, penanda class adalah `: Type` (atau `extends`). TypeNode
  * kini terekam di AST (sebelumnya dibuang parser struct). */
@@ -385,6 +400,7 @@ struct AstNode {
     struct AstFunctionDecl function;
     struct AstStructDecl asStruct;
     struct AstClassDecl asClass;
+    struct AstEnumDecl asEnum;
     struct AstAnnotation annotation;
     struct AstMod mod;
     struct AstModule module;

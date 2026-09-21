@@ -323,18 +323,7 @@ rupa-v22/
 │           ├── math.md, os.md, io.md, json.md
 │           ├── string.md, thread.md, http.md
 │
-├── commands/                     # Build & dev scripts
-│   ├── main.sh                   # Script dispatcher
-│   ├── build.sh, build_test.sh   # Build scripts
-│   ├── run.sh                    # Run script
-│   ├── test.sh                   # Test runner
-│   ├── debug.sh                  # Debug build
-│   ├── release.sh                # Release build
-│   ├── bootstrap.sh              # Module bootstrap
-│   └── lib/                      # Script utilities
-│       ├── colors.sh, compiler.sh, fs.sh
-│       ├── logging.sh, os.sh, paths.sh
-│       ├── progress.sh, table.sh
+├── Buildfile                     # Konfigurasi build untuk rbot
 │
 ├── examples/                     # Example projects
 │   └── calculator/
@@ -346,8 +335,6 @@ rupa-v22/
 ├── .cache/                       # Build cache
 ├── .logs/                        # Log files
 │
-├── Makefile                      # Build system
-├── build.sh                      # Top-level build entry
 ├── compile_commands.json         # LSP compile database
 ├── LICENSE
 └── README.md
@@ -437,4 +424,4 @@ rupa-v22/
 > `lib/compiler/interpreter/value.h`) — `lib/types/` sudah tidak ada.
 > Langkah berikutnya memisahkan ke `lib/compiler/enums/*.h` (enum dari
 > `lib/core/`) dan `lib/compiler/types/*.h` (types dari header fn decl).
-| `commands/`     | Build & development scripts                              |
+| `Buildfile`     | Konfigurasi build untuk rbot (sources, flags, library, output) |

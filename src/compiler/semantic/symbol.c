@@ -52,6 +52,28 @@ void semSet(RuntimeEnv *env, const char *name, RuntimeValue value) {
   if (b) b->value = value;
 }
 
+bool semSetConst(RuntimeEnv *env, const char *name, RuntimeValue value) {
+  if (!env || !name) return false;
+
+  RuntimeBinding *b = semFindLocal(env, name);
+  if (!b) {
+    if (!semDeclare(env, name, NULL)) return false;
+    b = semFindLocal(env, name);
+  }
+  if (!b) return false;
+  /* Deklarasi const selalu menulis + mengunci ulang: re-init sah di
+   * setiap iterasi loop / call fungsi (slot lama di-reset). */
+  b->isConst = true;
+  b->value = value;
+  return true;
+}
+
+bool semIsConst(RuntimeEnv *env, const char *name) {
+  if (!env || !name) return false;
+  RuntimeBinding *b = semFind(env, name);
+  return b ? b->isConst : false;
+}
+
 const char *semType(RuntimeEnv *env, const char *name) {
   RuntimeBinding *b = semFind(env, name);
   return b ? b->type : NULL;

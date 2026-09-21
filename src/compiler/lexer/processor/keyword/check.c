@@ -7,10 +7,8 @@
  * mutation. Callers receive both the keyword type and the first position after
  * the scanned word, so the construct processor does not need to scan it again.
  */
-bool scanKeyword(const char *s, int start, int end, KeywordType *type,
-                 int *next) {
-  if (!s || !type || !next || start < 0 || start >= end ||
-      !isalpha((unsigned char)s[start]))
+bool scanKeyword(const char *s, int start, int end, KeywordType *type, int *next) {
+  if (!s || !type || !next || start < 0 || start >= end || !isalpha((unsigned char)s[start]))
     return false;
 
   int p = start + 1;
@@ -18,13 +16,11 @@ bool scanKeyword(const char *s, int start, int end, KeywordType *type,
     p++;
 
   int length = p - start;
-  if (length <= 0)
-    return false;
+  if (length <= 0) return false;
 
   for (int i = 0; i < keywordListSize; i++) {
     const char *name = keywordList[i];
-    if (!name || keywordType[i] == KEYWORD_NULL)
-      continue;
+    if (!name || keywordType[i] == KEYWORD_NULL) continue;
 
     size_t nameLength = strlen(name);
     if ((int)nameLength == length && !strncmp(s + start, name, nameLength)) {
@@ -38,27 +34,22 @@ bool scanKeyword(const char *s, int start, int end, KeywordType *type,
 }
 
 KeywordType getKeywordType(Keyword *keyword, const char *word) {
-  if (!keyword || !word)
-    return KEYWORD_NONE;
+  if (!keyword || !word) return KEYWORD_NONE;
 
   for (int i = 0; i < keywordListSize; i++) {
-    if (keywordType[i] != KEYWORD_NULL && !strcmp(keywordList[i], word))
-      return keywordType[i];
+    if (keywordType[i] != KEYWORD_NULL && !strcmp(keywordList[i], word)) return keywordType[i];
   }
   return KEYWORD_NONE;
 }
 
 bool isValidKeyword(char prev, char next) {
-  bool left = (prev == '\0' || isspace((unsigned char)prev) ||
-               ispunct((unsigned char)prev));
-  bool right = (next == '\0' || isspace((unsigned char)next) ||
-                ispunct((unsigned char)next));
+  bool left = (prev == '\0' || isspace((unsigned char)prev) || ispunct((unsigned char)prev));
+  bool right = (next == '\0' || isspace((unsigned char)next) || ispunct((unsigned char)next));
   return left && right;
 }
 
 Keyword *getKeyword(Input *input) {
-  if (!input || !input->keyword || !input->content)
-    return NULL;
+  if (!input || !input->keyword || !input->content) return NULL;
 
   Keyword *keyword = input->keyword;
   const char *buffer = input->content;
@@ -66,13 +57,11 @@ Keyword *getKeyword(Input *input) {
   int end = start;
   KeywordType type = KEYWORD_NONE;
 
-  if (!scanKeyword(buffer, start, input->length, &type, &end))
-    return NULL;
+  if (!scanKeyword(buffer, start, input->length, &type, &end)) return NULL;
 
   char prev = (start > 0) ? buffer[start - 1] : '\0';
   char nextChar = buffer[end];
-  if (!isValidKeyword(prev, nextChar))
-    return NULL;
+  if (!isValidKeyword(prev, nextChar)) return NULL;
 
   keyword->type = type;
   input->cursor = consumeToEnd(buffer, end);
@@ -91,8 +80,7 @@ Keyword *getKeyword(Input *input) {
     int lookahead = input->cursor;
     skipWhitespace(buffer, &lookahead);
     if (strncmp(buffer + lookahead, "if", 2) == 0 &&
-        !isalnum((unsigned char)buffer[lookahead + 2]) &&
-        buffer[lookahead + 2] != '_') {
+        !isalnum((unsigned char)buffer[lookahead + 2]) && buffer[lookahead + 2] != '_') {
       keyword->type = KEYWORD_ELSEIF;
       input->cursor = lookahead + 2;
     }

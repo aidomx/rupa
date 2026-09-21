@@ -96,6 +96,7 @@ int createNot(struct Node *root, int operandId);
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
 int createAssignment(struct Node *root, int left, int type, int right);
+int createAssignmentConst(struct Node *root, int left, int type, int right, bool isConst);
 int createConditionalAssignment(struct Node *root, int target, int value);
 int createThen(struct Node *root, int condition, int result);
 int createFallback(struct Node *root, int primary, int fallback);
@@ -114,6 +115,7 @@ int createLoop(struct Node *root, const char *kind, int condition, int body);
 int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body,
                        int returnType);
 int createStructDecl(struct Node *root, int name, int body);
+int createEnumDecl(struct Node *root, int name, int body);
 int createClassDecl(struct Node *root, int name, int typeId, int body);
 int createClassDeclExt(struct Node *root, int name, int typeId, int body, int parent);
 int createMarker(struct Node *root, int name, int value);

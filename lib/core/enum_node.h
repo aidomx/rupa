@@ -32,6 +32,7 @@ enum NodeType {
   NODE_FUNCTION_DECL = 23,
   NODE_STRUCT_DECL = 24,
   NODE_CLASS_DECL = 26,
+  NODE_ENUM_DECL = 53, /* design/enum.txt: enum Nama { MEMBER = 1, ... } */
   NODE_MARKER = 89, /* @name — method marker (mis. @created); parent = name, body = value */
   NODE_ANNOTATION = 25,
   NODE_EXTENDS = 28,

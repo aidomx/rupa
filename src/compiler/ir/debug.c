@@ -41,6 +41,7 @@ static const char *irOpName(IROpcode op) {
   case IR_REALLOC: return "realloc";
   case IR_FREE: return "free";
   case IR_CAST: return "cast";
+  case IR_CHECK: return "check";
   default: return "?";
   }
 }
@@ -83,6 +84,12 @@ static void irPrintInstruction(IRInstruction *i) {
     irPrintValue(i->data.store.target);
     printf(" <- ");
     irPrintValue(i->data.store.value);
+    if (i->data.store.isConst) printf("  ; const lock");
+    break;
+  case IR_CHECK:
+    printf("check ");
+    irPrintValue(i->data.check.value);
+    printf(" : %s", i->data.check.type ? i->data.check.type : "?");
     break;
   case IR_NEG:
   case IR_NOT:

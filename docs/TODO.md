@@ -1,7 +1,7 @@
 # TODO — Rupa Language
 
 > Status fitur: siap, dalam pengembangan, belum ada.
-> Terakhir diperbarui: 18 September 2026
+> Terakhir diperbarui: 21 September 2026
 
 ---
 
@@ -9,19 +9,24 @@
 
 | Kategori          | Siap | Dalam Pengembangan | Belum |
 | ----------------- | ---- | ------------------ | ----- |
-| Syntax & Grammar  | 27   | 1                  | 5     |
+| Syntax & Grammar  | 28   | 1                  | 5     |
 | Standard Library  | 16   | 0                  | 1     |
 | Module System     | 11   | 0                  | 3     |
 | REPL & Editor     | 14   | 1                  | 0     |
 | Compiler (`-c`)   | 0    | 1                  | 1     |
-| Testing           | 49   | -                  | 0     |
-| Documentation     | 30   | 0                  | 4     |
+| Testing           | 54   | -                  | 0     |
+| Documentation     | 32   | 0                  | 4     |
 
-Testing: syntax **49/49** (`--test`), IR rewrite **49/49** (`--test-ir`),
-IR exec **49/49** (`--test-irexec`), execution **19/19** (`--test-exec` atas
-13 file `tests/execution/` + 6 `tests/semantics/`), REPL **18/18**
+Testing: syntax **54/54** (`--test`), IR rewrite **54/54** (`--test-ir`),
+IR exec **54/54** (`--test-irexec`), execution **19/19** (`--test-exec` atas
+13 file `tests/execution/` + 6 `tests/semantics/`), REPL **31/31**
 (`--test-repl`). Formatter: 113 file di-scan, 1 FAIL by-design
 (`tests/stress/index.rp` memang memicu LexerError).
+
+Batch runner baru: `rupa test [kategori] [--list] [--select n]` dengan
+kategori `syntax` (default), `ast`, `ir`, `irexec`, `exec`, `semantics`,
+`repl`, `fmt` — plus shortcut `-t`, `-l`, `-p`, `-s`
+(mis. `rupa -ts ast 1`, `rupa -lp exec`). Rincian: `rupa help test`.
 
 ---
 
@@ -30,7 +35,7 @@ IR exec **49/49** (`--test-irexec`), execution **19/19** (`--test-exec` atas
 ### ✅ Siap
 
 Literal, Print, Assignment, Expression, String, Array, Object, If/Else,
-Block, Function, Return, Loop (while), Case, Call, Struct, Annotation,
+Block, Function, Return, Loop (while), Case, Call, Struct, Enum, Annotation,
 Update/Increment (compound `+=` dst.), Import, Export, Control Flow,
 Fallback, Then, Member Access, Comment — docs masing-masing di
 `docs/syntax/*.md` + `docs/grammar/*.md`.
@@ -40,6 +45,7 @@ Fallback, Then, Member Access, Comment — docs masing-masing di
 | Number 64-bit     | `as.number` = long long; `sizeof(number)` = 8; print `%lld`             |
 | Return-type + void | `foo(): void {}` — enforcement di interpreter & IR                     |
 | Class             | `Name: Type {}` → `NODE_CLASS_DECL`; AST `Class:`, formatter round-trip |
+| Enum              | `enum Nama { MEMBER = 1 }` → AST member eksplisit; auto-increment       |
 
 ### 🔨 Dalam Pengembangan
 
@@ -129,14 +135,19 @@ IR pipeline (`src/compiler/ir/`): AST → IR (`rewrite.c`) + executor
 
 | Suite         | Jumlah | Status |
 | ------------- | ------ | ------ |
-| syntax        | 49     | PASS   |
-| ir            | 49     | PASS   |
-| irexec        | 49     | PASS   |
+| syntax        | 55     | PASS   |
+| ir            | 55     | PASS   |
+| irexec        | 55     | PASS   |
 | exec          | 19     | PASS   |
 | repl          | 18     | PASS   |
+| fmt           | 1      | PASS   |
 
 Suite baru: `number64.rp` (overflow 32-bit & presisi 2^53), `void_ret.rp`
-(return-type + void + bare return), `class.rp` (class decl + construct).
+(return-type + void + bare return), `class.rp` (class decl + construct),
+`const.rp` (const + re-init loop/fungsi).
+
+Dijalankan lewat batch runner: `rupa test`, `rupa test --list`,
+`rupa test --select 1`, atau shortcut `rupa -t`, `rupa -l`, `rupa -lp ast`.
 
 ---
 
@@ -165,9 +176,10 @@ sys, fs, database (syntax + grammar masing-masing).
 
 - Class lanjutan: `this`/closure → `super` + `@created` → runner `rupa go` +
   `@input`
-- Const/def/ifdef family — DITUNDA: scope-nya sub-sistem preprocessor
-  C-style (const enum block, `def`, `ifdef`), bukan modifier binding
-- Design tipe: number 64-bit ✅, void ✅, const ditunda, char/int skip,
+- Const binding ✅ (`const x = v` slot immutable, ConstError saat
+  reassign); def/ifdef family — DITUNDA: scope-nya sub-sistem
+  preprocessor C-style (const enum block, `def`, `ifdef`)
+- Design tipe: number 64-bit ✅, void ✅, const binding ✅, char/int skip,
   bigint defer
 - new Contract / new T() / del / string slot — ✅ Done; terbuka:
   `new string()`, interaksi const × del

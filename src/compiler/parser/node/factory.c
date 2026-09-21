@@ -216,6 +216,11 @@ int createSubscript(Node *root, int posId, int index) {
  * Membuat node assignment.
  */
 int createAssignment(Node *root, int left, int type, int right) {
+  return createAssignmentConst(root, left, type, right, false);
+}
+
+/* Varian const: `const x: number = 1` — binding immutable. */
+int createAssignmentConst(Node *root, int left, int type, int right, bool isConst) {
   if (!root || left < 0 || right < 0)
     return -1;
 
@@ -223,7 +228,8 @@ int createAssignment(Node *root, int left, int type, int right) {
       .type = NODE_ASSIGN,
       .assign.target = left,
       .assign.type = type,
-      .assign.value = right};
+      .assign.value = right,
+      .assign.isConst = isConst};
 
   return createAst(root, node);
 }

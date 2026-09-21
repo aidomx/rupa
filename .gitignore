@@ -21,3 +21,4 @@ build-report.txt
 design
 examples/*
 !calculator
+todos

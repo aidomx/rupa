@@ -27,6 +27,8 @@ static const char *getDeclNeedle(Node *node, int nodeId) {
     return getDeclNeedle(node, n->function.name);
   case NODE_STRUCT_DECL:
     return getDeclNeedle(node, n->asStruct.name);
+  case NODE_ENUM_DECL:
+    return getDeclNeedle(node, n->asEnum.name);
   case NODE_CLASS_DECL:
     return getDeclNeedle(node, n->asClass.name);
   case NODE_MARKER:

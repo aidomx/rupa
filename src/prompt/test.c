@@ -520,6 +520,76 @@ void testExec(const char *paths[], int length) {
 }
 
 /* ================================================================
+ * Formatter test: show original source vs formatted output per file.
+ * ================================================================ */
+
+void testFmt(const char *paths[], int length) {
+  if (!paths || length <= 0) {
+    printf("No test files.\n");
+    return;
+  }
+
+  int modified = 0;
+  int unchanged = 0;
+  int failed = 0;
+
+  printf("> Formatter tests\n");
+
+  for (int i = 0; i < length; i++) {
+    char *source = fmtReadSource(paths[i]);
+
+    /* fmtRunFile owns its GC cleanup; reinitialize before each file
+     * when invoked repeatedly in batch mode (see fmtRunPaths). */
+    gcinit(100);
+
+    char *formatted = NULL;
+    size_t formattedLen = 0;
+    FILE *fp = open_memstream(&formatted, &formattedLen);
+    int r = fp ? fmtRunFile(paths[i], fp) : 1;
+    if (fp) fclose(fp);
+
+    printf("\n--- %s ---\n", paths[i]);
+    if (r != 0 || !formatted) {
+      printf("FAILED | %s\n", paths[i]);
+      failed++;
+      free(source);
+      free(formatted);
+      continue;
+    }
+
+    printf("Source:\n");
+    if (source && *source) {
+      fputs(source, stdout);
+      if (source[strlen(source) - 1] != '\n') printf("\n");
+    } else {
+      printf("(empty)\n");
+    }
+
+    bool changed =
+        !source || strlen(source) != formattedLen ||
+        memcmp(source, formatted, formattedLen) != 0;
+
+    printf("%s:\n", changed ? "Formatted" : "Formatted (unchanged)");
+    fwrite(formatted, 1, formattedLen, stdout);
+    if (formattedLen == 0 || formatted[formattedLen - 1] != '\n') printf("\n");
+    printf("STATUS | %s\n", changed ? "MODIFIED" : "UNCHANGED");
+
+    if (changed)
+      modified++;
+    else
+      unchanged++;
+    free(source);
+    free(formatted);
+  }
+
+  printf("\n> Formatter test summary\n");
+  printf("Modified : %d\n", modified);
+  printf("Unchanged : %d\n", unchanged);
+  printf("Failed : %d\n", failed);
+  printf("Status : %s\n", failed == 0 ? "Success" : "Failed");
+}
+
+/* ================================================================
  * REPL execution boundary test: simulate multi-line REPL input
  * with shared environment, verify state across lines.
  * ================================================================ */
@@ -736,4 +806,387 @@ void testRepl(const char *paths[], int length) {
   printf("Passed : %d\n", passed);
   printf("Failed : %d\n", failed);
   printf("Status : %s\n", failed == 0 ? "Success" : "Failed");
+}
+
+/* ================================================================
+ * Test dispatcher — satu pintu untuk rupa test [...]
+ *
+ * Perilaku:
+ *   rupa test --list                → tampilkan semua tests/**.rp
+ *   rupa test --list ast            → tampilkan tests/ast/**.rp
+ *   rupa test                       → jalankan tests/syntax/*.rp
+ *   rupa test ast                   → jalankan tests/ast/**.rp
+ *   rupa test --path ast            → sama dengan "rupa test ast"
+ *   rupa test --select 1,3          → filter dari tests/syntax/*.rp
+ *   rupa test ast --select 1        → filter dari tests/ast/**.rp
+ *   rupa test --path ast --select 1 → sama dengan di atas (urutan bebas)
+ *   rupa test exec                  → tests/execution/*.rp (--test-exec)
+ *   rupa test fmt                   → source vs hasil formatter
+ *
+ * Kategori yang dikenali: syntax, ast, ir, irexec, exec, semantics,
+ * repl, fmt (posisi atau lewat --path, boleh berulang — yang terakhir menang).
+ * ================================================================ */
+
+static const struct {
+  const char *name;
+  const char *dir;   /* subfolder di bawah tests/ */
+  const char *flag;  /* flag binary yang dipakai */
+} testCategories[] = {
+    {"syntax", "syntax", "--test"},       {"ast", "ast", "--test-ast"},
+    {"ir", "syntax", "--test-ir"},        {"irexec", "syntax", "--test-irexec"},
+    {"exec", "execution", "--test-exec"}, {"semantics", "semantics", "--test-exec"},
+    {"repl", "execution", "--test-repl"}, {"fmt", "formatter", "fmt"},
+};
+
+static const char *testFindCategoryDir(const char *name) {
+  if (!name) return NULL;
+  for (size_t k = 0; k < sizeof(testCategories) / sizeof(testCategories[0]); k++) {
+    if (strcmp(testCategories[k].name, name) == 0) return testCategories[k].dir;
+  }
+  return NULL;
+}
+
+static const char *testFindCategoryFlag(const char *name) {
+  if (!name) return NULL;
+  for (size_t k = 0; k < sizeof(testCategories) / sizeof(testCategories[0]); k++) {
+    if (strcmp(testCategories[k].name, name) == 0) return testCategories[k].flag;
+  }
+  return NULL;
+}
+
+static void testUsage(void) {
+  showTestHelp();
+}
+
+/* Bangun FmtPathList dari folder test + filter kata kunci opsional.
+ * Hanya file .rp di dalam folder yang dikumpulkan, lalu diurutkan —
+ * penomoran --select mengikuti urutan ini. */
+static int testCollectPaths(const char *dir, const char *keyword, FmtPathList *list) {
+  char root[4096];
+  snprintf(root, sizeof(root), "tests/%s", dir);
+
+  /* Validasi kategori: folder harus ada agar salah ketik langsung terlihat. */
+  struct stat st;
+  if (stat(root, &st) != 0 || !S_ISDIR(st.st_mode)) {
+    fprintf(stderr, "test: test directory not found: %s\n", root);
+    return 1;
+  }
+
+  if (fmtCollectRp(root, list) != 0) return 1;
+  qsort(list->items, (size_t)list->count, sizeof(*list->items), fmtPathCmp);
+
+  /* Filter kata kunci (substring match, mis. "repl" di folder execution). */
+  if (keyword && *keyword) {
+    int kept = 0;
+    for (int i = 0; i < list->count; i++) {
+      if (strstr(list->items[i], keyword)) list->items[kept++] = list->items[i];
+    }
+    for (int i = kept; i < list->count; i++) free(list->items[i]);
+    list->count = kept;
+  }
+  return 0;
+}
+
+/* Parse "1,3,7" → daftar index 1-based. Pembagi milik pemanggil. */
+static int *testParseSelection(const char *value, int *outCount) {
+  *outCount = 0;
+  if (!value || !*value) return NULL;
+
+  int capacity = 8;
+  int *items = malloc((size_t)capacity * sizeof(*items));
+  if (!items) return NULL;
+
+  char *copy = strdup(value);
+  if (!copy) {
+    free(items);
+    return NULL;
+  }
+
+  char *save = NULL;
+  int count = 0;
+  for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+    char *end = NULL;
+    long n = strtol(tok, &end, 10);
+    if (end == tok || *end != '\0' || n <= 0 || n > INT_MAX) {
+      fprintf(stderr, "test: invalid selection '%s'\n", tok);
+      free(items);
+      free(copy);
+      return NULL;
+    }
+    if (count >= capacity) {
+      capacity *= 2;
+      int *tmp = realloc(items, (size_t)capacity * sizeof(*items));
+      if (!tmp) {
+        free(items);
+        free(copy);
+        return NULL;
+      }
+      items = tmp;
+    }
+    items[count++] = (int)n;
+  }
+  free(copy);
+  *outCount = count;
+  return items;
+}
+
+/* Pilih file dari list berdasarkan index 1-based --select. */
+static char **testSelectFiles(const FmtPathList *list, const int *selected, int selectedCount) {
+  char **paths = malloc((size_t)selectedCount * sizeof(*paths));
+  if (!paths) return NULL;
+  for (int i = 0; i < selectedCount; i++) {
+    if (selected[i] > list->count) {
+      fprintf(stderr, "test: selection %d is out of range (1-%d)\n", selected[i], list->count);
+      free(paths);
+      return NULL;
+    }
+    paths[i] = list->items[selected[i] - 1];
+  }
+  return paths;
+}
+
+/* Jalankan satu grup: dispatch ke runner sesuai flag binary. */
+static int testRunGroup(const char *flag, char **paths, int count) {
+  if (strcmp(flag, "fmt") == 0) {
+    testFmt((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test") == 0) {
+    test((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test-ast") == 0) {
+    testAst((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test-ir") == 0) {
+    testIR((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test-irexec") == 0) {
+    testIRExec((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test-exec") == 0) {
+    testExec((const char **)paths, count);
+    return 0;
+  }
+  if (strcmp(flag, "--test-repl") == 0) {
+    testRepl((const char **)paths, count);
+    return 0;
+  }
+  return 1;
+}
+
+/*
+ * Parser argumen test (dipakai testDispatch).
+ *
+ * Aturan penempatan token posisi (agar bentuk cluster tetap masuk akal):
+ *   - token numerik (boleh koma)     → nilai select (setara --select/-s)
+ *   - token non-numerik pertama      → kategori (setara --path/-p)
+ *   - token non-numerik kedua        → kategori grup kedua
+ *
+ * Contoh yang semuanya valid:
+ *   test syntax 1        -t syntax 1        -ts syntax 1      -tps syntax 1
+ *   test ast --select 1  -t ast --select 1  -t -p syntax -s 1  -l ast
+ */
+typedef struct {
+  bool wantList;
+  const char *selectArg;     /* nilai --select / -s (atau NULL) */
+  const char *category;      /* kategori (posisi atau --path) */
+  const char *extraCategory; /* kategori posisi kedua (atau NULL) */
+} TestArgs;
+
+/* "1", "1,2,3" dianggap token selection; kategori tidak mungkin numerik. */
+static bool testIsSelectionToken(const char *arg) {
+  if (!arg || !*arg) return false;
+  for (const char *c = arg; *c; c++) {
+    if (*c != ',' && (*c < '0' || *c > '9')) return false;
+  }
+  return true;
+}
+
+static bool testArgsParse(const char *args[], int length, TestArgs *a) {
+  memset(a, 0, sizeof(*a));
+  bool wantPath = false;
+  bool wantSelect = false;
+
+  for (int i = 0; i < length; i++) {
+    const char *arg = args[i];
+
+    if (strcmp(arg, "--list") == 0) {
+      a->wantList = true;
+      continue;
+    }
+    if (strcmp(arg, "--path") == 0) {
+      wantPath = true;
+      continue;
+    }
+    if (strcmp(arg, "--select") == 0) {
+      wantSelect = true;
+      continue;
+    }
+
+    if (arg[0] == '-' && arg[1] != '\0') {
+      /* Cluster pendek: -t, -l, -lp, -ts, -tps, ... (hanya huruf t/l/p/s). */
+      bool ok = true;
+      for (const char *c = arg + 1; *c; c++) {
+        switch (*c) {
+        case 't': break; /* penanda mode test, tanpa efek */
+        case 'l': a->wantList = true; break;
+        case 'p': wantPath = true; break;
+        case 's': wantSelect = true; break;
+        default: ok = false; break;
+        }
+      }
+      if (!ok) {
+        fprintf(stderr, "test: unknown option '%s'\n", arg);
+        testUsage();
+        return false;
+      }
+      continue;
+    }
+
+    if (arg[0] == '-') {
+      fprintf(stderr, "test: unknown option '%s'\n", arg);
+      testUsage();
+      return false;
+    }
+
+    /* Token posisi: numerik → select, non-numerik → kategori. */
+    if (testIsSelectionToken(arg)) {
+      if (a->selectArg) {
+        fprintf(stderr, "test: unexpected argument '%s'\n", arg);
+        testUsage();
+        return false;
+      }
+      a->selectArg = arg;
+    } else if (!a->category) {
+      a->category = arg;
+    } else if (!a->extraCategory && strcmp(arg, a->category) != 0) {
+      a->extraCategory = arg;
+    } else {
+      fprintf(stderr, "test: unexpected argument '%s'\n", arg);
+      testUsage();
+      return false;
+    }
+  }
+
+  if (wantPath && !a->category && !a->extraCategory) {
+    fprintf(stderr, "test: --path requires a category (e.g. syntax, ast)\n");
+    return false;
+  }
+  if (wantSelect && !a->selectArg) {
+    fprintf(stderr, "test: --select requires indexes (e.g. 1,2,3)\n");
+    return false;
+  }
+  return true;
+}
+
+int testDispatch(const char *args[], int length) {
+  TestArgs a;
+  if (!testArgsParse(args, length, &a)) return 1;
+
+  const char *category = a.category;
+
+  const char *keyword = NULL;
+  if (category && !testFindCategoryFlag(category)) {
+    /* Bukan kategori yang dikenal → perlakukan sebagai kata kunci filter. */
+    keyword = category;
+    category = NULL;
+  }
+  const char *extraCategory = a.extraCategory;
+  if (extraCategory && !testFindCategoryFlag(extraCategory) && !keyword) {
+    keyword = extraCategory;
+    extraCategory = NULL;
+  }
+
+  const char *dir = category ? testFindCategoryDir(category) : "syntax";
+
+  /* --- Mode list --- */
+  if (a.wantList) {
+    if (category || keyword) {
+      /* -l <kategori>: daftar folder kategori (keyword boleh menfilter). */
+      FmtPathList list = {0};
+      if (testCollectPaths(dir, keyword, &list) != 0) return 1;
+      fmtPrintList(&list, NULL, 0);
+      fmtPathListFree(&list);
+    } else if (extraCategory) {
+      fprintf(stderr, "test: unexpected argument '%s'\n", extraCategory);
+      testUsage();
+      return 1;
+    } else {
+      /* Tanpa kategori: daftar semua file .rp di tests/. */
+      FmtPathList list = {0};
+      if (fmtCollectRp("tests", &list) != 0) return 1;
+      qsort(list.items, (size_t)list.count, sizeof(*list.items), fmtPathCmp);
+      fmtPrintList(&list, NULL, 0);
+      fmtPathListFree(&list);
+    }
+    return 0;
+  }
+
+  /* --- Mode jalankan --- */
+  const char *flag = testFindCategoryFlag(category ? category : "syntax");
+
+  if (extraCategory) {
+    const char *flag2 = testFindCategoryFlag(extraCategory);
+    if (!flag2) {
+      fprintf(stderr, "test: unknown category '%s'\n", extraCategory);
+      testUsage();
+      return 1;
+    }
+    if (a.selectArg) {
+      fprintf(stderr, "test: --select cannot be combined with two categories\n");
+      return 1;
+    }
+    const char *dir2 = testFindCategoryDir(extraCategory);
+
+    FmtPathList l1 = {0};
+    FmtPathList l2 = {0};
+    if (testCollectPaths(dir, keyword, &l1) != 0) return 1;
+    if (testCollectPaths(dir2, NULL, &l2) != 0) {
+      fmtPathListFree(&l1);
+      return 1;
+    }
+    int r = testRunGroup(flag, l1.items, l1.count);
+    if (r == 0) r = testRunGroup(flag2, l2.items, l2.count);
+    fmtPathListFree(&l1);
+    fmtPathListFree(&l2);
+    return r;
+  }
+
+  FmtPathList list = {0};
+  if (testCollectPaths(dir, keyword, &list) != 0) return 1;
+
+  int result = 0;
+  if (a.selectArg) {
+    int selectedCount = 0;
+    int *selected = testParseSelection(a.selectArg, &selectedCount);
+    if (!selected || selectedCount == 0) {
+      fprintf(stderr, "test: --select requires indexes (e.g. 1,2,3)\n");
+      free(selected);
+      fmtPathListFree(&list);
+      return 1;
+    }
+    char **paths = testSelectFiles(&list, selected, selectedCount);
+    if (!paths) {
+      free(selected);
+      fmtPathListFree(&list);
+      return 1;
+    }
+    result = testRunGroup(flag, paths, selectedCount);
+    free(paths);
+    free(selected);
+  } else {
+    if (list.count == 0) {
+      printf("No .rp files found in tests/%s.\n", dir);
+      fmtPathListFree(&list);
+      return 1;
+    }
+    result = testRunGroup(flag, list.items, list.count);
+  }
+
+  fmtPathListFree(&list);
+  return result;
 }

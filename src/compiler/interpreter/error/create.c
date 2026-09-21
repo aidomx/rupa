@@ -65,6 +65,10 @@ void addRuntimeError(Error *error, ErrorType type, const char *expected, const c
 
 void printErrors(const Error *error) {
   if (!error) return;
+  /* Program output (stdout, line-buffered) harus sudah keluar sebelum
+   * error (stderr, unbuffered) — tanpa flush, `print(5)` tanpa `\n`
+   * masih di buffer dan error tampil menyalip di depan. */
+  fflush(stdout);
   for (int i = 0; i < error->size; i++) {
     const ErrorInfo *info = &error->info[i];
     fprintf(stderr, "%s:%d:%d: %s: %s\n", info->file ? info->file : "<input>", info->line,

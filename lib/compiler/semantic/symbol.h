@@ -9,6 +9,7 @@ struct RuntimeBinding {
   char *name;
   char *type;
   RuntimeValue value;
+  bool isConst; /* `const x = 1` — semSet setelah init ditolak (ConstError) */
   struct RuntimeBinding *next;
 };
 
@@ -62,6 +63,22 @@ bool semDeclare(RuntimeEnv *env, const char *name, const char *type);
  * @param value Nilai runtime.
  */
 void semSet(RuntimeEnv *env, const char *name, RuntimeValue value);
+
+/**
+ * @brief Menulis nilai + mengunci binding sebagai const (deklarasi).
+ *
+ * Untuk `const x = 1` — selalu menulis dan mengunci ulang slot (re-init
+ * sah di setiap iterasi loop / call fungsi). Penolakan reassignment
+ * terjadi di semSet / IR_STORE (semIsConst), bukan di sini.
+ *
+ * @return true jika write berhasil.
+ */
+bool semSetConst(RuntimeEnv *env, const char *name, RuntimeValue value);
+
+/**
+ * @brief Cek apakah binding bernama ini const.
+ */
+bool semIsConst(RuntimeEnv *env, const char *name);
 
 /**
  * @brief Mendapatkan nilai variabel dari scope atau parent scope.
