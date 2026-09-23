@@ -21,4 +21,5 @@ build-report.txt
 design
 examples/*
 !calculator
+.rbot
 todos

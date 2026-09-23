@@ -74,8 +74,10 @@ crypto, net — docs di `docs/modules/syntax/*.md` + `docs/modules/grammar/*.md`
 
 sys, fs, database, collections, strings.
 
-Di luar hitungan: rupamemory (sizeof, pin/elpin/repin/repins) built-in global
-tanpa import.
+Di luar hitungan: rupamemory (sizeof, blok ops contract ccpy/cmove/cset,
+dup family) built-in global tanpa import. pin/elpin/repin/repins/unpin
+**dihapus** — alokasi satu pintu lewat `new/del` + `new Contract()`;
+blok ops lama `setpin/movepin/copypin` di-rename `cset/cmove/ccpy`.
 
 ### ❌ Belum Tersedia
 
@@ -183,7 +185,13 @@ sys, fs, database (syntax + grammar masing-masing).
   bigint defer
 - new Contract / new T() / del / string slot — ✅ Done; terbuka:
   `new string()`, interaksi const × del
-- Formatter: sunset docs pin family, rename block ops prefix `pin`
+- pin family sunset ✅ — dihapus dari runtime; docs diarsipkan ke
+  `docs/legacy/pin-family.md`, view check handle kini registry v3
+  (`memoryHandleTypeCheck`)
+- struct C-style ✅ — padding/alignment (sizeof sesuai ABI), nested
+  struct by value + array of struct via view handle, `del` view
+ditolak (test: `tests/execution/struct_layout.rp`)
+- Formatter: rename block ops prefix `pin` — ✅ Done (`cset/cmove/ccpy`)
 
 ### Low
 

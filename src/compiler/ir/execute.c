@@ -570,6 +570,18 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue obj = machineGet(&frame, i->data.member_set.object);
         RuntimeValue val = machineGet(&frame, i->data.member_set.value);
         if (obj.type == VALUE_OBJECT) {
+          /* Instance new Object() (design/object.txt): strict layout
+           * check + two-way sync ke ref via objectMemberWrite. */
+          if (objectIsInstance(obj) && i->data.member_set.member) {
+            if (!objectMemberWrite(obj, i->data.member_set.member, val,
+                                   frame.env, frame.error)) {
+              machineHalt(&frame);
+              machineFree(&frame);
+              return valueNull();
+            }
+            if (i->result) machineSet(&frame, i->result, val);
+            break;
+          }
           /* Enum object bersifat konstanta — tulis member ditolak. */
           RuntimeValue marker = valueNull();
           if (frame.error && valueObjectGet(obj, "__enum", &marker) &&
@@ -771,8 +783,8 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
       case IR_CHECK: {
         /* Semantic check struct-first: validasi value terhadap tipe
          * (scalar/struct/array-of-struct) via analyzer registry.
-         * Handle pin family (VALUE_PTR): view type check via provenance
-         * sizeof pada sisi kanan — scalar check tidak berlaku.
+         * Handle VALUE_PTR: view type check via registry v3 (gcregtype)
+         * — scalar check tidak berlaku.
          * Lokasi error: node value sisi kanan (presisi baris:kolom). */
         RuntimeValue v = machineGet(&frame, i->data.check.value);
         if (i->data.check.nodeId >= 0 && i->data.check.nodeId < m->astRef->length) {
@@ -780,7 +792,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           setRuntimeErrorLocation(vn->line, vn->row);
         }
         if (v.type == VALUE_PTR) {
-          if (!memoryPinViewCheck(m->astRef, i->data.check.nodeId, i->data.check.type, m->error)) {
+          if (!memoryHandleTypeCheck(v, i->data.check.type, m->error)) {
             machineHalt(&frame);
             machineFree(&frame);
             return valueNull();
@@ -790,6 +802,12 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           machineFree(&frame);
           return valueNull(); /* bailing out — error sudah ditambahkan */
         }
+        /* Instance new Object() lolos kontrak struct (design/object.txt):
+         * stamp __type — set/update/delete strict terhadap layout.
+         * Append ke tail shared object: terlihat di binding tujuan. */
+        if (v.type == VALUE_OBJECT && objectIsInstance(v) &&
+            analyzerFindStruct(i->data.check.type))
+          valueObjectSet(&v, "__type", valueString(i->data.check.type));
         break;
       }
       case IR_RETURN: {

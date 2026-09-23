@@ -22,17 +22,17 @@ static const char *modEntryPathStr(AstModEntry *e, char *buf, int size) {
  *   "rupa"            → handled per-entry by caller
  *   "name"            → stdlib lookup first, then local file
  */
-static RuntimeValue modLoadSource(const char *source) {
+static RuntimeValue modLoadSource(const char *source, Error *error) {
   RuntimeValue v = valueNull();
   if (!source) return v;
 
-  if (hasDotSlash(source)) return loadModuleFile(source, false);
+  if (hasDotSlash(source)) return loadModuleFileError(source, false, error);
 
   if (strncmp(source, "rupa.", 5) == 0) {
     const char *pkg = source + 5;
     const char *ext = stdlibFindModule(pkg);
     if (ext) {
-      v = loadModuleFile(ext, false);
+      v = loadModuleFileError(ext, false, error);
       if (v.type == VALUE_OBJECT) return v;
     }
     if (stdlibGetModule(pkg, &v)) return v;
@@ -41,11 +41,11 @@ static RuntimeValue modLoadSource(const char *source) {
 
   const char *ext = stdlibFindModule(source);
   if (ext) {
-    v = loadModuleFile(ext, false);
+    v = loadModuleFileError(ext, false, error);
     if (v.type == VALUE_OBJECT) return v;
   }
   if (stdlibGetModule(source, &v)) return v;
-  return loadModuleFile(source, false);
+  return loadModuleFileError(source, false, error);
 }
 
 static void modAppendEntry(struct RuntimeObjectEntry **list, const char *key, RuntimeValue v) {
@@ -75,7 +75,7 @@ static RuntimeValue modFilterPolicies(struct AstMod *mod, RuntimeValue mv) {
 
 /* Interpret ImportDecl: bind entries from source into env.
  * With sourceAlias, bindings collect into a namespace object instead. */
-static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
+static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Error *x) {
   struct AstMod *mod = &n->ast[id].mod;
 
   /* Bare import `import X` (no source) → bind module X directly. */
@@ -84,7 +84,7 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
       char buf[512];
       const char *name = modEntryPathStr(&mod->entries[i], buf, sizeof(buf));
       if (!name) continue;
-      RuntimeValue v = modLoadSource(name);
+      RuntimeValue v = modLoadSource(name, x);
       if (v.type == VALUE_OBJECT) semSet(e, name, v);
     }
     return resultNormal(valueNull());
@@ -115,13 +115,13 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
       bool namespace_pkg = false;
       const char *pkg_path = stdlibFindModule(en->name);
       if (pkg_path) {
-        pkg = loadModuleFile(pkg_path, false);
+        pkg = loadModuleFileError(pkg_path, false, x);
         ok = (pkg.type == VALUE_OBJECT);
       }
       if (!ok) {
         const char *ns_path = stdlibFindNamespace(en->name);
         if (ns_path) {
-          pkg = loadModuleFile(ns_path, false);
+          pkg = loadModuleFileError(ns_path, false, x);
           ok = (pkg.type == VALUE_OBJECT);
           namespace_pkg = ok;
         }
@@ -152,9 +152,9 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
       {
         char fileBuf[512];
         snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
-        mv = loadModuleFile(fileBuf, true);
+        mv = loadModuleFileError(fileBuf, true, x);
       }
-      if (mv.type != VALUE_OBJECT) mv = modLoadSource(mod->source);
+      if (mv.type != VALUE_OBJECT) mv = modLoadSource(mod->source, x);
       if (mv.type != VALUE_OBJECT) continue;
 
       if (en->key) {
@@ -184,11 +184,11 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
     if (en->key || en->type == MOD_MEMBER) {
       char fileBuf[512];
       snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
-      mv = loadModuleFile(fileBuf, true);
+      mv = loadModuleFileError(fileBuf, true, x);
       loaded = (mv.type == VALUE_OBJECT);
     }
     if (!loaded) {
-      mv = modLoadSource(mod->source);
+      mv = modLoadSource(mod->source, x);
       loaded = (mv.type == VALUE_OBJECT);
     }
     if (!loaded) {
@@ -255,9 +255,10 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e) {
  * loaded file. Appends (bindName, value) to *out instead of binding
  * anywhere, so callers decide where it lands (env directly, or merged into
  * a namespace object first). */
-static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntry **out) {
+static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntry **out,
+                                       Error *error) {
   if (!en || !en->name) return;
-  RuntimeValue mv = modLoadSource(en->name);
+  RuntimeValue mv = modLoadSource(en->name, error);
   if (mv.type != VALUE_OBJECT) return;
 
   if (en->type == MOD_MEMBER && en->childrens) {
@@ -299,17 +300,17 @@ static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntr
  * (`namespace db { export driver }` → load ./driver.rp, bind as "driver"),
  * since referencing other files is the entire point of the block. */
 static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
-                                  struct RuntimeObjectEntry **out) {
+                                  struct RuntimeObjectEntry **out, Error *error) {
   if (!mod->source) {
     for (int i = 0; i < mod->entryCount; i++) {
       AstModEntry *en = &mod->entries[i];
       if (en->type == MOD_ID && !insideNamespace) continue; /* local marker, no-op */
-      resolveImplicitExportEntry(en, out);
+      resolveImplicitExportEntry(en, out, error);
     }
     return;
   }
 
-  RuntimeValue mv = modLoadSource(mod->source);
+  RuntimeValue mv = modLoadSource(mod->source, error);
   if (mv.type != VALUE_OBJECT) return;
 
   /* Single plain entry = namespace re-export (any alias, whole module) */
@@ -372,10 +373,10 @@ static void freeBindingList(struct RuntimeObjectEntry *list) {
  * into env. `export x` (bare, no `from`) stays a no-op marker for the
  * loader; everything else (re-export, or an implicit-file dotted/wildcard
  * export) actually binds. */
-static void interpretModExport(Node *n, int id, RuntimeEnv *e) {
+static void interpretModExport(Node *n, int id, RuntimeEnv *e, Error *x) {
   struct AstMod *mod = &n->ast[id].mod;
   struct RuntimeObjectEntry *out = NULL;
-  computeExportBindings(mod, /*insideNamespace=*/false, &out);
+  computeExportBindings(mod, /*insideNamespace=*/false, &out, x);
   for (struct RuntimeObjectEntry *o = out; o; o = o->next)
     semSet(e, o->key, o->value);
   freeBindingList(out);
@@ -406,7 +407,7 @@ static bool interpretModNamespace(Node *n, int id, RuntimeEnv *e, Error *x) {
     if (stmt->type != NODE_MOD || stmt->mod.type != ExportDecl) continue;
 
     struct RuntimeObjectEntry *out = NULL;
-    computeExportBindings(&stmt->mod, /*insideNamespace=*/true, &out);
+    computeExportBindings(&stmt->mod, /*insideNamespace=*/true, &out, x);
 
     struct RuntimeObjectEntry *o = out;
     while (o) {
@@ -466,13 +467,13 @@ InterpreterResult interpretNode(Node *n, int id, RuntimeEnv *e, Error *x) {
   switch (n->ast[id].type) {
   case NODE_MOD: {
     AstNode *self = &n->ast[id];
-    if (self->mod.type == ImportDecl) return interpretModImport(n, id, e);
+    if (self->mod.type == ImportDecl) return interpretModImport(n, id, e, x);
     if (self->mod.type == NamespaceDecl) {
       bool hadError = interpretModNamespace(n, id, e, x);
       if (hadError) return resultFlow(FLOW_ERROR, valueNull());
       return resultNormal(valueNull());
     }
-    interpretModExport(n, id, e);
+    interpretModExport(n, id, e, x);
     return resultNormal(valueNull());
   }
   case NODE_EXTENDS:

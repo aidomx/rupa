@@ -76,16 +76,22 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
     }
     if (a->assign.type >= 0) {
       analyzerSetErrorLocation(n, a->assign.type);
-      /* Handle pin family (VALUE_PTR): view type check via provenance
-       * sizeof — scalar check tidak berlaku (handle opaque).
-       * Contract (VALUE_PTR dari anotasi): provenance registry v3 —
-       * skip view check sizeof. */
+      /* Handle VALUE_PTR: view type check via registry v3 — scalar
+       * check tidak berlaku (handle opaque). */
       if (r.value.type == VALUE_PTR && !contractOk) {
-        if (!memoryPinViewCheck(n, a->assign.value, typeOf(n, a->assign.type), x))
+        if (!memoryHandleTypeCheck(r.value, typeOf(n, a->assign.type), x))
           return resultFlow(FLOW_ERROR, valueNull());
       } else if (r.value.type != VALUE_PTR && !contractOk &&
                  !validateAnnotation(n, a->assign.type, r.value, x)) {
         return resultFlow(FLOW_ERROR, valueNull());
+      }
+      /* Instance new Object() lolos kontrak struct (design/object.txt):
+       * stamp __type supaya set/update/delete strict terhadap layout,
+       * dan assignment member strict via objectMemberWrite. */
+      if (r.value.type == VALUE_OBJECT && a->assign.type >= 0) {
+        const char *ann = typeOf(n, a->assign.type);
+        if (ann && analyzerFindStruct(ann) && objectIsInstance(r.value))
+          valueObjectSet(&r.value, "__type", valueString(ann));
       }
     }
     if (k) {
@@ -189,13 +195,12 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       if (r.flow != FLOW_NORMAL) return r;
     }
     analyzerSetErrorLocation(n, a->annotation.type);
-    /* Pin family: view type check (design/rupa_memory_batch_1.txt).
-     * p: number = pin(sizeof(number)) OK; pin(sizeof(string)) error
-     * (dicek per TYPE, bukan per byte); tanpa sizeof = generic, hanya
-     * type "ptr" yang menerima. Handle VALUE_PTR skip scalar check.
-     * Contract: alokasi SUDAH dari anotasi — skip view check sizeof. */
+    /* Handle VALUE_PTR: view type check registry v3 — tipe handle
+     * tercatat saat alokasi (new T/Contract), lookup langsung. Handle
+     * VALUE_PTR skip scalar check. Contract: alokasi SUDAH dari
+     * anotasi — check di-skip via contractOk. */
     if (r.value.type == VALUE_PTR && !contractOk) {
-      if (!memoryPinViewCheck(n, a->annotation.value, type, x))
+      if (!memoryHandleTypeCheck(r.value, type, x))
         return resultFlow(FLOW_ERROR, valueNull());
     } else if (r.value.type != VALUE_PTR && !contractOk &&
                !validateAnnotation(n, a->annotation.type, r.value, x)) {

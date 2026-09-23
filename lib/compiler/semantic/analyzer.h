@@ -57,6 +57,12 @@ bool analyzerCheckType(const char *type, RuntimeValue value, Error *error);
  * struct / array-of-struct). */
 bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error);
 
+/* Field layout ke-i (design/object.txt): nama + tipe untuk strict
+ * set/update pada instance new Object(). Return false bila index
+ * habis / struct tak dikenal. */
+bool analyzerFieldAt(const char *name, int index, const char **fieldName,
+                     const char **fieldType);
+
 /* Ukuran representasi struct terdaftar (jumlah ukuran field, rekursif
  * untuk struct bertingkat). Return false bila tak terdaftar. Dipakai
  * rupamemorySizeOf untuk sizeof(Struct). */

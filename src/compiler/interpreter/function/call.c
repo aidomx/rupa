@@ -272,6 +272,19 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   InterpreterResult instResult = instanceNewCall(node, ast, env, error, &instHandled);
   if (instHandled) return instResult;
 
+  /* new Object(ref?, init?) (design/object.txt): SEBELUM memory hook. */
+  bool objHandled = false;
+  InterpreterResult objResult = objectNewCall(node, ast, env, error, &objHandled);
+  if (objHandled) return objResult;
+
+  /* Method instance Object (has/get/set/delete/update/json/text):
+   * dispatch manual dengan arg raw — identifier posisi key bukan variabel
+   * = nama field (design: `people.set(name, "anggi")`). */
+  bool objCallHandled = false;
+  InterpreterResult objCallResult =
+      objectMemberCall(node, ast, env, error, &objCallHandled);
+  if (objCallHandled) return objCallResult;
+
   bool newHandled = false;
   InterpreterResult newResult = memoryNewCall(node, ast, env, error, &newHandled);
   if (newHandled) return newResult;

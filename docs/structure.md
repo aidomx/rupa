@@ -255,7 +255,7 @@ rupa-v22/
 │   ├── stdlib/                   # Standard library (C functions)
 │   │   ├── stdlib.c              # Module registration
 │   │   ├── builtins.c            # type/len/isNull/toNumber/toString + memory init
-│   │   ├── rupamemory.c          # sizeof, pin family (pin/elpin/repin/repins)
+│   │   ├── rupamemory.c          # sizeof, blok ops contract (ccpy/cmove/cset), dup family
 │   │   ├── http_client.c         # HTTP client (curl)
 │   │   ├── http_server.c         # HTTP server (POSIX sockets)
 │   │   ├── io.c                  # input(), toNumber()

@@ -1,4 +1,5 @@
 #include <rupa.h>
+#include "rpx.h" /* fsbaseReadString — shared read helper */
 
 /* Primitives filesystem: read/write/append/size/isDir/exists.
  * Level tinggi (readLines, copy, move, …) ditulis dalam bahasa Rupa
@@ -18,10 +19,18 @@ static InterpreterResult fsError(Error *error, const char *code,
 /* ==================== fsbase.read(path) ==================== */
 static InterpreterResult fsRead(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                 Error *error) {
+  (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING || !argv[0].as.string)
     return fsError(error, "TypeError", "fsbase.read() expects a string path");
 
-  FILE *fp = fopen(argv[0].as.string, "rb");
+  return fsbaseReadString(argv[0].as.string, error);
+}
+
+/* Shared read helper — dipakai fsbase.read() dan module lain (rpx.c).
+ * Return FLOW_NORMAL berisi VALUE_STRING bila sukses; error sudah
+ * dicatat bila gagal. */
+InterpreterResult fsbaseReadString(const char *path, Error *error) {
+  FILE *fp = fopen(path, "rb");
   if (!fp)
     return fsError(error, "IOError", "cannot open file for reading");
 

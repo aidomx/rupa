@@ -91,6 +91,7 @@ export default defineConfig({
             { text: 'Call', link: '/grammar/call' },
             { text: 'Struct', link: '/grammar/struct' },
             { text: 'Annotation', link: '/grammar/annotation' },
+            { text: 'Memory', link: '/grammar/memory' },
             { text: 'Update', link: '/grammar/update' },
             { text: 'Control', link: '/grammar/control' },
             { text: 'Fallback', link: '/grammar/fallback' },

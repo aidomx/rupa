@@ -201,13 +201,21 @@ bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error) {
     return false;
   }
 
+  /* Instance new Object() (design/object.txt): field kontrak boleh
+   * diisi belakangan via set/update (tetap divalidasi tipe di sana).
+   * Yang tetap ditolak: field tak dikenal & tipe field yang salah. */
+  RuntimeValue dynMarker = valueNull();
+  bool isDynamicObject = valueObjectGet(value, "__object", &dynMarker) &&
+                         dynMarker.type == VALUE_BOOLEAN;
+
   /* Periksa tiap field kontrak terhadap isi object. */
   for (int i = 0; i < l->count; i++) {
     struct RuntimeObjectEntry *e = value.as.object.entries;
-    while (e && strcmp(e->key, l->fields[i].name))
+    while (e && (!e->key || strcmp(e->key, l->fields[i].name)))
       e = e->next;
 
     if (!e) {
+      if (isDynamicObject) continue; /* diisi belakangan via set() */
       if (error) {
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "missing field %s", l->fields[i].name);
@@ -215,6 +223,8 @@ bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error) {
       }
       return false;
     }
+    if (e->value.type == VALUE_FUNCTION || e->value.type == VALUE_NATIVE_FUNCTION)
+      continue; /* method instance — bukan data field */
 
     if (!checkTypeValue(l->fields[i].type, e->value, error, 0)) {
       if (error && error->size == 0)
@@ -225,9 +235,13 @@ bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error) {
   }
 
   /* Field tambahan di luar kontrak juga ditolak. Anchor implisit
-   * (key "") dari object kosong di-skip — metadata internal list. */
+   * (key "") dari object kosong di-skip — metadata internal list.
+   * Meta "__*" (instance marker/type/ref) & method di-skip juga. */
   for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
-    if (e->key && e->key[0] == '\0') continue;
+    if (!e->key || e->key[0] == '\0') continue;
+    if (e->key[0] == '_') continue; /* metadata runtime (_class, __type, …) */
+    if (e->value.type == VALUE_FUNCTION || e->value.type == VALUE_NATIVE_FUNCTION)
+      continue;
     bool known = false;
     for (int i = 0; i < l->count; i++) {
       if (!strcmp(e->key, l->fields[i].name)) {
@@ -245,6 +259,19 @@ bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error) {
     }
   }
 
+  return true;
+}
+
+/* Field layout ke-i (design/object.txt): nama + tipe untuk strict
+ * set/update pada instance new Object(). Return false bila index
+ * habis / struct tak dikenal. */
+bool analyzerFieldAt(const char *name, int index, const char **fieldName,
+                     const char **fieldType) {
+  if (!name || index < 0) return false;
+  struct StructLayout *l = layoutFind(name);
+  if (!l || index >= l->count) return false;
+  if (fieldName) *fieldName = l->fields[index].name;
+  if (fieldType) *fieldType = l->fields[index].type;
   return true;
 }
 
@@ -315,20 +342,76 @@ static int scalarTypeSize(const char *type) {
   return -1;
 }
 
-/* Ukuran representasi struct: jumlah ukuran field-nya. Field struct
- * bertingkat dihitung rekursif; array-of-struct memakai representasi
- * RuntimeArray. Return false bila ada field bertipe tak dikenal.
- * Rekursi aman: forward reference ditolak saat deklarasi. */
+/* Alignment representasi scalar — meniru ABI C (design C-A1):
+ * long long/double/pointer = 8, boolean = 1. Tipe non-scalar
+ * (struct/array) memakai alignment dari elemen/fielnya (dihitung
+ * pemanggil). Return 8 bila tipe tak dikenal (konservatif). */
+static int scalarTypeAlign(const char *type) {
+  if (!type) return (int)sizeof(void *);
+  if (!strcmp(type, "boolean")) return 1;
+  /* number (long long), decimal (double), string/ptr/array/object/
+   * function/null/unknown (pointer) = 8. */
+  return (int)sizeof(void *);
+}
+
+/* Padding C: maju offset ke kelipatan alignment. */
+static int alignTo(int offset, int align) {
+  if (align <= 1) return offset;
+  return (offset + align - 1) / align * align;
+}
+
+/* Alignment efektif sebuah tipe field (rekursif untuk struct dan
+ * bentuk array "T[]"). Return false bila tipe tidak diketahui. */
+static bool typeAlignOf(const char *type, int *outAlign) {
+  if (!type || !outAlign) return false;
+  size_t length = strlen(type);
+  if (length >= 2 && type[length - 2] == '[' && type[length - 1] == ']') {
+    char element[128];
+    if (length - 2 >= sizeof(element)) return true;
+    memcpy(element, type, length - 2);
+    element[length - 2] = '\0';
+    return typeAlignOf(element, outAlign);
+  }
+  int scalarAlign = scalarTypeAlign(type);
+  if (scalarAlign > 0) {
+    *outAlign = scalarAlign;
+    return true;
+  }
+  /* struct: alignment terbesar dari field-nya (aturan C). */
+  struct StructLayout *l = layoutFind(type);
+  if (!l) return false;
+  int maxAlign = 1;
+  for (int i = 0; i < l->count; i++) {
+    int a = 0;
+    if (!typeAlignOf(l->fields[i].type, &a)) return false;
+    if (a > maxAlign) maxAlign = a;
+  }
+  *outAlign = maxAlign;
+  return true;
+}
+
+/* Ukuran representasi struct: jumlah ukuran field-nya DENGAN padding
+ * C-style (field diselaskan pada alignment-nya; total size dibulatkan
+ * ke kelipatan alignment terbesar). Field struct bertingkat dihitung
+ * rekursif; array-of-struct memakai representasi RuntimeArray. Return
+ * false bila ada field bertipe tak dikenal. Rekursi aman: forward
+ * reference ditolak saat deklarasi. */
 bool analyzerStructSizeOf(const char *name, int *outSize) {
   struct StructLayout *l = layoutFind(name);
   if (!l || !outSize) return false;
 
-  int total = 0;
+  int offset = 0;
+  int maxAlign = 1;
   for (int i = 0; i < l->count; i++) {
     const char *t = l->fields[i].type;
+    int align = 1;
+    if (!typeAlignOf(t, &align)) return false;
+    if (align > maxAlign) maxAlign = align;
+
+    offset = alignTo(offset, align);
     size_t length = t ? strlen(t) : 0;
     if (length >= 2 && t[length - 2] == '[' && t[length - 1] == ']') {
-      total += (int)sizeof(struct RuntimeArray); /* representasi array */
+      offset += (int)sizeof(struct RuntimeArray); /* representasi array */
       continue;
     }
     int s = scalarTypeSize(t);
@@ -337,18 +420,23 @@ bool analyzerStructSizeOf(const char *name, int *outSize) {
       if (!analyzerStructSizeOf(t, &nested)) return false;
       s = nested;
     }
-    total += s;
+    offset += s;
   }
-  *outSize = total;
+  /* Tail padding: total size kelipatan alignment terbesar (C). */
+  offset = alignTo(offset, maxAlign);
+  *outSize = offset;
   return true;
 }
 
 /* ===== Member access pada handle ptr (design/new_memory.txt, C3) =====
- * Layout = urut deklarasi, tanpa padding — konsisten dengan
- * analyzerStructSizeOf yang dipakai new/Contract untuk alokasi. */
+ * Layout C-style: field diselaskan pada alignment-nya, total size
+ * kelipatan alignment terbesar — identik dengan analyzerStructSizeOf
+ * yang dipakai new/Contract untuk alokasi. */
 
-/* Offset byte + tipe field dalam struct terdaftar. Return false bila
- * struct/field tidak ada. */
+/* Offset byte + tipe field dalam struct terdaftar — walk layout DENGAN
+ * padding C-style, identik dengan analyzerStructSizeOf (setiap field
+ * diselaskan dulu ke alignment-nya sebelum offset maju). Return false
+ * bila struct/field tidak ada. */
 bool analyzerFieldOffset(const char *structName, const char *fieldName, int *outOffset,
                          char *outType, size_t typeCapacity) {
   struct StructLayout *l = layoutFind(structName);
@@ -357,6 +445,10 @@ bool analyzerFieldOffset(const char *structName, const char *fieldName, int *out
   int offset = 0;
   for (int i = 0; i < l->count; i++) {
     const char *t = l->fields[i].type;
+    int align = 1;
+    if (!typeAlignOf(t, &align)) return false;
+    offset = alignTo(offset, align);
+
     if (!strcmp(l->fields[i].name, fieldName)) {
       if (outOffset) *outOffset = offset;
       if (outType && typeCapacity > 0) snprintf(outType, typeCapacity, "%s", t ? t : "");

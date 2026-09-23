@@ -143,7 +143,30 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
     if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
     /* this.get("key") / this.set({...}) — accessor generic pada this
      * (design/new_class.txt contoh). get: argumen nama field; set:
-     * object literal field yang ditulis. */
+     * object literal field yang ditulis. Instance new Object()
+     * (design/object.txt) menambah has/get/set/delete/update/json/text
+     * via objectMemberFn — pola yang sama: method ter-bind receiver. */
+    NativeFn objFn = objectIsInstance(obj.value) ? objectMemberFn(key) : NULL;
+    if (objFn) {
+      RuntimeValue method = valueNativeFunction(key, objFn, 1);
+      method.as.nativeFunc->hasReceiver = true;
+      method.as.nativeFunc->receiver = gcmall(sizeof(RuntimeValue));
+      if (method.as.nativeFunc->receiver) *method.as.nativeFunc->receiver = obj.value;
+      if (ast->member.object >= 0 && ast->member.object < node->length) {
+        AstNode *bo = &node->ast[ast->member.object];
+        const char *bn = bo->type == NODE_IDENTIFIER     ? bo->identifier.name
+                         : bo->type == NODE_LITERAL_ID ? bo->string.value
+                                                       : NULL;
+        if (bn) {
+          RuntimeValue probe = valueNull();
+          if (strcmp(bn, "this") == 0 || semGet(env, bn, &probe)) {
+            method.as.nativeFunc->bindingName = gcstrdup(bn);
+            method.as.nativeFunc->bindingEnv = env;
+          }
+        }
+      }
+      return resultNormal(method);
+    }
     if (key && (!strcmp(key, "get") || !strcmp(key, "set"))) {
       RuntimeValue method = valueNativeFunction(
           key, !strcmp(key, "get") ? stdObjectGet : stdObjectSet, 1);
@@ -242,6 +265,22 @@ InterpreterResult interpretMemberAssign(Node *node, AstNode *ast, RuntimeEnv *en
     }
 
     if (base.value.type == VALUE_OBJECT) {
+      /* Instance new Object() (design/object.txt): strict layout check
+       * + two-way sync ke ref via objectMemberWrite. */
+      if (objectIsInstance(base.value) && key) {
+        if (!objectMemberWrite(base.value, key, val.value, env, error))
+          return resultFlow(FLOW_ERROR, valueNull());
+        if (target->member.object >= 0 && target->member.object < node->length) {
+          AstNode *baseAst = &node->ast[target->member.object];
+          const char *baseName = baseAst->type == NODE_IDENTIFIER
+                                     ? baseAst->identifier.name
+                                     : baseAst->type == NODE_LITERAL_ID
+                                           ? baseAst->string.value
+                                           : NULL;
+          if (baseName) semSet(env, baseName, base.value);
+        }
+        return resultNormal(val.value);
+      }
       /* Enum object bersifat konstanta — tulis field ditolak. */
       RuntimeValue marker = valueNull();
       if (valueObjectGet(base.value, "__enum", &marker) &&

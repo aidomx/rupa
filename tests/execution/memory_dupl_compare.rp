@@ -24,9 +24,9 @@ assertEq(compare("rupa", "rupa"), 0)
 
 # compare(a, b, n) — memcmp pada blok mentah via block ops
 buf: number = new Contract(2)
-copypin(buf, "rupa", 4)
+ccpy(buf, "rupa", 4)
 assertEq(compare(buf, "rupa", 4), 0)
 
 # blok yang berbeda pada byte pertama tidak sama
-setpin(buf, 0, 8)
+cset(buf, 0, 8)
 assertEq(compare(buf, "rupa", 4) != 0, true)

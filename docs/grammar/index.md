@@ -96,4 +96,5 @@ muncul dalam satu AST karena grammar expression dapat dikomposisikan.
 ### Program
 - [Module](module.md) - Module import
 - [Annotation](annotation.md) - Type annotation
+- [Memory](memory.md) - Alokasi & free memori (new/del/Contract)
 - [Print](print.md) - Print statement

@@ -252,8 +252,9 @@ void valuePrint(RuntimeValue value) {
     bool first = true;
     putchar('{');
     for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
-      /* Skip hidden metadata: anchor implisit + _private + class registry. */
-      if (e->key && (e->key[0] == '\0' ||
+      /* Skip hidden metadata: anchor implisit + meta "__*" (instance
+       * new Object: __object/__type/__ref/__refname) + registry lama. */
+      if (e->key && (e->key[0] == '\0' || !strncmp(e->key, "__", 2) ||
                      strcmp(e->key, "_private") == 0 ||
                      strcmp(e->key, "_class") == 0 ||
                      strcmp(e->key, "_created") == 0))

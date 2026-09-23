@@ -59,17 +59,18 @@ void stdlibInit(RuntimeEnv *env);
 /* Initialize built-in functions (type, len, isNull, toNumber, toString) */
 void builtinsInit(RuntimeEnv *env);
 
-/* Initialize built-in functions (pin, elpin, repin, repins) */
+/* Initialize blok ops contract (ccpy, cmove, cset) */
 void rupaMemoryInit(RuntimeEnv *env);
 
 /* sizeof: ukuran representasi tipe (scalar/struct/array "T[]").
  * Return false bila tipe tidak dikenal. */
 bool rupaMemorySizeOf(const char *type, int *outSize);
 
-/* View type check pin family (design/rupa_memory_batch_1.txt): handle
- * dari pin/elpin dicek terhadap provenance sizeof(T) pada anotasinya.
- * Return false + error bila view type tidak cocok. */
-bool memoryPinViewCheck(Node *node, int valueId, const char *type, Error *error);
+/* View type check handle VALUE_PTR (registry v3 — design/new_memory.txt
+ * C4): tipe handle dari gcregtype dicocokkan ke type anotasi; handle
+ * tanpa tipe (dupl/dupin) hanya masuk "string"/"ptr". Return false +
+ * error bila view type tidak cocok. */
+bool memoryHandleTypeCheck(RuntimeValue value, const char *type, Error *error);
 
 /* ===== new/del — sistem memori type-driven (design/new_memory.txt) =====
  * memory.c — di-intercept di interpretCall/interpretSubscript:
@@ -84,6 +85,19 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
  * manajemen memori — class adalah object runtime, bukan blok memori. */
 InterpreterResult instanceNewCall(Node *node, AstNode *ast, RuntimeEnv *env,
                                   Error *error, bool *handled);
+/* object.c — new Object(ref?, init?) (design/object.txt): hook di
+ * interpretCall SEBELUM memory/instance hook (callee "new", arg pertama
+ * literal "Object"). Instance punya member has/get/set/delete/update/
+ * json/text; strict bila kontrak struct (stamp __type / ref distamp). */
+InterpreterResult objectNewCall(Node *node, AstNode *ast, RuntimeEnv *env,
+                                Error *error, bool *handled);
+InterpreterResult objectMemberCall(Node *node, AstNode *ast, RuntimeEnv *env,
+                                   Error *error, bool *handled);
+bool objectIsInstance(RuntimeValue obj);
+NativeFn objectMemberFn(const char *name);
+bool objectMemberWrite(RuntimeValue inst, const char *key, RuntimeValue val,
+                       RuntimeEnv *env, Error *error);
+
 /* input.c — sistem @input class (design/new_class.txt poin 5):
  * marker @input mengaktifkan main.input: Input; handler @input
  * mendeklarasikan strict field yang boleh diinput via input.get(). */

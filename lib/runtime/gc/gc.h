@@ -65,6 +65,16 @@ void gcsetelem(void *ptr, size_t count);
 const char *gcregtype(void *ptr);
 bool gcregsettype(void *ptr, const char *type);
 
+/* View handle (memory.c) — blok GC kecil {owner, offset} yang menunjuk
+ * ke dalam blok struct lain (field nested, elemen array-of-struct).
+ * Bukan mekanisme registry: view = item biasa bertipe struct tujuan,
+ * ditandai elems == GC_VIEW_MAGIC. gcfree me-NULL-kan owner view yang
+ * menunjuk blok yang dibebaskan. */
+#define GC_VIEW_MAGIC ((size_t)0x52505056) /* "RPPV" */
+
+void *gcregview(void *owner, size_t offset);
+void *gcregisview(void *addr);
+
 // Utility functions (gc_extra.c)
 char *gcstrdup(const char *str);
 char *gcstrndup(const char *str, size_t n);

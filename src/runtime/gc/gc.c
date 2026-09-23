@@ -123,6 +123,13 @@ void gcfree(void *ptr) {
         free(gc->types[i]);
         gc->types[i] = NULL;
       }
+      /* View handle yang menunjuk blok ini: owner-nya di-NULL-kan —
+       * akses lewat view setelahnya tertangkap guard (bukan UAF). */
+      for (int j = 0; j < gc->count; j++) {
+        if (gc->elems[j] == GC_VIEW_MAGIC && gc->items[j] &&
+            *(void **)gc->items[j] == ptr)
+          *(void **)gc->items[j] = NULL;
+      }
       memmove(&gc->items[i], &gc->items[i + 1], (gc->count - i - 1) * sizeof(void *));
       memmove(&gc->sizes[i], &gc->sizes[i + 1], (gc->count - i - 1) * sizeof(size_t));
       memmove(&gc->elems[i], &gc->elems[i + 1], (gc->count - i - 1) * sizeof(size_t));
@@ -156,6 +163,62 @@ void gcremove(void *ptr) {
     }
   }
   pthread_mutex_unlock(&gc->lock);
+}
+
+/* ===== View handle (memory.c) =====
+
+/* View = blok GC kecil (diregister normal): header {owner, offset}.
+ * Bukan mekanisme registry baru — view adalah item biasa dengan
+ * elems == GC_VIEW_MAGIC, sehingga gcclean/gcfree bekerja tanpa jalur
+ * khusus (gcfree me-NULL-kan owner view yang menunjuk blok yang
+ * dibebaskan → akses setelahnya tertangkap guard, bukan UAF). */
+void *gcregview(void *owner, size_t offset) {
+  if (!gc || !owner) return NULL;
+  pthread_mutex_lock(&gc->lock);
+  /* owner boleh sendiri view (nested: o.inner.x, arr[i].inner.y) —
+   * resolve rantai ke blok asli, offset dijumlahkan. */
+  for (int hop = 0; hop < 16; hop++) {
+    int oi = gcfind(owner);
+    if (oi < 0) {
+      pthread_mutex_unlock(&gc->lock);
+      return NULL;
+    }
+    if (gc->elems[oi] != GC_VIEW_MAGIC) break;
+    size_t vowner;
+    size_t voffset;
+    memcpy(&vowner, owner, sizeof(vowner));
+    memcpy(&voffset, (char *)owner + sizeof(vowner), sizeof(voffset));
+    if (!vowner) {
+      pthread_mutex_unlock(&gc->lock);
+      return NULL; /* view dangling (owner sudah di-free) */
+    }
+    owner = (void *)vowner;
+    offset = (size_t)voffset + offset;
+  }
+  if (gcfind(owner) < 0) {
+    pthread_mutex_unlock(&gc->lock);
+    return NULL;
+  }
+  pthread_mutex_unlock(&gc->lock);
+
+  /* Alokasi di luar lock: gcmall reentry ke registry dengan lock-nya
+   * sendiri. Header view: {owner, offset}. */
+  void **header = gcmall(2 * sizeof(void *));
+  if (!header) return NULL;
+  header[0] = owner;
+  header[1] = (void *)offset;
+  gcsetelem(header, GC_VIEW_MAGIC); /* marker view — bukan count elemen */
+  return (void *)header;
+}
+
+/* addr view handle? Return blok pemiliknya (NULL bila addr bukan view
+ * / view dangling). */
+void *gcregisview(void *addr) {
+  if (!gc || !addr || gcfind(addr) < 0) return NULL;
+  if (gcelem(addr) != GC_VIEW_MAGIC) return NULL;
+  void *owner = NULL;
+  memcpy(&owner, addr, sizeof(owner));
+  return owner;
 }
 
 /* ===== Registry v3: nama tipe elemen ===== */

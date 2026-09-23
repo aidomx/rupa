@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <math.h>
 
 /* ==================== type(value) ==================== */
 /* Returns the type name of a value as a string */

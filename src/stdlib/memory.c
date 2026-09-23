@@ -164,11 +164,17 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
 
 /* ==================== del ==================== */
 
-/* del(handle) — satu handle; return null. Guard: ptr milik GC. */
+/* del(handle) — satu handle; return null. Guard: ptr milik GC;
+ * view handle ditolak (kepemilikan ada di blok owner). */
 static InterpreterResult delHandle(RuntimeValue v, Error *error) {
   if (v.type != VALUE_PTR || !v.as.ptr) {
     addRuntimeError(error, ERR_TYPE_MISMATCH, "del(x)",
                     "expects a ptr (GC-owned)");
+    return resultFlow(FLOW_ERROR, valueNull());
+  }
+  if (gcregisview(v.as.ptr)) {
+    addRuntimeError(error, ERR_MEMORY, "del(x)",
+                    "handle is a view into a struct block — delete the owner instead");
     return resultFlow(FLOW_ERROR, valueNull());
   }
   if (gcfind(v.as.ptr) < 0) {
@@ -259,6 +265,25 @@ static bool memoryPtrAccess(void *ptr, RuntimeValue idx, bool isWrite, RuntimeVa
     }
     *fatal = true;
     return false;
+  }
+
+  /* Blok struct (C-B3): baca elemen ke-i → view handle; field diakses
+   * per elemen lewat member access (arr[i].x). Tulis seluruh elemen
+   * tetap dijalur lama (ditolak eksplisit untuk layout-mixed). */
+  if (!isWrite) {
+    const char *stype = gcregtype(ptr);
+    if (stype && analyzerFindStruct(stype) && elemBytes > 0) {
+      void *view = gcregview(ptr, (size_t)i * elemBytes);
+      if (!view || !gcregsettype(view, stype)) {
+        if (error)
+          addRuntimeError(error, ERR_MEMORY, "x[i]",
+                          "cannot create element view (out of memory)");
+        *fatal = true;
+        return false;
+      }
+      if (out) *out = valuePtr(view);
+      return true;
+    }
   }
 
   char *dest = (char *)ptr + (size_t)i * elemBytes;
@@ -395,9 +420,9 @@ InterpreterResult memoryIndexSet(Node *node, int targetId, int indexId,
 
 /* ==================== member access struct (C3) ==================== */
 
-/* Baca field struct pada handle ptr: offset dari layout analyzer,
- * decode sesuai tipe field (number/decimal/boolean/byte). string/array/
- * struct-field dikonversi jadi VALUE_OBJECT snapshot read-only. */
+/* Baca field struct pada handle ptr: offset dari layout analyzer
+ * (C-style: field diselaskan pada alignment-nya), decode sesuai tipe
+ * field. string/array = slot/snapshot; struct bertingkat = view handle. */
 static bool memberFieldRead(void *ptr, const char *structType, const char *field,
                             RuntimeValue *out, Error *error) {
   int offset = 0;
@@ -437,8 +462,23 @@ static bool memberFieldRead(void *ptr, const char *structType, const char *field
     return true;
   }
 
-  /* Kompleks lain (ptr/array/struct-field): buffer scalar hanya
-   * menyimpan byte mentah; konversi jadi object snapshot read-only. */
+  /* Struct bertingkat (C-B2): field struct → view handle ke posisi
+   * field — member access berikutnya (field/elemen) bekerja di atas
+   * view; kepemilikan tetap di blok owner. View bertipe struct tujuan
+   * sehingga bisa di-assign ke variable beranotasi. */
+  if (analyzerFindStruct(ftype)) {
+    void *view = gcregview(ptr, (size_t)offset);
+    if (!view || !gcregsettype(view, ftype)) {
+      addRuntimeError(error, ERR_MEMORY, structType,
+                      "cannot create field view (out of memory)");
+      return false;
+    }
+    *out = valuePtr(view);
+    return true;
+  }
+
+  /* Kompleks lain (ptr/array): buffer scalar hanya menyimpan byte
+   * mentah; konversi jadi object snapshot read-only. */
   size_t bytes = gcsize(ptr);
   size_t count = gcelem(ptr);
   size_t elems = count > 0 ? count : (bytes > 0 ? 1 : 0);
@@ -507,6 +547,24 @@ static bool memberFieldWrite(void *ptr, const char *structType, const char *fiel
     goto typefail;
   }
 
+  /* Struct bertingkat (C-B2): RHS blok/view struct lain → copy byte
+   * sebanyak sizeof(ftype) — semantik struct assignment C. */
+  if (analyzerFindStruct(ftype)) {
+    if (val.type == VALUE_PTR && val.as.ptr &&
+        (gcfind(val.as.ptr) >= 0 || gcregisview(val.as.ptr))) {
+      int srcSize = 0;
+      if (analyzerStructSizeOf(ftype, &srcSize) && srcSize > 0) {
+        memcpy(dest, val.as.ptr, (size_t)srcSize);
+        return true;
+      }
+    }
+    char message[512];
+    snprintf(message, sizeof(message),
+             "field '%s' expects a struct handle/view of '%s'", field, ftype);
+    addRuntimeError(error, ERR_TYPE_MISMATCH, ftype, message);
+    return false;
+  }
+
 typefail:
   {
     char message[512];
@@ -518,24 +576,42 @@ typefail:
   }
 }
 
-/* Helper shared interpreter+IR: resolve structType handle (registry v3),
- * dispatch get/set. Return false (fatal=false) bila handle bukan struct
- * — jalur lama lanjut. */
+/* Helper shared interpreter+IR: resolve structType handle (registry v3
+ * + view), dispatch get/set. View handle (blok header {owner, offset}):
+ * tipe dari view sendiri, akses byte di owner + viewOffset. Return
+ * false (fatal=false) bila handle bukan struct — jalur lama lanjut. */
 static bool structMemberAccess(void *ptr, const char *field, bool isWrite, RuntimeValue val,
                                RuntimeValue *out, Error *error, bool *fatal) {
   *fatal = false;
+  void *target = ptr;
   const char *stype = gcregtype(ptr);
+  if (gcelem(ptr) == GC_VIEW_MAGIC) {
+    /* View: {owner, offset} di header; data struct ada di owner+offset. */
+    void *owner = NULL;
+    size_t voff = 0;
+    memcpy(&owner, ptr, sizeof(owner));
+    memcpy(&voff, (char *)ptr + sizeof(owner), sizeof(voff));
+    if (!owner) {
+      if (error)
+        addRuntimeError(error, ERR_MEMORY, isWrite ? "obj.f = v" : "obj.f",
+                        "view handle is dangling — owner block was deleted");
+      *fatal = true;
+      return false;
+    }
+    target = (char *)owner + voff;
+    if (!stype) stype = gcregtype(owner); /* fallback: tipe owner */
+  }
   if (!stype || !analyzerFindStruct(stype))
     return false; /* bukan struct handle — jalur lama */
   if (isWrite) {
-    if (!memberFieldWrite(ptr, stype, field, val, error)) {
+    if (!memberFieldWrite(target, stype, field, val, error)) {
       *fatal = true;
       return false;
     }
     if (out) *out = val;
     return true;
   }
-  if (!memberFieldRead(ptr, stype, field, out, error)) {
+  if (!memberFieldRead(target, stype, field, out, error)) {
     *fatal = true;
     return false;
   }

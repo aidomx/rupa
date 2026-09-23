@@ -1,0 +1,73 @@
+# Struct layout C-style + nested struct + array of struct
+# (design C-A/C-B: padding alignment, view handle field/elemen)
+
+# padding: boolean (1 byte) diselaskan ke alignment sebelum number (8)
+Mixed {
+  tag: boolean
+  score: number
+}
+assertEq(sizeof(Mixed), 16)
+
+# dua boolean menempati satu unit alignment
+Pad2 {
+  a: boolean
+  b: boolean
+  c: number
+}
+assertEq(sizeof(Pad2), 16)
+
+# nested struct by value — layout inline
+Inner { x: number }
+Outer {
+  inner: Inner
+  y: number
+}
+assertEq(sizeof(Inner), 8)
+assertEq(sizeof(Outer), 16)
+
+o: Outer = new Contract()
+o.y = 7
+assertEq(o.y, 7)
+o.inner.x = 42
+assertEq(o.inner.x, 42)
+
+# nested tiga tingkat
+Deep { k: number }
+Mid {
+  deep: Deep
+  m: number
+}
+Top {
+  mid: Mid
+  t: number
+}
+assertEq(sizeof(Top), 24)
+
+u: Top = new Contract()
+u.mid.m = 1
+u.mid.deep.k = 77
+assertEq(u.mid.m, 1)
+assertEq(u.mid.deep.k, 77)
+
+# array of struct: elemen via view handle, akses field per elemen
+Point {
+  x: number
+  y: number
+}
+arr: Point = new Contract(4)
+assertEq(sizeof(arr), 64)
+arr[0].x = 5
+arr[1].x = 8
+assertEq(arr[0].x, 5)
+assertEq(arr[1].x, 8)
+assertEq(arr[3].x, 0)
+
+# salin field antar instance — b.x tak menyentuh a
+a: Point = new Contract()
+a.x = 3
+a.y = 4
+b: Point = new Contract()
+b.x = a.x
+b.y = a.y
+b.x = 9
+assertEq(a.x, 3)

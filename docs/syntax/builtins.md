@@ -133,8 +133,35 @@ print(data.age)          // 30
 data.ghost = 1          // TypeError: unknown field
 ```
 
-Field kompleks (`array/struct`) pada buffer scalar menghasilkan
-snapshot object read-only — buffer menyimpan byte mentah, bukan char*.
+**Nested struct & array of struct** — field struct bertingkat diakses
+sebagai view handle ke posisi field-nya (kepemilikan tetap di blok
+owner), jadi rantai member bekerja penuh. Elemen array-of-struct juga
+view — akses field per elemen:
+
+```rupa
+Inner { x: number }
+Outer {
+    inner: Inner
+    y: number
+}
+
+o: Outer = new Contract()
+o.inner.x = 42
+print(o.inner.x)         // 42
+
+Point {
+    x: number
+    y: number
+}
+arr: Point = new Contract(4)
+arr[0].x = 5
+print(arr[1].x)          // 0 — elemen lain tak tersentuh
+```
+
+Layout struct mengikuti C: field diselaskan pada alignment-nya
+(`sizeof(Mixed)` dengan `boolean` + `number` = 16), total size kelipatan
+alignment terbesar. `del` pada view handle ditolak — hapus blok ownernya.
+
 Indexing elemen tetap tersedia: `data[0]`, dan handle nested
 (`p2: Point = new Contract()`; `p2.x + p2.y`) bekerja penuh.
 
@@ -175,12 +202,12 @@ del(a, b)               // variadic
 del([a, b])             // dari array
 ```
 
-| Bentuk | Semantik | Padanan pin era |
-|--------|----------|-----------------|
-| `new T()` | 1 elemen, zeroed | elpin(1, sizeof(T)) |
-| `new T(n)` | n elemen, zeroed | elpin(n, sizeof(T)) |
-| `new T(src, n)` | realloc ke n elemen | repin(src, n·sizeof(T)) |
-| `del(x, ...)` / `del([x, y])` | free variadic / dari array | gcfree |
+| Bentuk | Semantik |
+|--------|----------|
+| `new T()` | 1 elemen, zeroed |
+| `new T(n)` | n elemen, zeroed |
+| `new T(src, n)` | realloc ke n elemen — handle lama dangling |
+| `del(x, ...)` / `del([x, y])` | free variadic / dari array |
 
 **Kapitalisasi**: `new Number()`, bukan `new number()` — `new number()`
 bentrok dengan penanda tipe `x: number`. Bentuk kapital berlaku untuk
@@ -205,92 +232,47 @@ umur variable.
 `MemoryError` + eksekusi berhenti. `sizeof(p)` pada handle
 mengembalikan ukuran blok terdaftar (12 untuk `new Number(3)`).
 
-## pin family — sistem memori (GC-tracked)
+## pin family — DIHAPUS (legacy)
 
-Keluarga alokasi memori yang terdaftar di registry GC. Global — tanpa
-import.
+`pin`, `elpin`, `repin`, `repins`, dan `unpin` sudah dihapus dari
+runtime — memanggilnya → `TypeError`.
 
-```rupa
-p: ptr = pin(sizeof(number))      // malloc + register (tak diinisialisasi)
-a: number[] = elpin(4, sizeof(number))  // calloc + register (zeroed)
-p = repin(p, 64)                  // realloc — registry mengikuti
-p = repins(p, 8, sizeof(number))  // reallocarray — NULL jika overflow
-```
+Penggantinya di halaman ini: [`new/del`](#new-del-alokasi-type-driven-gc-tracked)
+dan [`new Contract()`](#new-contract-anotasi-sebagai-spesifikasi-alokasi)
+— satu pintu alokasi type-driven dengan view check otomatis dari
+registry (tanpa `sizeof` di setiap site).
 
-| Fungsi | Padanan C | Catatan |
-|--------|-----------|---------|
-| `pin(size)` | malloc | mengembalikan null jika gagal |
-| `elpin(count, size)` | calloc | memori di-nol-kan |
-| `repin(ptr, size)` | realloc | pointer lama tidak valid setelah call — selalu reassign |
-| `repins(ptr, count, size)` | reallocarray | tolak jika `count * size` overflow |
+## Operasi blok & string — di atas handle Contract
 
-**View type check** — anotasi menentukan cara handle dibaca (per TYPE,
-bukan per byte):
+Operasi blok bekerja pada handle Contract yang sudah ada (posisi tulis
+wajib ptr milik GC; posisi baca menerima ptr GC **atau** string biasa).
+`dupl` mengalokasikan blok string baru yang terdaftar di GC.
 
 ```rupa
-x: number = pin(sizeof(number))   // OK
-y: number = pin(sizeof(string))   // TypeError: number vs string
-z: number = pin(64)               // TypeError: generic ptr (tanpa sizeof)
-w: ptr    = pin(64)               // OK — ptr = handle generik
-q: number = repin(x, 32)          // OK — inherit provenance
-```
-
-Pointer yang tidak dimiliki GC ditolak oleh repin/repins (`MemoryError`).
-Cek kegagalan alokasi dengan `p == null`.
-
-## Operasi blok & alokasi string (GC-tracked)
-
-Operasi blok bekerja pada memori yang sudah ada (posisi tulis wajib
-ptr milik GC; posisi baca menerima ptr GC **atau** string biasa).
-Alokasi string menghasilkan ptr baru yang terdaftar di GC.
-
-```rupa
-p = elpin(8, sizeof(number))
-setpin(p, 0, 32)                // memset — clear buffer
-q = copypin(p, "rupa", 5)       // memcpy — string sebagai sumber baca
+p = new Contract(8)             // 8 elemen number, zeroed
+cset(p, 0, 64)                  // memset — clear buffer
+q = ccpy(p, "rupa", 5)          // memcpy — string sebagai sumber baca
 q == p                          // true — return dest
 
-movepin(a, b, 8)                // memmove — aman overlap
-pincmp(a, b, 8)                 // memcmp — < 0 / 0 / > 0
+cmove(p, src, 16)               // memmove — aman overlap
+compare(p, other, 16)           // memcmp — < 0 / 0 / > 0
 
-d = dupin("hello")              // strdup — ptr baru terdaftar GC
-m = maxdupin("hello world", 5)  // strndup — maksimal 5 char, NUL-terminated
-
-s = dupl("hello")               // dupin baru — nama pendek, satu nama dua arity
-t = dupl("hello world", 5)      // strndup baru — maksimal 5 char
-compare(s, "hello")             // pincmp baru — 0 jika sama, dua arity
+s = dupl("hello")               // strdup ke blok string GC-tracked
+t = dupl("hello world", 5)      // strndup — maksimal 5 char
+compare(s, "hello")             // 0 jika sama — dua arity
 ```
 
 | Fungsi | Padanan C | Return |
 |--------|-----------|--------|
-| `copypin(dest, src, n)` | memcpy | `dest` (chainable) |
-| `movepin(dest, src, n)` | memmove (aman overlap) | `dest` (chainable) |
-| `setpin(ptr, value, n)` | memset | `ptr` (chainable) |
-| `pincmp(a, b, n)` | memcmp | number (< 0 / 0 / > 0) |
-| `dupin(str)` | strdup | ptr (GC-tracked) |
-| `maxdupin(str, n)` | strndup | ptr — selalu NUL-terminated (n + 1 byte) |
-| `unpin(ptr)` | free | statement-style: `unpin(p)`, tanpa assignment |
+| `ccpy(dest, src, n)` | memcpy | `dest` (chainable) |
+| `cmove(dest, src, n)` | memmove (aman overlap) | `dest` (chainable) |
+| `cset(ptr, value, n)` | memset | `ptr` (chainable) |
 | `dupl(str)` / `dupl(str, n)` | strdup / strndup | ptr (GC-tracked) |
 | `compare(a, b)` / `compare(a, b, n)` | memcmp | number (< 0 / 0 / > 0) |
 
-`dupl`/`compare` adalah nama baru untuk `dupin`/`maxdupin`/`pincmp` —
-satu nama, dispatch by arity. Nama lama masih berfungsi.
-
 **Guard** — menulis ke pointer yang bukan milik GC → `MemoryError`
-(dan menghentikan eksekusi). `pincmp` boleh membandingkan dua string
+(dan menghentikan eksekusi). `compare` boleh membandingkan dua string
 biasa karena read-only.
 
-`unpin(p)` membebaskan blok lebih awal (setara `free`) — registry
-menghapus alamat sehingga double-free tertangkap sebagai `MemoryError`.
-Kebutuhan utama tetap `gcclean` di akhir program; `unpin` ada untuk
-berjaga-jaga saat blok besar perlu dirilis sebelum selesai dipakai.
-Handle lama menjadi dangling setelah `unpin` — jangan dipakai lagi.
-
 Catatan: `sizeof` menerima nama tipe — dan sejak registry v2 juga
-*handle* (`sizeof(p)` → ukuran blok terdaftar). `setpin` versi lama di
-design pointer (`setpin(s, len, size)`) sudah digantikan bentuk memset
-`(dst, byte, n)` ini.
-
-> pin/elpin/repin/repins kini **deprecated by design** — gunakan
-> `new/del` (lapisan type-driven di atas). Block ops & dup family tetap
-> sebagai lapisan byte rendah di atas handle.
+*handle* (`sizeof(p)` → ukuran blok terdaftar).

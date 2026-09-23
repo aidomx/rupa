@@ -1,19 +1,14 @@
 #include <rupa.h>
 
-/* rupamemory.c — sistem memori rupa (global, tanpa import).
+/* rupamemory.c — operasi memori rupa (global, tanpa import).
  *
- * sizeof(name)  — ukuran representasi tipe (scalar/struct/array).
- *                 Argumennya nama tipe, bukan value, jadi di-intercept
- *                 di interpretCall (pola push/pop) dan diteruskan ke
- *                 rupaMemorySizeOf.
- * pin/elpin/repin/repins — keluarga alokasi GC-tracked (lihat
- *                 design/rupa_memory_batch_1.txt):
- *                   pin    -> gcmall
- *                   elpin  -> gccalloc
- *                   repin  -> gcrealloc
- *                   repins -> gcarray (semantik reallocarray)
- *                 Handle VALUE_PTR opaque: disimpan, dibandingkan
- *                 (== null), dan dilempar kembali ke repin/repins.
+ * SUNSET pin/elpin/repin/repins (design/new_memory.txt keputusan #4:
+ * Replace + deprecated; design/str_memory.txt — "new Contract() sudah
+ * sangat cocok"): satu-satunya API alokasi kini new/del/Contract
+ * (src/stdlib/memory.c). File ini kini hanya menampung OPERASI BLOK
+ * (batch 2): cset/cmove/ccpy (lapisan rendah di atas
+ * handle Contract) + dup family (dupl; dupin/maxdupin masih berfungsi
+ * tapi TIDAK di-expose di docs).
  */
 
 /* ==================== sizeof ==================== */
@@ -66,121 +61,7 @@ bool rupaMemorySizeOf(const char *type, int *outSize) {
     return true;
   }
   return false;
-}
-
-/* ==================== pin family ==================== */
-
-static InterpreterResult builtinPin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
-  (void)env;
-  if (argc < 1 || argv[0].type != VALUE_NUMBER) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "TypeError",
-                                  .message = "pin(size) expects a number",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_TYPE_MISMATCH});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  void *handle = gcmall((size_t)argv[0].as.number);
-  return resultNormal(valuePtr(handle));
-}
-
-static InterpreterResult builtinElpin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
-  (void)env;
-  if (argc < 2 || argv[0].type != VALUE_NUMBER || argv[1].type != VALUE_NUMBER) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "TypeError",
-                                  .message = "elpin(count, size) expects numbers",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_TYPE_MISMATCH});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  void *handle = gccalloc((size_t)argv[0].as.number, (size_t)argv[1].as.number);
-  return resultNormal(valuePtr(handle));
-}
-
-static InterpreterResult builtinRepin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
-  (void)env;
-  if (argc < 2 || (argv[0].type != VALUE_PTR && argv[0].type != VALUE_NULL) ||
-      argv[1].type != VALUE_NUMBER) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "TypeError",
-                                  .message = "repin(ptr, size) expects (ptr, number)",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_TYPE_MISMATCH});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  if (argv[0].type == VALUE_PTR && argv[0].as.ptr && gcfind(argv[0].as.ptr) < 0) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "MemoryError",
-                                  .message = "repin: pointer not owned by GC",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_INTERNAL});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  void *handle = gcrealloc(argv[0].as.ptr, (size_t)argv[1].as.number);
-  return resultNormal(valuePtr(handle));
-}
-
-static InterpreterResult builtinRepins(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                       Error *error) {
-  (void)env;
-  if (argc < 3 || (argv[0].type != VALUE_PTR && argv[0].type != VALUE_NULL) ||
-      argv[1].type != VALUE_NUMBER || argv[2].type != VALUE_NUMBER) {
-    if (error)
-      addError(error,
-               (ErrorInfo){.code = "TypeError",
-                           .message = "repins(ptr, count, size) expects (ptr, number, number)",
-                           .line = 0,
-                           .row = 0,
-                           .type = ERR_TYPE_MISMATCH});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  if (argv[0].type == VALUE_PTR && argv[0].as.ptr && gcfind(argv[0].as.ptr) < 0) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "MemoryError",
-                                  .message = "repins: pointer not owned by GC",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_INTERNAL});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  void *handle = gcarray(argv[0].as.ptr, (size_t)argv[1].as.number, (size_t)argv[2].as.number);
-  return resultNormal(valuePtr(handle));
-}
-
-/* unpin(ptr) — free eksplisit, setara free/gcfree. Statement-style:
- * unpin(p), tanpa assignment. Registry menghapus alamat sehingga
- * double-free dan unpin pada ptr yang sudah dibebaskan tertangkap
- * ("not owned by GC"). Alokasi bertahan tetap dirilis gcclean. */
-static InterpreterResult builtinUnpin(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
-  (void)env;
-  if (argc < 1 || argv[0].type != VALUE_PTR || !argv[0].as.ptr) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "TypeError",
-                                  .message = "unpin(ptr) expects a ptr",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_TYPE_MISMATCH});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  if (gcfind(argv[0].as.ptr) < 0) {
-    if (error)
-      addError(error, (ErrorInfo){.code = "MemoryError",
-                                  .message = "unpin: pointer not owned by GC",
-                                  .line = 0,
-                                  .row = 0,
-                                  .type = ERR_MEMORY});
-    return resultFlow(FLOW_ERROR, valueNull());
-  }
-  gcfree(argv[0].as.ptr);
-  return resultNormal(valueNull());
-}
-
-/* ==================== view type check ==================== */
+}/* ==================== view type check handle ==================== */
 
 /* Nama tipe dari argumen sizeof: identifier/literal, bentuk ekspresi
  * `T[]` (NODE_SUBSCRIPT kosong di konteks ekspresi), atau NODE_ARRAY_TYPE. */
@@ -207,65 +88,42 @@ static bool typeArgName(Node *node, int id, char *buffer, size_t capacity) {
   return formatAstTypeName(node, id, buffer, capacity);
 }
 
-/* Pin family: view type check (design/rupa_memory_batch_1.txt).
- * Handle dari pin/elpin dicek terhadap tipe anotasi lewat provenance
- * sizeof: p: number = pin(sizeof(number)) OK; pin(sizeof(string))
- * ditolak (dicek per TYPE, bukan per byte); annotation `T[]` dicocokkan
- * ke elemen-nya. Handle dari repin/repins inherit provenance lama.
- * pin tanpa sizeof = generic: hanya type "ptr" yang menerima.
- * Return true bila value bukan pin/elpin (bukan urusan check ini). */
-bool memoryPinViewCheck(Node *node, int valueId, const char *type, Error *error) {
-  if (!node || valueId < 0 || valueId >= node->length) return true;
-  AstNode *call = &node->ast[valueId];
-  if (call->type != NODE_CALL || call->call.length < 1) return true;
+/* View type check handle VALUE_PTR — SEKARANG berbasis registry v3
+ * (design/new_memory.txt C4: "view check jadi lookup; provenance sizeof
+ * pin jadi legacy"). Tipe handle tercatat saat alokasi:
+ *   - new T() / Contract: gcregsettype(handle, T) — lookup langsung
+ *   - dupl/dupin: ptr TANPA tipe — sesuai design string-slot, hanya
+ *     boleh masuk variable bertipe "ptr" atau "string" (handle slot
+ *     read/write-through sebagai string).
+ * Return true bila value bukan handle GC (bukan urusan check ini). */
+bool memoryHandleTypeCheck(RuntimeValue value, const char *type, Error *error) {
+  if (!type || !*type) return true;
 
-  AstNode *callee = &node->ast[call->call.callee];
-  const char *fn = callee->type == NODE_IDENTIFIER   ? callee->identifier.name
-                   : callee->type == NODE_LITERAL_ID ? callee->string.value
-                                                     : NULL;
-  /* repin/repins: handle inherit provenance dari pointer lama. */
-  if (!fn || (strcmp(fn, "pin") && strcmp(fn, "elpin"))) return true;
+  if (value.type != VALUE_PTR || !value.as.ptr) return true;
 
-  /* Provenance: sizeof(T) di salah satu argumen pin/elpin
-   * (pin: args[0]; elpin: args[1]). */
-  char provenance[256];
-  bool has = false;
-  for (int i = 0; i < call->call.length && !has; i++) {
-    AstNode *arg = &node->ast[call->call.args[i]];
-    if (arg->type != NODE_CALL || arg->call.length != 1) continue;
-    AstNode *inner = &node->ast[arg->call.callee];
-    const char *innerFn = inner->type == NODE_IDENTIFIER   ? inner->identifier.name
-                          : inner->type == NODE_LITERAL_ID ? inner->string.value
-                                                           : NULL;
-    if (innerFn && !strcmp(innerFn, "sizeof"))
-      has = typeArgName(node, arg->call.args[0], provenance, sizeof(provenance));
-  }
-
-  if (!has) {
-    if (type && !strcmp(type, "ptr")) return true;
-    if (error)
-      addRuntimeError(error, ERR_TYPE_MISMATCH, type ? type : "ptr",
-                      "pin without sizeof produces a generic ptr");
-    return false;
-  }
-
-  /* Annotation "ptr" = handle generik: menerima pin apa pun. */
-  if (type && !strcmp(type, "ptr")) return true;
-
-  /* Annotation bentuk elemen `T[]`: bandingkan elemen-nya. */
-  const char *expected = type;
-  char element[256];
-  if (type) {
+  const char *have = gcregtype(value.as.ptr);
+  if (have) {
+    /* Anotasi bentuk elemen `T[]`: cocokkan elemen-nya (raw block). */
+    const char *expected = type;
+    char element[256];
     size_t len = strlen(type);
     if (len >= 2 && !strcmp(type + len - 2, "[]") && len - 2 < sizeof(element)) {
       memcpy(element, type, len - 2);
       element[len - 2] = '\0';
       expected = element;
     }
+    if (!strcmp(expected, have) || !strcmp(expected, "ptr")) return true;
+    if (error)
+      addRuntimeError(error, ERR_TYPE_MISMATCH, type, have);
+    return false;
   }
 
-  if (!expected || !strcmp(expected, provenance)) return true;
-  if (error) addRuntimeError(error, ERR_TYPE_MISMATCH, type, provenance);
+  /* Handle tanpa tipe (dupl/dupin): design str_memory.txt — slot string
+   * transparan; masuk variable "string"/"ptr" OK, selain itu tolak. */
+  if (!strcmp(type, "string") || !strcmp(type, "ptr")) return true;
+  if (error)
+    addRuntimeError(error, ERR_TYPE_MISMATCH, type,
+                    "untyped string handle (dupl) — use new Contract() for typed buffers");
   return false;
 }
 
@@ -318,43 +176,46 @@ static int memArgSize(RuntimeValue v, const char *fn, Error *error) {
   return v.as.number;
 }
 
-/* copypin(dest, src, n) — memcpy; return dest. */
-static InterpreterResult builtinCopypin(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                        Error *error) {
+/* ccpy(dest, src, n) — memcpy pada handle; return dest.
+ * (dulu copypin — rename ke identitas contract, momen registry v3.) */
+static InterpreterResult builtinCcpy(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                     Error *error) {
   (void)env;
   const void *src = NULL;
   const void *dest = NULL;
-  if (argc < 3 || !memArgRead(argv[0], true, "copypin", error, &dest) ||
-      !memArgRead(argv[1], false, "copypin", error, &src) ||
-      memArgSize(argv[2], "copypin", error) < 0)
+  if (argc < 3 || !memArgRead(argv[0], true, "ccpy", error, &dest) ||
+      !memArgRead(argv[1], false, "ccpy", error, &src) ||
+      memArgSize(argv[2], "ccpy", error) < 0)
     return resultFlow(FLOW_ERROR, valueNull());
   size_t n = (size_t)argv[2].as.number;
   gccpy((void *)dest, src, n);
   return resultNormal(valuePtr((void *)dest));
 }
 
-/* movepin(dest, src, n) — memmove (aman overlap); return dest. */
-static InterpreterResult builtinMovepin(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                        Error *error) {
+/* cmove(dest, src, n) — memmove (aman overlap); return dest.
+ * (dulu movepin.) */
+static InterpreterResult builtinCmove(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                      Error *error) {
   (void)env;
   const void *src = NULL;
   const void *dest = NULL;
-  if (argc < 3 || !memArgRead(argv[0], true, "movepin", error, &dest) ||
-      !memArgRead(argv[1], false, "movepin", error, &src) ||
-      memArgSize(argv[2], "movepin", error) < 0)
+  if (argc < 3 || !memArgRead(argv[0], true, "cmove", error, &dest) ||
+      !memArgRead(argv[1], false, "cmove", error, &src) ||
+      memArgSize(argv[2], "cmove", error) < 0)
     return resultFlow(FLOW_ERROR, valueNull());
   size_t n = (size_t)argv[2].as.number;
   gcmove((void *)dest, src, n);
   return resultNormal(valuePtr((void *)dest));
 }
 
-/* setpin(ptr, value, n) — memset; return ptr. */
-static InterpreterResult builtinSetpin(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                       Error *error) {
+/* cset(ptr, value, n) — memset pada handle; return ptr.
+ * (dulu setpin.) */
+static InterpreterResult builtinCset(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                     Error *error) {
   (void)env;
   const void *ptr = NULL;
-  if (argc < 3 || !memArgRead(argv[0], true, "setpin", error, &ptr) ||
-      argv[1].type != VALUE_NUMBER || memArgSize(argv[2], "setpin", error) < 0)
+  if (argc < 3 || !memArgRead(argv[0], true, "cset", error, &ptr) ||
+      argv[1].type != VALUE_NUMBER || memArgSize(argv[2], "cset", error) < 0)
     return resultFlow(FLOW_ERROR, valueNull());
   size_t n = (size_t)argv[2].as.number;
   gcset((void *)ptr, (int)argv[1].as.number, n);
@@ -410,18 +271,13 @@ static InterpreterResult builtinMaxdupin(int argc, RuntimeValue *argv, RuntimeEn
   return resultNormal(valuePtr(copy));
 }
 
-/* Register rupa memory builtins (pin family) — global, tanpa import. */
+/* Register blok ops — global, tanpa import. Nama contract:
+ * cset/cmove/ccpy (dulu setpin/movepin/copypin). */
 void rupaMemoryInit(RuntimeEnv *env) {
   if (!env) return;
-  semSet(env, "pin", valueNativeFunction("pin", builtinPin, 1));
-  semSet(env, "elpin", valueNativeFunction("elpin", builtinElpin, 2));
-  semSet(env, "repin", valueNativeFunction("repin", builtinRepin, 2));
-  semSet(env, "repins", valueNativeFunction("repins", builtinRepins, 3));
-  semSet(env, "unpin", valueNativeFunction("unpin", builtinUnpin, 1));
-  // operasi blok (batch 2)
-  semSet(env, "copypin", valueNativeFunction("copypin", builtinCopypin, 3));
-  semSet(env, "movepin", valueNativeFunction("movepin", builtinMovepin, 3));
-  semSet(env, "setpin", valueNativeFunction("setpin", builtinSetpin, 3));
+  semSet(env, "ccpy", valueNativeFunction("ccpy", builtinCcpy, 3));
+  semSet(env, "cmove", valueNativeFunction("cmove", builtinCmove, 3));
+  semSet(env, "cset", valueNativeFunction("cset", builtinCset, 3));
   semSet(env, "pincmp", valueNativeFunction("pincmp", builtinPincmp, 3));
   // alokasi string (batch 2)
   semSet(env, "dupin", valueNativeFunction("dupin", builtinDupin, 1));

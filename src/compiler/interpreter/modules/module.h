@@ -14,6 +14,10 @@ const char *getSourceFilePath(void);
 struct EventLoop *getEventLoop(void);
 
 /* ---- Module loading (defined in loader.c) ---- */
+/* loadModuleFileError: sama dengan loadModuleFile, plus propagasi
+ * ModuleError (mis. circular import) ke `error` bila non-NULL.
+ * loadModuleFile adalah wrapper kompat (error = NULL). */
+RuntimeValue loadModuleFileError(const char *module_path, bool require_export, Error *error);
 RuntimeValue loadModuleFile(const char *module_path, bool require_export);
 bool hasDotSlash(const char *path);
 

@@ -1,6 +1,6 @@
 #include <rupa.h>
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/md5.h>

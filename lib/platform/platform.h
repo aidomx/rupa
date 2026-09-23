@@ -19,6 +19,10 @@
 #define RUPA_UNLINK(path) _unlink(path)
 #define RUPA_RENAME(old, new) rename(old, new)
 #define RUPA_IS_PATH_SEP(c) ((c) == '/' || (c) == '\\')
+/* Path kanonik (resolusi symlink & '..') untuk deteksi circular import.
+ * Return buffer ter-alokasi atau NULL; caller yang membebaskan.
+ * GNU-specific resolvepath() dihindari demi portability MinGW/clang. */
+#define RUPA_REALPATH(path) _fullpath(NULL, (path), 0)
 #else
 #define RUPA_SLEEP(ms) usleep((ms) * 1000)
 #define RUPA_GETCWD(buf, size) getcwd(buf, size)
@@ -26,4 +30,8 @@
 #define RUPA_UNLINK(path) unlink(path)
 #define RUPA_RENAME(old, new) rename(old, new)
 #define RUPA_IS_PATH_SEP(c) ((c) == '/')
+/* Path kanonik (resolusi symlink & '..') untuk deteksi circular import.
+ * resolved_path = NULL → buffer malloc() oleh realpath(), caller yang
+ * membebaskan (perilaku baku POSIX.1-2008). */
+#define RUPA_REALPATH(path) realpath((path), NULL)
 #endif

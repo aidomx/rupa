@@ -110,18 +110,17 @@ bool validateAnnotation(Node *node, int typeId, RuntimeValue value, Error *error
 
 /* Kontrak type permanen: setiap assignment ke variable yang pernah
  * dideklarasikan dengan type (x: T = ...) divalidasi terhadap T — bukan
- * hanya di site anotasinya. Handle pin family (VALUE_PTR) dicek via
- * provenance sizeof; pin tanpa sizeof (generic) tidak boleh masuk
- * variable bertipe. */
+ * hanya di site anotasinya. Handle VALUE_PTR dicek via registry v3
+ * (gcregtype); untyped string handle (dupl) hanya masuk "string"/"ptr". */
 bool validateDeclaredType(Node *node, int valueId, RuntimeEnv *env,
                           const char *name, RuntimeValue value, Error *error) {
+  (void)node;
+  (void)valueId;
   const char *type = semType(env, name);
   if (!type) return true; /* variable tanpa deklarasi type: bebas */
 
-  /* Handle pin family: view type check lewat provenance sizeof pada
-   * node value (repin/repins inherit; pin/elpin dicek terhadap type). */
   if (value.type == VALUE_PTR)
-    return memoryPinViewCheck(node, valueId, type, error);
+    return memoryHandleTypeCheck(value, type, error);
 
   return validateTypeName(type, value, error);
 }
