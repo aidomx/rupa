@@ -2,6 +2,9 @@
 
 static const char *cli_commands[] = {
     "rupa <file>         - Run a Rupa script", "-e <code>           - Execute code",
+    "rupa go [target]    - Run class project (.spec)",
+    "rupa spec <target>  - Generate .spec.example",
+    "rupa spec -e [algo] - Encrypt .spec.example -> .spec",
     "--help|help         - Show this help", "--help|help <topic> - Show topic module, test, etc",
     "--version           - Show version"};
 

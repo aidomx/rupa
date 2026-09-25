@@ -49,4 +49,3 @@ powInt(base, exp) {
   return result
 }
 
-export clamp, lerp, isEven, isOdd, factorial, gcd, lcm, powInt

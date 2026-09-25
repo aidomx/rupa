@@ -62,6 +62,13 @@ static IRValue *namedValue(IRValueKind kind, IRType *type, const char *name) {
   value->type = type;
   value->id = nextValueId++;
   value->data.name = irDup(name);
+  /* Cache nama kanonik + hash-nya: mesin IR melakukan lookup by name
+   * per iterasi loop panas (semGet/semSet) — tanpa cache ini tiap
+   * lookup membayar intern + FNV atas isi string. */
+  if (value->data.name) {
+    value->canon = semNameCanonical(value->data.name);
+    value->nameHash = semNameHashOf(value->canon);
+  }
   return value;
 }
 
@@ -311,13 +318,15 @@ IRInstruction *irBranch(IRValue *condition, IRBlock *then_block, IRBlock *else_b
   return i;
 }
 
-IRInstruction *irAlloc(IRValue *result, IRType *type, IRValue *count, int zeroed) {
+IRInstruction *irAlloc(IRValue *result, IRType *type, IRValue *count, int zeroed,
+                       int elemSize) {
   IRInstruction *i = newInstruction(IR_ALLOC);
   if (!i) return NULL;
   i->result = result;
   i->data.alloc.type = type;
   i->data.alloc.count = count;
   i->data.alloc.zeroed = zeroed != 0;
+  i->data.alloc.elemSize = elemSize;
   return i;
 }
 

@@ -13,6 +13,12 @@ struct IRValue {
   IRValueKind kind;
   IRType *type;
   uint32_t id;
+  /* Cache nama kanonik (symbol.c): hanya untuk kind pembawa data.name
+   * (PARAM/LOCAL/GLOBAL/FUNCTION). Diisi sekali oleh namedValue; mesin
+   * IR memakainya untuk semGet/semSet tanpa intern + hash string di
+   * setiap iterasi loop panas. */
+  const char *canon;    /* hasil semIntern(data.name); NULL bila gagal */
+  unsigned long nameHash; /* semNameHashOf(canon) */
   union {
     struct {
       IRConstantKind kind;
@@ -82,6 +88,7 @@ struct IRInstruction {
       IRType *type;
       IRValue *count;
       int zeroed;
+      int elemSize; /* > 0: calloc custom new Contract(count, elemsize) */
     } alloc;
     struct {
       IRValue *pointer;
@@ -185,7 +192,8 @@ IRInstruction *irInterp(int nodeId, IRType *resultType);
 IRInstruction *irReturn(IRValue *value);
 IRInstruction *irJump(IRBlock *target);
 IRInstruction *irBranch(IRValue *condition, IRBlock *then_block, IRBlock *else_block);
-IRInstruction *irAlloc(IRValue *result, IRType *type, IRValue *count, int zeroed);
+IRInstruction *irAlloc(IRValue *result, IRType *type, IRValue *count, int zeroed,
+                       int elemSize);
 IRInstruction *irRealloc(IRValue *result, IRValue *pointer, IRValue *size);
 IRInstruction *irFree(IRValue *pointer);
 IRInstruction *irStrSlotGet(IRValue *result, IRValue *pointer);

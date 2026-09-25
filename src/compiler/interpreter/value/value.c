@@ -213,6 +213,26 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error
 }
 
 void valuePrintInterp(RuntimeValue value, RuntimeEnv *env, Error *error) {
+  /* Provenance .spec (design rupa_go): object hasil `import spec from
+   * rupa` bertag __spec — print ditolak mentah-mentah. Tag menempel di
+   * VALUE (disalin by value), jadi alias (specx = spec) ikut tertolak;
+   * variable biasa tanpa tag tetap bebas. Leaf scalar bebas. */
+  if (value.type == VALUE_OBJECT) {
+    RuntimeValue tag = valueNull();
+    if (valueObjectGet(value, "__spec", &tag) && tag.type == VALUE_BOOLEAN &&
+        tag.as.boolean) {
+      if (error)
+        addError(error, (ErrorInfo){.code = (char *)"SpecError",
+                                    .message = (char *)"print(spec) ditolak — "
+                                               "konfigurasi .spec tidak boleh "
+                                               "ditampilkan; akses field-nya "
+                                               "(spec.settings.host)",
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_TYPE_MISMATCH});
+      return;
+    }
+  }
   if (value.type == VALUE_STRING) {
     printStringWithInterp(value.as.string, env, error);
     return;
@@ -253,9 +273,11 @@ void valuePrint(RuntimeValue value) {
     putchar('{');
     for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
       /* Skip hidden metadata: anchor implisit + meta "__*" (instance
-       * new Object: __object/__type/__ref/__refname) + registry lama. */
+       * new Object: __object/__type/__ref/__refname) + registry lama +
+       * _imports (arsip binding hasil import, tree export). */
       if (e->key && (e->key[0] == '\0' || !strncmp(e->key, "__", 2) ||
                      strcmp(e->key, "_private") == 0 ||
+                     strcmp(e->key, "_imports") == 0 ||
                      strcmp(e->key, "_class") == 0 ||
                      strcmp(e->key, "_created") == 0))
         continue;

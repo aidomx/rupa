@@ -65,7 +65,8 @@ Request createRequestWithError(Token *tokens, int capacity, Error *error) {
                  .right.start = -1,
                  .right.end = -1,
                  .programId = -1,
-                 .error = error};
+                 .error = error,
+                 .syntaxMemo = NULL};
   req.programId = createProgram(req.node);
   return req;
 }

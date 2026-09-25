@@ -1,0 +1,22 @@
+# new Recontract(src, n) — realloc handle GC (raw maupun Contract)
+# new Contract(count, elemsize) — calloc custom ukuran elemen eksplisit
+main() {
+  n: number[] = new Contract(4)
+  n[0] = 11
+  m = new Recontract(n, 8)
+  m[7] = 22
+  print(m[0], " ", m[7])
+  print("\n")
+
+  raw = new Number(4)
+  raw[0] = 3
+  q = new Recontract(raw, 8)
+  q[7] = 5
+  print(q[0], " ", q[7])
+  print("\n")
+
+  c = new Contract(3, sizeof(number))
+  c[2] = 9
+  print(c[2])
+  print("\n")
+}

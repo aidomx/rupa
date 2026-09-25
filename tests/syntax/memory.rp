@@ -1,0 +1,39 @@
+People {
+  name: string
+  age: number
+}
+
+Data {
+  people: People[]
+  length: number
+}
+
+peopleInit(n: number): People[] {
+  people: People[] = new Contract(10)
+  people[n].name = null
+  people[n].age = 0
+  return people
+}
+
+dataInit(): Data {
+  data: Data = new Contract()
+  data.people = peopleInit(data.length)
+  data.length = 0
+  return data
+}
+
+main(): void {
+  data: Data = dataInit()
+  data.people[data.length].name = dupl("rudi")
+  data.people[data.length].age = 25
+  data.length++;
+
+  print("Name: ", data.people[data.length - 1].name)
+  print("\n")
+  print("Age: ", data.people[data.length - 1].age)
+  print("\n")
+  print("Total: ", data.length)
+  print("\n")
+}
+
+// main() jalan otomatis sebagai entry point — tanpa call eksplisit

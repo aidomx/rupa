@@ -1,0 +1,17 @@
+# Reuse subtree kanonik lintas baris prompt:
+# `tree(1) + tree(2)` diparse di baris pertama (publish), baris berikutnya
+# dengan span token identik meng-adopt subtree-nya (deep copy, id baru).
+# Baris a) dan b) beda statement, tapi memuat ekspresi kanonik yang sama.
+tree(n) {
+    return n + 1
+}
+# Ekspresi kanonik pertama kali diparse di sini (publish ke pool kanonik)
+x = tree(1) + tree(2)
+assertEq(x, 5)
+# Baris berbeda, ekspresi `tree(1) + tree(2)` identik → adopt, bukan parse ulang
+assertEq(tree(1) + tree(2), 5)
+# Campuran: ekspresi kanonik sebagai sub-ekspresi dari statement lain
+x = x + tree(1) + tree(2)
+assertEq(x, 10)
+# Variasi spasi tetap dianggap konten identik (normalisasi stream skip whitespace)
+assertEq( tree(1)+tree(2) , 5)

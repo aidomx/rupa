@@ -1,3 +1,3 @@
-import greet.greet as g from ./a1
+import greet from ./a1
 
-print(g("rupa"))
+print(greet("rupa"))

@@ -13,7 +13,7 @@
 // ambil semua yang di export dari io
 // dan tanpa namespace io untuk menggunakan
 // io.toNumber() akses langsung toNumber()
-import io.* from rupa
+import toNumber from rupa.io
 
 // struct Monster
 MonsterType {

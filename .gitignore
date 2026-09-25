@@ -22,4 +22,5 @@ design
 examples/*
 !calculator
 .rbot
+Makefile
 todos

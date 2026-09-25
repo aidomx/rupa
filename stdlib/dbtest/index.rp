@@ -1,8 +1,3 @@
-getUser() {
-  return [
-    { id: 1, name: "admin" },
-    { id: 2, name: "user" }
-  ]
-}
-
-export dbtest -> { getUser }
+// index.rp — Public entry untuk module dbtest (bentuk kanonik).
+// `import dbtest from rupa` men-bind whole-env index ini sebagai `dbtest`.
+export getUser from ./user

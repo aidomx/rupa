@@ -92,6 +92,13 @@ void grammarPushId(int **v, int *n, int x);
  *        expression, atau binary expression sebagai fallback).
  */
 int grammarParseExpr(struct Request *r, int a, int b);
+
+/**
+ * @brief Body parser ekspresi TANPA memo (dipanggil wrapper
+ *        grammarParseExpr). Panggilan internal grammar — jangan
+ *        dipakai langsung kecuali tahu konsekuensinya.
+ */
+int grammarParseExprBuild(struct Request *r, int a, int b);
 int grammarParseAsyncExpr(struct Request *r, int a, int b);
 int grammarParseAwaitExpr(struct Request *r, int a, int b);
 int grammarParsePostfixExpr(struct Request *r, int a, int b);
@@ -193,8 +200,7 @@ AstModEntry *modEntryFromPath(const char *path, bool wild);
  */
 int grammarParseFlatImport(struct Request *r, struct Token *t, int a, int b, int *pos);
 int grammarParseOldImport(struct Request *r, struct Token *t, int a, int b, int *pos);
-
-/** Grammar `import X` tanpa `from` — bind module X langsung. */
+/** Grammar `import X` tanpa `from` — siklus sejajar (satu folder). */
 int grammarParseBareImport(struct Request *r, struct Token *t, int a, int b, int *pos);
 
 /**

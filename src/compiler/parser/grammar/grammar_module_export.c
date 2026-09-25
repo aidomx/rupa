@@ -1,32 +1,25 @@
 #include <rupa.h>
 
 /*
- * Export grammar — emits NODE_MOD (AstMod, ExportDecl) for all forms:
+ * Export grammar — emits NODE_MOD (AstMod, ExportDecl) for the canonical
+ * forms (design/import_export.txt):
  *
+ *   export * from ./X                    (flatten seluruh member X)
  *   export a, b from ./c                 (selective re-export)
- *   export c from ./c                    (namespace re-export, any alias)
- *   export c from ./c -> { a: private }  (namespace with policies)
- *   export x                             (local value; source = NULL)
- *   export x as y                        (local value, renamed on publish)
- *   export dbtest -> { getUser }         (local with policies)
- *   export driver.connect as driverConnect
- *                                        (dotted path, no `from` needed —
- *                                         first segment is an implicit file
- *                                         relative to the current directory;
- *                                         same convention as import's `a.create`)
- *   export driver.* as db                (whole implicit-file re-export, aliased)
+ *   export c from ./c                    (re-export leaf/sub-package)
+ *   export c from ./c -> { a: private }  (dengan policy)
+ *   export open from ./open              (member-first: fungsi `open`
+ *                                         menang atas whole module)
  *
  * Plus the block form, which merges several of the above under one name:
  *
  *   namespace db {
- *     export driver
- *     export login, register from table
- *     export table -> { rawQuery: private }
+ *     export driver from ./driver
+ *     export table from ./table -> { rawQuery: private }
  *   }
  *
- * See grammar_module_import.c for `modEntryFromPath` (shared: dotted-path +
- * wildcard parsing is identical on both sides of the language).
- */
+ * Bare export (tanpa `from`) ada untuk siklus sejajar — member env
+ * sendiri atau file sejajar bernama sama (design §Bare + §Kelemahan). */
 
 /* Parse policy entries inside `-> { name: private/public, ... }`.
  * Values other than private/public are still captured as-is. */
@@ -42,7 +35,10 @@ static int parseExportPolicies(Token *t, int policyStart, int b, AstModEntry **p
           continue;
         }
 
-        if (t->data[policyStart].type != IDENTIFIER && t->data[policyStart].type != LITERAL_ID)
+        /* Nama policy boleh keyword juga: `-> { import: public }`
+         * (opt-in ekspos binding hasil import di whole-env export). */
+        if (t->data[policyStart].type != IDENTIFIER &&
+            t->data[policyStart].type != LITERAL_ID && t->data[policyStart].type != KEYWORD)
           break;
 
         char nameBuf[128];
@@ -79,9 +75,24 @@ static int parseExportEntries(Token *t, int baseIdx, int limit, AstModEntry **en
   *entryCount = 0;
 
   while (cur < limit) {
+    /* Statement berakhir di akhir baris — export tidak boleh menelan
+     * statement baris berikutnya. */
+    if (t->data[cur].type == NEWLINE || t->data[cur].type == ENDOF) break;
     if (t->data[cur].type == COMMA) {
       cur++;
       continue;
+    }
+
+    /* Leading wildcard: `export *` (self, ie.txt #1) atau
+     * `export * from ./X` — flatten seluruh member. Entry bernama
+     * kosong; `*` selalu entry terakhir (bentuk lain bukan grammar). */
+    if (t->data[cur].type == STAR) {
+      AstModEntry *e = modEntry("");
+      if (!e) break;
+      e->type = MOD_WILD;
+      entries[(*entryCount)++] = e;
+      cur++;
+      break;
     }
 
     if ((t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
@@ -92,56 +103,18 @@ static int parseExportEntries(Token *t, int baseIdx, int limit, AstModEntry **en
 
     if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID) break;
 
-    int pathStart = cur;
+    /* Nama polos saja — member chain (x.y), wildcard member (x.*), dan
+     * entry alias (x as y) dihapus dari grammar (bentuk warisan).
+     * Selective export = daftar nama polos. */
+    entries[(*entryCount)++] = modEntry(t->data[cur].value);
     cur++;
-    while (cur < limit && t->data[cur].type == DOT) {
-      cur++;
-      if (cur >= limit || (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
-        break;
-      cur++;
-    }
-
-    char pathBuf[256] = {0};
-    for (int i = pathStart; i < cur; i++) {
-      if (t->data[i].type == DOT) continue;
-      if (pathBuf[0]) strcat(pathBuf, ".");
-      strcat(pathBuf, t->data[i].value);
-    }
-
-    /* Wildcard: path.* */
-    bool wild = false;
-    if (cur < limit && t->data[cur].type == STAR) {
-      wild = true;
-      cur++;
-    }
-
-    AstModEntry *e = modEntryFromPath(pathBuf, wild);
-    if (!e) break;
-    entries[(*entryCount)++] = e;
-
-    /* Optional `as alias` */
-    if (cur < limit &&
-        (t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
-         t->data[cur].type == LITERAL_ID) &&
-        !strcmp(t->data[cur].value, "as")) {
-      cur++;
-      if (cur < limit && (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
-        e->key = gcstrdup(t->data[cur].value);
-        cur++;
-      }
-      /* Trailing wildcard after alias: `driver as db.*` → wildcard entry */
-      if (cur + 1 < limit && t->data[cur].type == DOT && t->data[cur + 1].type == STAR) {
-        e->type = MOD_WILD;
-        cur += 2;
-      }
-    }
   }
   return cur;
 }
 
-/* Handle export: `export a, b from ./c`, `export c from ./c -> {...}`,
- * local `export x [as y]`, or dotted local `export driver.connect as w`
- * (no `from` — first segment resolves to an implicit file). */
+/* Handle export: `export * from ./X`, `export a, b from ./c`,
+ * `export c from ./c -> {...}`, plus bare local `export x` / `export x, y`
+ * (siklus sejajar, design/import_export.txt §Bare). */
 int grammarParseExport(Request *r, Token *t, int a, int b, int *pos) {
   int cur = a + 1;
 
@@ -157,10 +130,10 @@ int grammarParseExport(Request *r, Token *t, int a, int b, int *pos) {
     fromPos = cur;
 
   if (entryCount == 0 || fromPos < 0) {
-    /* No 'from' → local export (`export x`, `export x as y`, or dotted
-     * `export driver.connect as w` — entries already carry alias/wild/
-     * member-chain info from parseExportEntries). Still allow an optional
-     * `-> {...}` policy block, e.g. `export dbtest -> { getUser: private }`. */
+    /* Bare local export (design/import_export.txt §Bare) — siklus
+     * sejajar: `export x, y` (member sendiri) atau `export X`
+     * (X.rp sejajar). Runtime yang menegakkan batasannya. Policy
+     * lokal `-> {...}` tetap diterima. */
     AstModEntry *policies[64];
     int policyCount = parseExportPolicies(t, cur, b, policies);
 
@@ -178,7 +151,7 @@ int grammarParseExport(Request *r, Token *t, int a, int b, int *pos) {
       }
     }
 
-    *pos = (end > cur) ? end : b;
+    *pos = (end > cur) ? end : cur;
     return createModExport(r->node, entries, entryCount, NULL, policies, policyCount);
   }
 

@@ -34,6 +34,7 @@ void addSourceError(Error *error, const char *code, const char *message, int lin
 void addSourceErrorAt(Error *error, const char *code, const char *message, const char *source,
                       int pos, ErrorType type);
 void setRuntimeErrorLocation(int line, int row);
+void getRuntimeErrorLocation(int *line, int *row);
 ErrorInfo setErrorInfo(const char *code, char *message, int line, int row, ErrorType type);
 
 #endif

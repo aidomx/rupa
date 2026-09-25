@@ -3,7 +3,7 @@ y = 2
 op = "+"
 
 add(x, op, y) {
-  case op => {
+  case op {
     "+": return x + y
   }
 }

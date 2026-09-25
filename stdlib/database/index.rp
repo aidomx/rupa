@@ -3,5 +3,5 @@
 namespace db {
   export driver from ./driver
   export dsn from ./dsn
-  export open.open from ./open
+  export open from ./open
 }

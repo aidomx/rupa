@@ -810,6 +810,11 @@ static char *fmtCollapseObjects(const char *src, size_t len, const FormatterConf
 
       bool empty = fmtObjectIsEmpty(cur, i, close);
 
+      if (close == i + 1) {
+        i = close;
+        continue;
+      }
+
       /*
        * Empty block/object.
        */

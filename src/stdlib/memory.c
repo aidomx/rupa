@@ -22,8 +22,7 @@
 /* Nama tipe dari node argumen `new`: identifier/literal, bentuk `T[]`
  * (NODE_SUBSCRIPT kosong di konteks ekspresi), atau NODE_ARRAY_TYPE. */
 static bool newTypeArgName(Node *node, int id, char *buffer, size_t capacity) {
-  if (!node || id < 0 || id >= node->length || !buffer || capacity == 0)
-    return false;
+  if (!node || id < 0 || id >= node->length || !buffer || capacity == 0) return false;
   AstNode *a = &node->ast[id];
   if (a->type == NODE_IDENTIFIER) {
     int written = snprintf(buffer, capacity, "%s", a->identifier.name);
@@ -54,7 +53,7 @@ static void newTypeNormalize(const char *in, char *out, size_t capacity) {
     const char *typeName;
     const char *alias;
   } aliases[] = {
-      {"Number", "number"}, {"String", "string"}, {"Boolean", "boolean"},
+      {"Number", "number"},   {"String", "string"}, {"Boolean", "boolean"},
       {"Decimal", "decimal"}, {"Ptr", "ptr"},
   };
   for (size_t i = 0; i < sizeof(aliases) / sizeof(aliases[0]); i++) {
@@ -66,8 +65,25 @@ static void newTypeNormalize(const char *in, char *out, size_t capacity) {
   snprintf(out, capacity, "%s", in);
 }
 
+/* Arg 0 (src) dievaluasi jadi nilai primitif untuk handle scalar
+ * (rebinding `p = 7` menulis nilai, bukan ptr) — deref via binding
+ * bila arg berbentuk identifier. Return true bila *out = VALUE_PTR. */
+static bool newPtrArgDeref(Node *node, int argId, RuntimeEnv *env, RuntimeValue *out) {
+  if (!node || argId < 0 || argId >= node->length) return false;
+  AstNode *arg = &node->ast[argId];
+  const char *nm = arg->type == NODE_IDENTIFIER   ? arg->identifier.name
+                   : arg->type == NODE_LITERAL_ID ? arg->string.value
+                                                  : NULL;
+  if (!nm) return false;
+  RuntimeValue v = valueNull();
+  if (!semGet(env, nm, &v)) return false;
+  if (v.type != VALUE_PTR || !v.as.ptr) return false;
+  *out = v;
+  return true;
+}
+
 InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
-                               bool *handled) {
+                                bool *handled) {
   *handled = false;
   if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
 
@@ -80,8 +96,7 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   if (!name || strcmp(name, "new") != 0) return resultNormal(valueNull());
 
   *handled = true;
-  if (ast->call.length < 1 || ast->call.args[0] < 0 ||
-      ast->call.args[0] >= node->length)
+  if (ast->call.length < 1 || ast->call.args[0] < 0 || ast->call.args[0] >= node->length)
     return resultNormal(valueNull());
 
   /* Arg[0] = nama tipe, tidak dievaluasi. */
@@ -92,8 +107,91 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   newTypeNormalize(typeRaw, type, sizeof(type));
 
   int elemSize = 0;
-  if (!rupaMemorySizeOf(type, &elemSize) || elemSize <= 0) {
-    if (!strcmp(type, "Contract")) {
+  bool typed = rupaMemorySizeOf(type, &elemSize) && elemSize > 0;
+  bool isContract = !strcmp(type, "Contract");
+  bool isRecontract = !strcmp(type, "Recontract");
+
+  /* new Recontract(src, n) — realloc (design/new_memory.txt tabel:
+   * padanan repin). elemSize diambil dari registry blok src, bukan
+   * dari tipe — Recontract bukan tipe sesungguhnya. Handle lama
+   * dangling (realloc selalu pindah); type elemen src diturunkan. */
+  if (isRecontract) {
+    if (ast->call.length != 3) {
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new Recontract(src, n)",
+                      "expects exactly (src, count)");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    InterpreterResult r1 = interpretNode(node, ast->call.args[1], env, error);
+    if (r1.flow != FLOW_NORMAL) return r1;
+    InterpreterResult r2 = interpretNode(node, ast->call.args[2], env, error);
+    if (r2.flow != FLOW_NORMAL) return r2;
+
+    RuntimeValue src = r1.value;
+    if ((src.type != VALUE_PTR || !src.as.ptr) &&
+        !newPtrArgDeref(node, ast->call.args[1], env, &src)) {
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new Recontract(src, n)", "src must be a ptr");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    if (r2.value.type != VALUE_NUMBER || r2.value.as.number <= 0) {
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new Recontract(src, n)",
+                      "count must be a positive number");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    if (gcregisview(src.as.ptr)) {
+      addRuntimeError(error, ERR_MEMORY, "new Recontract(src, n)",
+                      "src is a view into a struct block — realloc the owner instead");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    if (gcfind(src.as.ptr) < 0) {
+      addRuntimeError(error, ERR_MEMORY, "new Recontract(src, n)", "pointer not owned by GC");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    {
+      size_t se = gcelem(src.as.ptr);
+      size_t ss = gcsize(src.as.ptr);
+      int esz = (se && se != GC_VIEW_MAGIC && ss) ? (int)(ss / se) : 0;
+      if (esz <= 0) {
+        addRuntimeError(error, ERR_MEMORY, "new Recontract(src, n)",
+                        "cannot determine element size of src");
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
+      size_t count = (size_t)r2.value.as.number;
+      void *handle = gcarray(src.as.ptr, count, (size_t)esz);
+      if (!handle) {
+        addRuntimeError(error, ERR_INTERNAL, "new Recontract(src, n)", "out of memory");
+        return resultFlow(FLOW_ERROR, valueNull());
+      }
+      const char *st = gcregtype(src.as.ptr);
+      if (st) gcregsettype(handle, st);
+      return resultNormal(valuePtr(handle));
+    }
+  }
+
+  /* new Contract(count, elemsize) — calloc custom: ukuran elemen
+   * eksplisit dari argumen, bukan dari tipe anotasi (blok mentah
+   * ber-elemen kecil, mis. byte). Tanpa registrasi tipe elemen. */
+  if (isContract && ast->call.length == 3) {
+    InterpreterResult r1 = interpretNode(node, ast->call.args[1], env, error);
+    if (r1.flow != FLOW_NORMAL) return r1;
+    InterpreterResult r2 = interpretNode(node, ast->call.args[2], env, error);
+    if (r2.flow != FLOW_NORMAL) return r2;
+    if (r1.value.type != VALUE_NUMBER || r1.value.as.number <= 0 ||
+        r2.value.type != VALUE_NUMBER || r2.value.as.number <= 0) {
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new Contract(count, elemsize)",
+                      "count and elemsize must be positive numbers");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    void *handle =
+        gccalloc((size_t)r1.value.as.number, (size_t)r2.value.as.number);
+    if (!handle) {
+      addRuntimeError(error, ERR_INTERNAL, "new Contract(count, elemsize)", "out of memory");
+      return resultFlow(FLOW_ERROR, valueNull());
+    }
+    return resultNormal(valuePtr(handle));
+  }
+
+  if (!typed) {
+    if (isContract) {
       /* C1: Contract tanpa anotasi (polos) — kontraknya anotasi itu. */
       addRuntimeError(error, ERR_TYPE_MISMATCH, "new Contract()",
                       "requires a type annotation (e.g. p: number = new Contract())");
@@ -110,8 +208,7 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   int nvals = 0;
   for (int i = 1; i < ast->call.length; i++) {
     if (nvals >= 2) {
-      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T()",
-                      "expects at most 2 numbers (src, n)");
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T()", "expects at most 2 numbers (src, n)");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     InterpreterResult r = interpretNode(node, ast->call.args[i], env, error);
@@ -128,8 +225,7 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   } else if (nvals == 1) {
     /* new T(n) — n elemen, zeroed. */
     if (vals[0].type != VALUE_NUMBER || vals[0].as.number <= 0) {
-      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(n)",
-                      "count must be a positive number");
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(n)", "count must be a positive number");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     count = (size_t)vals[0].as.number;
@@ -137,18 +233,15 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   } else {
     /* new T(src, n) — realloc ke n elemen. */
     if (vals[0].type != VALUE_PTR || !vals[0].as.ptr) {
-      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(src, n)",
-                      "src must be a ptr");
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(src, n)", "src must be a ptr");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     if (vals[1].type != VALUE_NUMBER || vals[1].as.number <= 0) {
-      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(src, n)",
-                      "count must be a positive number");
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new T(src, n)", "count must be a positive number");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     if (gcfind(vals[0].as.ptr) < 0) {
-      addRuntimeError(error, ERR_MEMORY, "new T(src, n)",
-                      "pointer not owned by GC");
+      addRuntimeError(error, ERR_MEMORY, "new T(src, n)", "pointer not owned by GC");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     count = (size_t)vals[1].as.number;
@@ -168,8 +261,7 @@ InterpreterResult memoryNewCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
  * view handle ditolak (kepemilikan ada di blok owner). */
 static InterpreterResult delHandle(RuntimeValue v, Error *error) {
   if (v.type != VALUE_PTR || !v.as.ptr) {
-    addRuntimeError(error, ERR_TYPE_MISMATCH, "del(x)",
-                    "expects a ptr (GC-owned)");
+    addRuntimeError(error, ERR_TYPE_MISMATCH, "del(x)", "expects a ptr (GC-owned)");
     return resultFlow(FLOW_ERROR, valueNull());
   }
   if (gcregisview(v.as.ptr)) {
@@ -186,8 +278,8 @@ static InterpreterResult delHandle(RuntimeValue v, Error *error) {
 }
 
 /* del(x, y, ...) / del([x, y]) — free variadic / dari array. */
-InterpreterResult memoryDelCall(Node *node, AstNode *ast, RuntimeEnv *env,
-                                Error *error, bool *handled) {
+InterpreterResult memoryDelCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
+                                bool *handled) {
   *handled = false;
   if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
 
@@ -200,8 +292,7 @@ InterpreterResult memoryDelCall(Node *node, AstNode *ast, RuntimeEnv *env,
   if (!name || strcmp(name, "del") != 0) return resultNormal(valueNull());
 
   *handled = true;
-  if (ast->call.length < 1)
-    return resultNormal(valueNull());
+  if (ast->call.length < 1) return resultNormal(valueNull());
 
   for (int i = 0; i < ast->call.length; i++) {
     InterpreterResult r = interpretNode(node, ast->call.args[i], env, error);
@@ -231,8 +322,7 @@ static bool memoryPtrAccess(void *ptr, RuntimeValue idx, bool isWrite, RuntimeVa
   *fatal = false;
   if (!ptr || gcfind(ptr) < 0) {
     if (error) {
-      addRuntimeError(error, ERR_MEMORY, isWrite ? "x[i] = v" : "x[i]",
-                      "pointer not owned by GC");
+      addRuntimeError(error, ERR_MEMORY, isWrite ? "x[i] = v" : "x[i]", "pointer not owned by GC");
     }
     *fatal = true;
     return false;
@@ -253,8 +343,7 @@ static bool memoryPtrAccess(void *ptr, RuntimeValue idx, bool isWrite, RuntimeVa
 
   if (i < 0 || (size_t)i >= elems) {
     char message[128];
-    snprintf(message, sizeof(message),
-             "index %lld is out of bounds for block of %zu element(s)", i,
+    snprintf(message, sizeof(message), "index %lld is out of bounds for block of %zu element(s)", i,
              elems);
     if (error) {
       addError(error, (ErrorInfo){.code = "RangeError",
@@ -276,8 +365,7 @@ static bool memoryPtrAccess(void *ptr, RuntimeValue idx, bool isWrite, RuntimeVa
       void *view = gcregview(ptr, (size_t)i * elemBytes);
       if (!view || !gcregsettype(view, stype)) {
         if (error)
-          addRuntimeError(error, ERR_MEMORY, "x[i]",
-                          "cannot create element view (out of memory)");
+          addRuntimeError(error, ERR_MEMORY, "x[i]", "cannot create element view (out of memory)");
         *fatal = true;
         return false;
       }
@@ -365,19 +453,17 @@ static bool memoryPtrAccess(void *ptr, RuntimeValue idx, bool isWrite, RuntimeVa
     return true;
   }
   if (error) {
-    addRuntimeError(error, ERR_TYPE_MISMATCH, "x[i]",
-                    "element type not readable via indexing");
+    addRuntimeError(error, ERR_TYPE_MISMATCH, "x[i]", "element type not readable via indexing");
   }
   *fatal = true;
   return false;
 }
 
 /* x[i] — baca elemen handle: scalar (i == 0) atau blok T (0 <= i < n). */
-InterpreterResult memoryIndexGet(Node *node, int targetId, int indexId,
-                                 RuntimeEnv *env, Error *error, bool *handled) {
+InterpreterResult memoryIndexGet(Node *node, int targetId, int indexId, RuntimeEnv *env,
+                                 Error *error, bool *handled) {
   *handled = false;
-  if (!node || targetId < 0 || targetId >= node->length)
-    return resultNormal(valueNull());
+  if (!node || targetId < 0 || targetId >= node->length) return resultNormal(valueNull());
 
   InterpreterResult target = interpretNode(node, targetId, env, error);
   if (target.flow != FLOW_NORMAL) return target;
@@ -389,19 +475,16 @@ InterpreterResult memoryIndexGet(Node *node, int targetId, int indexId,
 
   RuntimeValue out = valueNull();
   bool fatal = false;
-  if (!memoryPtrAccess(target.value.as.ptr, idx.value, false, valueNull(), &out,
-                       error, &fatal))
+  if (!memoryPtrAccess(target.value.as.ptr, idx.value, false, valueNull(), &out, error, &fatal))
     return resultFlow(FLOW_ERROR, valueNull());
   return resultNormal(out);
 }
 
 /* x[i] = v — tulis elemen handle (scalar index 0 atau blok). */
-InterpreterResult memoryIndexSet(Node *node, int targetId, int indexId,
-                                 RuntimeValue val, RuntimeEnv *env,
-                                 Error *error, bool *handled) {
+InterpreterResult memoryIndexSet(Node *node, int targetId, int indexId, RuntimeValue val,
+                                 RuntimeEnv *env, Error *error, bool *handled) {
   *handled = false;
-  if (!node || targetId < 0 || targetId >= node->length)
-    return resultNormal(valueNull());
+  if (!node || targetId < 0 || targetId >= node->length) return resultNormal(valueNull());
 
   InterpreterResult target = interpretNode(node, targetId, env, error);
   if (target.flow != FLOW_NORMAL) return target;
@@ -423,14 +506,13 @@ InterpreterResult memoryIndexSet(Node *node, int targetId, int indexId,
 /* Baca field struct pada handle ptr: offset dari layout analyzer
  * (C-style: field diselaskan pada alignment-nya), decode sesuai tipe
  * field. string/array = slot/snapshot; struct bertingkat = view handle. */
-static bool memberFieldRead(void *ptr, const char *structType, const char *field,
-                            RuntimeValue *out, Error *error) {
+static bool memberFieldRead(void *ptr, const char *structType, const char *field, RuntimeValue *out,
+                            Error *error) {
   int offset = 0;
   char ftype[256];
   if (!analyzerFieldOffset(structType, field, &offset, ftype, sizeof(ftype))) {
     char message[512];
-    snprintf(message, sizeof(message), "unknown field '%s' on struct '%s'", field,
-             structType);
+    snprintf(message, sizeof(message), "unknown field '%s' on struct '%s'", field, structType);
     addRuntimeError(error, ERR_TYPE_MISMATCH, structType, message);
     return false;
   }
@@ -469,15 +551,26 @@ static bool memberFieldRead(void *ptr, const char *structType, const char *field
   if (analyzerFindStruct(ftype)) {
     void *view = gcregview(ptr, (size_t)offset);
     if (!view || !gcregsettype(view, ftype)) {
-      addRuntimeError(error, ERR_MEMORY, structType,
-                      "cannot create field view (out of memory)");
+      addRuntimeError(error, ERR_MEMORY, structType, "cannot create field view (out of memory)");
       return false;
     }
     *out = valuePtr(view);
     return true;
   }
 
-  /* Kompleks lain (ptr/array): buffer scalar hanya menyimpan byte
+  /* Array-of-struct (C-B2): field "T[]" menampung RuntimeArray
+   * berisi view handle elemen (ditulis memberFieldWrite). Baca
+   * kembali sebagai VALUE_ARRAY sehingga subscript arr[i] bekerja
+   * di atas view handle elemen — bukan snapshot deskriptif. */
+  size_t ftypeLen = strlen(ftype);
+  if (ftypeLen >= 2 && !strcmp(ftype + ftypeLen - 2, "[]")) {
+    struct RuntimeArray array;
+    memcpy(&array, src, sizeof(array));
+    *out = valueArray(array.items, array.length);
+    return true;
+  }
+
+  /* Kompleks lain (ptr): buffer scalar hanya menyimpan byte
    * mentah; konversi jadi object snapshot read-only. */
   size_t bytes = gcsize(ptr);
   size_t count = gcelem(ptr);
@@ -489,22 +582,20 @@ static bool memberFieldRead(void *ptr, const char *structType, const char *field
   valueObjectSet(&obj, "field", valueString(gcstrdup(field)));
   valueObjectSet(&obj, "type", valueString(gcstrdup(ftype)));
   valueObjectSet(&obj, "bytes", valueNumber((int)span));
-  valueObjectSet(&obj, "note",
-                 valueString(gcstrdup("raw field snapshot (buffer-scalar)")));
+  valueObjectSet(&obj, "note", valueString(gcstrdup("raw field snapshot (buffer-scalar)")));
   *out = obj;
   return true;
 }
 
 /* Tulis field struct pada handle ptr: encode sesuai tipe field.
  * number/decimal/boolean ditulis native; tipe kompleks ditolak. */
-static bool memberFieldWrite(void *ptr, const char *structType, const char *field,
-                             RuntimeValue val, Error *error) {
+static bool memberFieldWrite(void *ptr, const char *structType, const char *field, RuntimeValue val,
+                             Error *error) {
   int offset = 0;
   char ftype[256];
   if (!analyzerFieldOffset(structType, field, &offset, ftype, sizeof(ftype))) {
     char message[512];
-    snprintf(message, sizeof(message), "unknown field '%s' on struct '%s'", field,
-             structType);
+    snprintf(message, sizeof(message), "unknown field '%s' on struct '%s'", field, structType);
     addRuntimeError(error, ERR_TYPE_MISMATCH, structType, message);
     return false;
   }
@@ -543,8 +634,62 @@ static bool memberFieldWrite(void *ptr, const char *structType, const char *fiel
       memcpy(dest, &val.as.ptr, sizeof(val.as.ptr));
       return true;
     }
+    if (val.type == VALUE_NULL) {
+      char *nullp = NULL;
+      memcpy(dest, &nullp, sizeof(nullp));
+      return true;
+    }
     (void)slotp;
     goto typefail;
+  }
+
+  size_t ftypeLen = strlen(ftype);
+  if (ftypeLen >= 2 && !strcmp(ftype + ftypeLen - 2, "[]")) {
+    if (val.type != VALUE_PTR || !val.as.ptr || gcfind(val.as.ptr) < 0) {
+      goto typefail;
+    }
+
+    char elemType[256];
+    if (ftypeLen - 2 >= sizeof(elemType)) {
+      goto typefail;
+    }
+
+    memcpy(elemType, ftype, ftypeLen - 2);
+    elemType[ftypeLen - 2] = '\0';
+
+    const char *valueType = gcregtype(val.as.ptr);
+    if (!valueType || strcmp(valueType, elemType) != 0) {
+      goto typefail;
+    }
+
+    size_t count = gcelem(val.as.ptr);
+    int elemBytes = 0;
+
+    if (count == 0 || !analyzerStructSizeOf(elemType, &elemBytes) || elemBytes <= 0) {
+      goto typefail;
+    }
+
+    RuntimeValue *items = gccalloc(count, sizeof(*items));
+    if (!items) {
+      return false;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+      void *item = gcregview(val.as.ptr, i * (size_t)elemBytes);
+      if (!item) {
+        return false;
+      }
+
+      items[i] = valuePtr(item);
+    }
+
+    struct RuntimeArray array = {
+        .items = items,
+        .length = (int)count,
+    };
+
+    memcpy(dest, &array, sizeof(array));
+    return true;
   }
 
   /* Struct bertingkat (C-B2): RHS blok/view struct lain → copy byte
@@ -559,21 +704,19 @@ static bool memberFieldWrite(void *ptr, const char *structType, const char *fiel
       }
     }
     char message[512];
-    snprintf(message, sizeof(message),
-             "field '%s' expects a struct handle/view of '%s'", field, ftype);
+    snprintf(message, sizeof(message), "field '%s' expects a struct handle/view of '%s'", field,
+             ftype);
     addRuntimeError(error, ERR_TYPE_MISMATCH, ftype, message);
     return false;
   }
 
-typefail:
-  {
-    char message[512];
-    snprintf(message, sizeof(message),
-             "field '%s' of type '%s' is not writable via handle (complex field)",
-             field, ftype);
-    addRuntimeError(error, ERR_TYPE_MISMATCH, ftype, message);
-    return false;
-  }
+typefail: {
+  char message[512];
+  snprintf(message, sizeof(message),
+           "field '%s' of type '%s' is not writable via handle (complex field)", field, ftype);
+  addRuntimeError(error, ERR_TYPE_MISMATCH, ftype, message);
+  return false;
+}
 }
 
 /* Helper shared interpreter+IR: resolve structType handle (registry v3
@@ -601,8 +744,7 @@ static bool structMemberAccess(void *ptr, const char *field, bool isWrite, Runti
     target = (char *)owner + voff;
     if (!stype) stype = gcregtype(owner); /* fallback: tipe owner */
   }
-  if (!stype || !analyzerFindStruct(stype))
-    return false; /* bukan struct handle — jalur lama */
+  if (!stype || !analyzerFindStruct(stype)) return false; /* bukan struct handle — jalur lama */
   if (isWrite) {
     if (!memberFieldWrite(target, stype, field, val, error)) {
       *fatal = true;
@@ -620,13 +762,11 @@ static bool structMemberAccess(void *ptr, const char *field, bool isWrite, Runti
 
 /* Entry member access (dipanggil interpretMember / IR_MEMBER_GET).
  * Return false bila target bukan struct handle — jalur lama lanjut. */
-bool memoryMemberGet(void *ptr, const char *field, RuntimeValue *out, Error *error,
-                     bool *fatal) {
+bool memoryMemberGet(void *ptr, const char *field, RuntimeValue *out, Error *error, bool *fatal) {
   return structMemberAccess(ptr, field, false, valueNull(), out, error, fatal);
 }
 
-bool memoryMemberSet(void *ptr, const char *field, RuntimeValue val, Error *error,
-                     bool *fatal) {
+bool memoryMemberSet(void *ptr, const char *field, RuntimeValue val, Error *error, bool *fatal) {
   RuntimeValue out = valueNull();
   return structMemberAccess(ptr, field, true, val, &out, error, fatal);
 }
@@ -676,20 +816,17 @@ bool memoryStringSlotRead(void *ptr, RuntimeValue *out, Error *error) {
 
 /* dupl(str) — strdup GC-tracked; dupl(str, n) — strndup maksimal n
  * char, selalu NUL-terminated. Menggantikan dupin/maxdupin. */
-static InterpreterResult builtinDupl(int argc, RuntimeValue *argv, RuntimeEnv *env,
-                                     Error *error) {
+static InterpreterResult builtinDupl(int argc, RuntimeValue *argv, RuntimeEnv *env, Error *error) {
   (void)env;
   if (argc < 1 || argv[0].type != VALUE_STRING) {
-    addRuntimeError(error, ERR_TYPE_MISMATCH, "dupl(str)",
-                    "expects a string");
+    addRuntimeError(error, ERR_TYPE_MISMATCH, "dupl(str)", "expects a string");
     return resultFlow(FLOW_ERROR, valueNull());
   }
   const char *s = argv[0].as.string ? argv[0].as.string : "";
   char *copy = NULL;
   if (argc >= 2) {
     if (argv[1].type != VALUE_NUMBER || argv[1].as.number < 0) {
-      addRuntimeError(error, ERR_TYPE_MISMATCH, "dupl(str, n)",
-                      "n must be a non-negative number");
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "dupl(str, n)", "n must be a non-negative number");
       return resultFlow(FLOW_ERROR, valueNull());
     }
     copy = gcstrndup(s, (size_t)argv[1].as.number);
@@ -706,17 +843,18 @@ static InterpreterResult builtinCompare(int argc, RuntimeValue *argv, RuntimeEnv
                                         Error *error) {
   (void)env;
   if (argc < 2) {
-    addRuntimeError(error, ERR_TYPE_MISMATCH, "compare(a, b)",
-                    "expects two string/ptr arguments");
+    addRuntimeError(error, ERR_TYPE_MISMATCH, "compare(a, b)", "expects two string/ptr arguments");
     return resultFlow(FLOW_ERROR, valueNull());
   }
 
   const char *as = NULL;
   const char *bs = NULL;
-  if (argv[0].type == VALUE_STRING) as = argv[0].as.string;
+  if (argv[0].type == VALUE_STRING)
+    as = argv[0].as.string;
   else if (argv[0].type == VALUE_PTR && argv[0].as.ptr && gcfind(argv[0].as.ptr) >= 0)
     as = (const char *)argv[0].as.ptr;
-  if (argv[1].type == VALUE_STRING) bs = argv[1].as.string;
+  if (argv[1].type == VALUE_STRING)
+    bs = argv[1].as.string;
   else if (argv[1].type == VALUE_PTR && argv[1].as.ptr && gcfind(argv[1].as.ptr) >= 0)
     bs = (const char *)argv[1].as.ptr;
   if (!as || !bs) {
@@ -745,8 +883,7 @@ RuntimeValue memoryPtrGet(RuntimeValue ptr, RuntimeValue idx, Error *error, bool
   return out;
 }
 
-bool memoryPtrSet(RuntimeValue ptr, RuntimeValue idx, RuntimeValue val, Error *error,
-                  bool *fatal) {
+bool memoryPtrSet(RuntimeValue ptr, RuntimeValue idx, RuntimeValue val, Error *error, bool *fatal) {
   if (ptr.type != VALUE_PTR) return false;
   RuntimeValue out = valueNull();
   return memoryPtrAccess(ptr.as.ptr, idx, true, val, &out, error, fatal);
@@ -782,9 +919,8 @@ static InterpreterResult contractAlloc(const char *type, size_t count, RuntimeVa
  * *handled true berarti node memang `new Contract` (bukan jalur lain):
  * false + handled = error sudah ditulis (C1/arg/count); false + !handled
  * = bukan Contract, pemanggil lanjut jalur biasa. */
-bool memoryContractAssign(Node *node, int valueId, const char *annType, bool norm,
-                          RuntimeEnv *env, RuntimeValue *out, Error *error,
-                          bool *handled) {
+bool memoryContractAssign(Node *node, int valueId, const char *annType, bool norm, RuntimeEnv *env,
+                          RuntimeValue *out, Error *error, bool *handled) {
   (void)norm;
   *handled = false;
   if (!node || valueId < 0 || valueId >= node->length) return false;
@@ -805,7 +941,6 @@ bool memoryContractAssign(Node *node, int valueId, const char *annType, bool nor
   newTypeNormalize(raw, type, sizeof(type));
   if (strcmp(type, "Contract") != 0) return false; /* bukan Contract — jalur new biasa */
   *handled = true;
-
   /* C1: wajib anotasi. */
   if (!annType || !*annType) {
     addRuntimeError(error, ERR_TYPE_MISMATCH, "new Contract()",
@@ -819,17 +954,37 @@ bool memoryContractAssign(Node *node, int valueId, const char *annType, bool nor
   /* C2: anotasi 'T[]' → elemen 'T' (raw block, akses list[i]). */
   if (norm) {
     size_t len = strlen(type);
-    if (len >= 2 && !strcmp(type + len - 2, "[]"))
-      type[len - 2] = '\0';
+    if (len >= 2 && !strcmp(type + len - 2, "[]")) type[len - 2] = '\0';
   }
 
-  /* args: [Contract] atau [Contract, count]. Realloc bukan wilayah
-   * Contract — pakai new T(src, n). */
+  /* args: [Contract], [Contract, count], atau [Contract, count,
+   * elemsize]. Bentuk 3-arg = calloc custom (ukuran elemen eksplisit
+   * — blok mentah, tanpa registrasi tipe elemen). */
   size_t count = 1;
-  if (call->call.length > 2) {
+  if (call->call.length > 3) {
     addRuntimeError(error, ERR_TYPE_MISMATCH, "new Contract(n)",
-                    "expects at most one count argument");
+                    "expects at most (count, elemsize)");
     return false;
+  }
+  if (call->call.length == 3) {
+    InterpreterResult r1 = interpretNode(node, call->call.args[1], env, error);
+    if (r1.flow != FLOW_NORMAL) return false;
+    InterpreterResult r2 = interpretNode(node, call->call.args[2], env, error);
+    if (r2.flow != FLOW_NORMAL) return false;
+    if (r1.value.type != VALUE_NUMBER || r1.value.as.number <= 0 ||
+        r2.value.type != VALUE_NUMBER || r2.value.as.number <= 0) {
+      addRuntimeError(error, ERR_TYPE_MISMATCH, "new Contract(count, elemsize)",
+                      "count and elemsize must be positive numbers");
+      return false;
+    }
+    void *handle =
+        gccalloc((size_t)r1.value.as.number, (size_t)r2.value.as.number);
+    if (!handle) {
+      addRuntimeError(error, ERR_INTERNAL, "new Contract(count, elemsize)", "out of memory");
+      return false;
+    }
+    if (out) *out = valuePtr(handle);
+    return true;
   }
   if (call->call.length == 2) {
     InterpreterResult r = interpretNode(node, call->call.args[1], env, error);
@@ -868,6 +1023,9 @@ bool memoryNewTypeName(Node *node, int valueId, char *buffer, size_t capacity) {
   char raw[256];
   if (!newTypeArgName(node, call->call.args[0], raw, sizeof(raw))) return false;
   if (buffer) newTypeNormalize(raw, buffer, capacity);
+  /* Recontract bukan tipe: realloc tidak boleh menjadi kontrak binding
+   * (`x = new Recontract(...)` tidak mencatat declared type). */
+  if (buffer && strcmp(buffer, "Recontract") == 0) return false;
   return true;
 }
 

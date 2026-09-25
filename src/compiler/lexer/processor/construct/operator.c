@@ -69,8 +69,17 @@ int processOperator(State *state, int start, int end, int *next, bool *waiting) 
         type == LOGICAL_AND || type == LOGICAL_OR || type == EQUAL || type == NOT_EQUAL ||
         type == LESS_THAN || type == LESS_EQUAL || type == GREATER_THAN || type == GREATER_EQUAL ||
         type == ARROW || type == FAT_ARROW) {
-      *waiting = true;
-      return *next;
+      /* `export *` / `import *` (design/ie.txt): star adalah bagian sah
+       * statement module — bukan operator yang menunggu operand. */
+      Token *tk = state->tokens;
+      bool modStar = type == STAR && tk && tk->length >= 2 &&
+                     tk->data[tk->length - 2].type == KEYWORD &&
+                     (!strcmp(tk->data[tk->length - 2].value, "export") ||
+                      !strcmp(tk->data[tk->length - 2].value, "import"));
+      if (!modStar) {
+        *waiting = true;
+        return *next;
+      }
     }
   }
   *waiting = false;

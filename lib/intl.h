@@ -15,6 +15,9 @@
 #include "forward.h"
 
 // api
+#include "caches/pipeline.h"
+#include "caches/syntax/canonical.h"
+#include "caches/syntax/expr.h"
 #include "compiler/compiler.h"
 #include "debug/debug.h"
 #include "editor/editor.h"

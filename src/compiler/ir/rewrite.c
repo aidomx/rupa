@@ -27,7 +27,7 @@ typedef struct IRBuilder IRBuilder;
 typedef struct ScopeMap ScopeMap;
 
 struct IRBuilder {
-  Node *astRef;   /* pool AST sumber */
+  Node *astRef; /* pool AST sumber */
   IRModule *module;
   IRFunction *function;
   IRBlock *block;
@@ -126,10 +126,12 @@ static IRValue *cacheOp(IRBuilder *b, int id, IRValue *value) {
   if (id < 0 || !b->astRef || id >= b->astRef->length || !value) return value;
   if (id >= b->opCap) {
     int cap = b->opCap ? b->opCap * 2 : 64;
-    while (id >= cap) cap *= 2;
+    while (id >= cap)
+      cap *= 2;
     IRValue **grown = gcrealloc(b->ops, sizeof(IRValue *) * cap);
     if (!grown) return value;
-    for (int i = b->opLen; i < cap; i++) grown[i] = NULL;
+    for (int i = b->opLen; i < cap; i++)
+      grown[i] = NULL;
     b->ops = grown;
     b->opCap = cap;
   }
@@ -193,12 +195,20 @@ static IRValue *foldBinary(IROpcode op, IRValue *l, IRValue *r) {
     long long a = l->data.constant.as.number;
     long long b = r->data.constant.as.number;
     switch (op) {
-    case IR_ADD: return irNumber(a + b, numberType());
-    case IR_SUB: return irNumber(a - b, numberType());
-    case IR_MUL: return irNumber(a * b, numberType());
-    case IR_DIV: if (b == 0) return NULL; return irNumber(a / b, numberType());
-    case IR_MOD: if (b == 0) return NULL; return irNumber(a % b, numberType());
-    default: break; /* perbandingan tetap lewat jalur double di bawah */
+    case IR_ADD:
+      return irNumber(a + b, numberType());
+    case IR_SUB:
+      return irNumber(a - b, numberType());
+    case IR_MUL:
+      return irNumber(a * b, numberType());
+    case IR_DIV:
+      if (b == 0) return NULL;
+      return irNumber(a / b, numberType());
+    case IR_MOD:
+      if (b == 0) return NULL;
+      return irNumber(a % b, numberType());
+    default:
+      break; /* perbandingan tetap lewat jalur double di bawah */
     }
   }
   double a = l->type->kind == IR_TYPE_DECIMAL ? l->data.constant.as.decimal
@@ -208,23 +218,41 @@ static IRValue *foldBinary(IROpcode op, IRValue *l, IRValue *r) {
 
   double out = 0;
   switch (op) {
-  case IR_ADD: out = a + b; break;
-  case IR_SUB: out = a - b; break;
-  case IR_MUL: out = a * b; break;
-  case IR_DIV: if (b == 0) return NULL; out = a / b; break;
-  case IR_MOD: if (b == 0) return NULL; out = (double)((int64_t)a % (int64_t)b); break;
-  case IR_EQ: return irBoolean(a == b, boolType());
-  case IR_NE: return irBoolean(a != b, boolType());
-  case IR_LT: return irBoolean(a < b, boolType());
-  case IR_LE: return irBoolean(a <= b, boolType());
-  case IR_GT: return irBoolean(a > b, boolType());
-  case IR_GE: return irBoolean(a >= b, boolType());
-  default: return NULL;
+  case IR_ADD:
+    out = a + b;
+    break;
+  case IR_SUB:
+    out = a - b;
+    break;
+  case IR_MUL:
+    out = a * b;
+    break;
+  case IR_DIV:
+    if (b == 0) return NULL;
+    out = a / b;
+    break;
+  case IR_MOD:
+    if (b == 0) return NULL;
+    out = (double)((int64_t)a % (int64_t)b);
+    break;
+  case IR_EQ:
+    return irBoolean(a == b, boolType());
+  case IR_NE:
+    return irBoolean(a != b, boolType());
+  case IR_LT:
+    return irBoolean(a < b, boolType());
+  case IR_LE:
+    return irBoolean(a <= b, boolType());
+  case IR_GT:
+    return irBoolean(a > b, boolType());
+  case IR_GE:
+    return irBoolean(a >= b, boolType());
+  default:
+    return NULL;
   }
 
-  return decimal
-             ? irDecimal(out, irTypeCreate(IR_TYPE_DECIMAL, "decimal", sizeof(double)))
-             : irNumber((int64_t)out, numberType());
+  return decimal ? irDecimal(out, irTypeCreate(IR_TYPE_DECIMAL, "decimal", sizeof(double)))
+                 : irNumber((int64_t)out, numberType());
 }
 
 static IRValue *emitBinary(IRBuilder *b, IROpcode op, IRValue *l, IRValue *r) {
@@ -272,8 +300,7 @@ static void buildBreak(void) {
 }
 
 static void buildContinue(void) {
-  if (g_loop && g_loop->continueTarget)
-    irEmit(g_loop->b->block, irJump(g_loop->continueTarget));
+  if (g_loop && g_loop->continueTarget) irEmit(g_loop->b->block, irJump(g_loop->continueTarget));
 }
 
 /* Nama tipe annotation (NODE_ARRAY_TYPE aware) sebagai string. */
@@ -281,13 +308,48 @@ static const char *annotationTypeName(IRBuilder *b, int typeId);
 
 /* ==================== Statements ==================== */
 
+/* Statement top-level berupa call `main()` tanpa argumen? Dipakai
+ * untuk guard auto-run: main yang sudah dipanggil eksplisit tidak
+ * boleh dipanggil dua kali (main1.rp: `1` lalu `null1`). */
+static bool topLevelIsMainCall(Node *node, int id) {
+  if (id < 0 || id >= node->length) return false;
+  AstNode *a = &node->ast[id];
+  if (a->type != NODE_CALL || a->call.length != 0) return false;
+  int calleeId = a->call.callee;
+  if (calleeId < 0 || calleeId >= node->length) return false;
+  AstNode *c = &node->ast[calleeId];
+  const char *name = NULL;
+  if (c->type == NODE_IDENTIFIER)
+    name = c->identifier.name;
+  else if (c->type == NODE_LITERAL_ID)
+    name = c->string.value;
+  return name && !strcmp(name, "main");
+}
+
 static void buildProgram(IRBuilder *b, Node *node, int root) {
   IRFunction *fn = irFunctionCreate(b->module, "main", NULL);
   b->function = fn;
   b->block = irBlockCreate(fn, "entry");
 
-  for (AstDeclaration *d = node->ast[root].program.declarations; d; d = d->next)
+  bool hasMainDecl = false;
+  bool mainCalled = false;
+  for (AstDeclaration *d = node->ast[root].program.declarations; d; d = d->next) {
+    AstNode *a = &node->ast[d->nodeId];
+    if (a->type == NODE_FUNCTION_DECL && a->function.name >= 0 &&
+        a->function.name < node->length && node->ast[a->function.name].type == NODE_IDENTIFIER &&
+        !strcmp(node->ast[a->function.name].identifier.name, "main") && a->function.paramLength == 0)
+      hasMainDecl = true;
+    if (topLevelIsMainCall(node, d->nodeId)) mainCalled = true;
     buildStatementValue(b, d->nodeId);
+  }
+
+  /* `main()` otomatis (design class, entry point): deklarasi main
+   * zero-param yang tidak dipanggil eksplisit di-call implicit di
+   * akhir blok program — satu frame eksekusi, identik dengan call
+   * manual (free variable + IR_CHECK + stdlib semua terjangkau).
+   * main berparameter: bukan entry point, tidak di-call. */
+  if (hasMainDecl && !mainCalled)
+    irEmit(b->block, irCall(NULL, irGlobal(nullType(), "main"), NULL, 0));
 
   irEmit(b->block, irReturn(irNull(NULL)));
 }
@@ -330,8 +392,7 @@ static void buildFunctionDecl(IRBuilder *b, Node *node, const AstNode *a) {
   buildStatementValue(b, a->function.body);
 
   /* Pastikan blok terakhir selalu berakhir dengan return. */
-  if (b->block->last && b->block->last->op != IR_RETURN)
-    irEmit(b->block, irReturn(irNull(NULL)));
+  if (b->block->last && b->block->last->op != IR_RETURN) irEmit(b->block, irReturn(irNull(NULL)));
 
   b->function = savedFn;
   b->block = savedBlock;
@@ -386,11 +447,22 @@ static void buildAssign(IRBuilder *b, Node *node, const AstNode *a, int id) {
     const char *ann = annotationTypeName(b, a->assign.type);
     AstNode *call = &b->astRef->ast[a->assign.value];
     IRValue *count =
-        call->call.length == 2 ? buildNode(b, call->call.args[1])
-                               : irNumber(1, numberType());
+        call->call.length >= 2 ? buildNode(b, call->call.args[1]) : irNumber(1, numberType());
+    /* Bentuk 3-arg = calloc custom: elemSize ditunda ke eksekusi via
+     * elemSize < 0 (payload = node id arg kedua); bila arg elemSize
+     * literal, elemSize di-set langsung. */
+    int elemSize = 0;
+    if (call->call.length == 3) {
+      AstNode *es = &b->astRef->ast[call->call.args[2]];
+      if (es->type == NODE_NUMBER) {
+        elemSize = (int)es->number.value;
+      } else {
+        elemSize = -call->call.args[2];
+      }
+    }
     IRType *ptrT = irTypeCreate(IR_TYPE_POINTER, ann ? ann : "ptr", sizeof(void *));
     IRValue *res = irTemp(ptrT);
-    irEmit(b->block, irAlloc(res, ptrT, count, 1));
+    irEmit(b->block, irAlloc(res, ptrT, count, 1, elemSize));
     IRValue *slot = scopeFind(b, name);
     if (!slot) slot = newLocal(b, name);
     if (ann) scopeSetType(b, name, ann);
@@ -456,8 +528,7 @@ static void buildAssign(IRBuilder *b, Node *node, const AstNode *a, int id) {
       scopeSetType(b, name, newType);
     } else {
       const char *declared = scopeTypeOf(b, name);
-      if (declared)
-        irEmit(b->block, irCheckAt(value, declared, a->assign.value));
+      if (declared) irEmit(b->block, irCheckAt(value, declared, a->assign.value));
     }
   }
 
@@ -485,8 +556,7 @@ static void buildConditionalAssign(IRBuilder *b, Node *node, const AstNode *a) {
   if (value) {
     /* Kontrak type permanen berlaku juga di x ?= v. */
     const char *declared = scopeTypeOf(b, name);
-    if (declared)
-      irEmit(b->block, irCheckAt(value, declared, a->conditionalAssign.value));
+    if (declared) irEmit(b->block, irCheckAt(value, declared, a->conditionalAssign.value));
     irEmit(b->block, irStore(slot, value));
   }
   irEmit(b->block, irJump(endBlock));
@@ -508,11 +578,21 @@ static void buildAnnotation(IRBuilder *b, Node *node, const AstNode *a) {
     const char *ann = annotationTypeName(b, a->annotation.type);
     AstNode *call = &b->astRef->ast[a->annotation.value];
     IRValue *count =
-        call->call.length == 2 ? buildNode(b, call->call.args[1])
-                               : irNumber(1, numberType());
+        call->call.length >= 2 ? buildNode(b, call->call.args[1]) : irNumber(1, numberType());
+    /* Sejajar buildAssign: bentuk 3-arg calloc custom, elemSize
+     * eksplisit atau ditunda (negasi node id). */
+    int elemSize = 0;
+    if (call->call.length == 3) {
+      AstNode *es = &b->astRef->ast[call->call.args[2]];
+      if (es->type == NODE_NUMBER) {
+        elemSize = (int)es->number.value;
+      } else {
+        elemSize = -call->call.args[2];
+      }
+    }
     IRType *ptrT = irTypeCreate(IR_TYPE_POINTER, ann ? ann : "ptr", sizeof(void *));
     IRValue *res = irTemp(ptrT);
-    irEmit(b->block, irAlloc(res, ptrT, count, 1));
+    irEmit(b->block, irAlloc(res, ptrT, count, 1, elemSize));
     if (ann) scopeSetType(b, name, ann);
     irEmit(b->block, irStore(slot, res));
     return;
@@ -554,8 +634,8 @@ static void buildReturn(IRBuilder *b, Node *node, const AstNode *a) {
     if (a->asReturn.expression >= 0) buildNode(b, a->asReturn.expression);
     return;
   }
-  IRValue *value = a->asReturn.expression >= 0 ? buildNode(b, a->asReturn.expression)
-                                               : irNull(NULL);
+  IRValue *value =
+      a->asReturn.expression >= 0 ? buildNode(b, a->asReturn.expression) : irNull(NULL);
   irEmit(b->block, irReturn(value ? value : irNull(NULL)));
 }
 
@@ -630,7 +710,7 @@ static void buildLoop(IRBuilder *b, Node *node, const AstNode *a) {
     IRValue *boundV = NULL;
     IRValue *startFrom = NULL; /* NULL => mulai dari konstanta 0 */
     IROpcode cmpOp = IR_NOP;
-    bool neg1Select = false;   /* aturan current == -1 -> bound (for eksplisit ident-left) */
+    bool neg1Select = false; /* aturan current == -1 -> bound (for eksplisit ident-left) */
 
     bool fresh = false; /* variable belum pernah di-assign sebelum loop */
     bool isShorthand =
@@ -720,8 +800,7 @@ static void buildLoop(IRBuilder *b, Node *node, const AstNode *a) {
        *   for eksplisit fresh -> 0; rev ident-kiri fresh -> bound;
        *   shorthand fresh rev -> -1 (langsung habis, var tak tersentuh). */
       IRValue *start = startFrom;
-      if (!start && fresh && isRev)
-        start = isShorthand ? irNumber(-1, numberType()) : boundV;
+      if (!start && fresh && isRev) start = isShorthand ? irNumber(-1, numberType()) : boundV;
       if (!start) start = irNumber(0, numberType());
       irEmit(b->block, irStore(hidden, start));
     }
@@ -757,8 +836,7 @@ static void buildLoop(IRBuilder *b, Node *node, const AstNode *a) {
      * (nilai pertama yang gagal kondisi; shorthand rev berakhir -1).
      * Shorthand fresh tidak pernah menyentuh variable (interpreter
      * semGet gagal -> range false -> loop skip tanpa semSet). */
-    if (slot && !(fresh && isShorthand))
-      irEmit(b->block, irStore(slot, isFor ? boundV : hidden));
+    if (slot && !(fresh && isShorthand)) irEmit(b->block, irStore(slot, isFor ? boundV : hidden));
   } else {
     /* while: kondisi umum; tanpa kondisi = loop tanpa henti. */
     irEmit(b->block, irJump(condBlock));
@@ -828,9 +906,9 @@ static IRValue *buildNode(IRBuilder *b, int id) {
      * int64_t, tidak ada perubahan tipe). */
     return cacheOp(b, id, irNumber(a->number.value, numberType()));
   case NODE_DECIMAL:
-    return cacheOp(b, id,
-                   irDecimal(a->decimal.value,
-                             irTypeCreate(IR_TYPE_DECIMAL, "decimal", sizeof(double))));
+    return cacheOp(
+        b, id,
+        irDecimal(a->decimal.value, irTypeCreate(IR_TYPE_DECIMAL, "decimal", sizeof(double))));
   case NODE_BOOLEAN:
     return cacheOp(b, id, irBoolean(a->boolean.value, boolType()));
   case NODE_STRING:
@@ -904,7 +982,7 @@ static IRValue *buildNode(IRBuilder *b, int id) {
   case NODE_ARRAY: {
     IRValue *arr = irTemp(irTypeCreate(IR_TYPE_ARRAY, "array", 0));
     IRValue *count = irNumber(a->array.length, numberType());
-    irEmit(b->block, irAlloc(arr, irTypeCreate(IR_TYPE_ARRAY, "array", 0), count, 0));
+    irEmit(b->block, irAlloc(arr, irTypeCreate(IR_TYPE_ARRAY, "array", 0), count, 0, 0));
 
     for (int i = 0; i < a->array.length; i++) {
       IRValue *item = buildNode(b, a->array.elements[i]);
@@ -916,7 +994,7 @@ static IRValue *buildNode(IRBuilder *b, int id) {
 
   case NODE_OBJECT: {
     IRValue *obj = irTemp(irTypeCreate(IR_TYPE_OBJECT, "object", 0));
-    irEmit(b->block, irAlloc(obj, irTypeCreate(IR_TYPE_OBJECT, "object", 0), NULL, 1));
+    irEmit(b->block, irAlloc(obj, irTypeCreate(IR_TYPE_OBJECT, "object", 0), NULL, 1, 0));
 
     for (int i = 0; i < a->object.length; i++) {
       const char *key = nodeName(b->astRef, a->object.entries[i].key);
@@ -954,11 +1032,9 @@ static IRValue *buildNode(IRBuilder *b, int id) {
     AstNode *calleeNode = &node->ast[a->call.callee];
     /* sizeof(TypeName) — argumen nama tipe, bukan value: trampoline ke
      * interpretCall yang meng-intercept sizeof (pola method call). */
-    const char *calleeName = (calleeNode->type == NODE_IDENTIFIER)
-                                 ? calleeNode->identifier.name
-                                 : (calleeNode->type == NODE_LITERAL_ID)
-                                       ? calleeNode->string.value
-                                       : NULL;
+    const char *calleeName = (calleeNode->type == NODE_IDENTIFIER)   ? calleeNode->identifier.name
+                             : (calleeNode->type == NODE_LITERAL_ID) ? calleeNode->string.value
+                                                                     : NULL;
     bool isSizeof = calleeName && !strcmp(calleeName, "sizeof");
     /* new/del — type-driven memory: arg pertama `new` nama tipe, tak
      * bisa dievaluasi sebagai ekspresi. Trampoline ke interpretCall. */

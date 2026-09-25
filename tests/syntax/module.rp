@@ -1,8 +1,10 @@
+// module.rp — semantik dotted path (design/ie.txt import #5)
+// Hanya modules.a yang terjangkau: satu-satunya leaf dengan statement
+// export (`export *`). Leaf tanpa export (b/c/d) tidak bisa diakses via
+// dotted path — Z-self wajib mengekspor dirinya, kalau tidak resolusi
+// gagal dengan ImportError (cek manual: import d from ../modules.d).
 import create, update from ../modules.a
-import b.*, c.*, d.* from ../modules as m
 import os from rupa
-import a.* as form, b.login, b.register from ../modules
-import d from ../modules
 import db, math from rupa
 
 print(db)
@@ -12,12 +14,4 @@ print(math.add(1, 2) + "\n")
 
 create()
 update()
-m.login()
-m.services()
-m.auth()
 print(os.info().user + "\n")
-form.create()
-login()
-register()
-d.auth()
-d.users()

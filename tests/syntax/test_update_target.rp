@@ -1,0 +1,53 @@
+# Update target kompleks: ++ -- += pada handle Contract & array
+# Grammar: E.m++ -> E.m = E.m + 1 (desugar), E.m += v, E[i]--
+Counter {
+  count: number
+}
+
+c: Counter = new Contract()
+c.count = 10
+
+c.count++
+print("count: ", c.count)
+print("\n")
+
+++c.count
+print("count: ", c.count)
+print("\n")
+
+c.count--
+print("count: ", c.count)
+print("\n")
+
+c.count += 5
+c.count *= 2
+c.count -= 2
+print("count: ", c.count)
+print("\n")
+
+# Subscript pada array nilai (GC array)
+arr = [1, 2, 3]
+arr[1]++
+arr[1] += 10
+arr[2]--
+print("arr: ", arr[1], " ", arr[2])
+print("\n")
+
+# Elemen handle Contract via view subscript
+Box {
+  size: number
+}
+Store {
+  boxes: Box[]
+}
+boxInit(n: number): Box[] {
+  boxes: Box[] = new Contract(n)
+  return boxes
+}
+s: Store = new Contract()
+s.boxes = boxInit(3)
+s.boxes[0].size = 5
+s.boxes[0].size++
+s.boxes[0].size += 2
+print("size: ", s.boxes[0].size)
+print("\n")

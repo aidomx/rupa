@@ -27,6 +27,7 @@ struct GarbageCollector {
   size_t *sizes;        // Registry v2: ukuran blok per alokasi (bytes)
   size_t *elems;        // Registry v2: jumlah elemen per alokasi (calloc/reallocarray)
   char **types;         // Registry v3: nama tipe elemen per alokasi (new/Contract)
+  char **vheads;        // Registry v4: kepala rantai view per slot owner (gc.c)
   int capacity;         // Batas maksimum referensi yang dapat ditampung
   int count;            // Jumlah referensi aktif dalam konteks ini
   pthread_mutex_t lock; // Mutex for thread-safe allocation

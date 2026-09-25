@@ -1,13 +1,13 @@
 username = "budi"
 status = 200
 
-case username => {
+case username {
   "budi": print("true\n")
   "arman": print("true\n")
   default: print("false\n")
 }
 
-case status => {
+case status {
   200: print("success\n")
   404: {
     print("not found\n")

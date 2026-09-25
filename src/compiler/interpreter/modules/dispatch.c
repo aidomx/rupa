@@ -1,4 +1,5 @@
 #include <rupa.h>
+#include <stdarg.h>
 /* Interpreter Dispatch — the main interpretNode switch/case dispatcher.
  * Module loading utilities are in loader.c. */
 #include "module.h"
@@ -56,6 +57,25 @@ static void modAppendEntry(struct RuntimeObjectEntry **list, const char *key, Ru
   *list = se;
 }
 
+/* ImportError spesifik: import yang gagal (module tanpa export, member
+ * tidak ada di module, module tidak ditemukan) dilaporkan ke caller —
+ * bukan diam-diam di-skip lalu terbaca `undefined`. Line/row dikirim
+ * eksplisit dari node import: global lokasi error pasti sudah tertimpa
+ * eksekusi statement terakhir di dalam module yang dimuat. */
+static void addImportError(Error *x, int line, int row, const char *fmt, ...) {
+  if (!x) return;
+  static char message[MAX_MESSAGE_LENGTH];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(message, sizeof(message), fmt, args);
+  va_end(args);
+  addError(x, (ErrorInfo){.code = "ImportError",
+                          .message = message,
+                          .line = line,
+                          .row = row,
+                          .type = ERR});
+}
+
 /* Build a filtered copy of module object entries per `-> { name: private }`. */
 static RuntimeValue modFilterPolicies(struct AstMod *mod, RuntimeValue mv) {
   struct RuntimeObjectEntry *filtered = NULL;
@@ -73,25 +93,67 @@ static RuntimeValue modFilterPolicies(struct AstMod *mod, RuntimeValue mv) {
   return valueObject(filtered);
 }
 
+/* Lokasi statement import — dipakai semua pesan ImportError di bawah
+ * supaya error menunjuk baris `import ...`, bukan posisi terakhir di
+ * dalam module yang sedang dimuat. */
+#define IMP_LOC n->ast[id].line, n->ast[id].row
+
+/* Binding hasil `import` — hanya module OBJECT (whole-env / namespace
+ * dari file lain) yang ditandai hidden di whole-env export. Member leaf
+ * (fungsi/nilai, mis. `import has, get from ./drivers`) TIDAK ditandai:
+ * itu pola komposisi package yang memang harus terekspos, sama seperti
+ * hasil wildcard flatten. */
+static void modBind(RuntimeEnv *e, const char *name, RuntimeValue v) {
+  semSet(e, name, v);
+  if (v.type == VALUE_OBJECT) semMarkImport(e, name);
+}
+
+/* Source navigasi pohon: `./x.y`, `../a.b`, `./a.b.c` — bagian member
+ * (setelah prefix ./|../) mengandung '.'. Member lookup di index parent
+ * WAJIB cocok; tanpa fallback whole-module (design/import_export.txt:
+ * "apakah ada sub module yang di export?"). */
+static bool modSourceIsTreeNav(const char *src) {
+  if (!src) return false;
+  const char *p = src;
+  if (p[0] == '.' && p[1] == '.' && p[2] == '/') p += 3;
+  else if (p[0] == '.' && p[1] == '/') p += 2;
+  return strchr(p, '.') != NULL;
+}
+
 /* Interpret ImportDecl: bind entries from source into env.
  * With sourceAlias, bindings collect into a namespace object instead. */
 static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Error *x) {
   struct AstMod *mod = &n->ast[id].mod;
 
-  /* Bare import `import X` (no source) → bind module X directly. */
+  /* Bare import: `import name` — hanya sejajar (satu folder,
+   * design/import_export.txt §Bare). Muat ./<name>.rp atau
+   * ./<name>/index.rp dan bind dengan nama yang sama. */
   if (!mod->source) {
-    for (int i = 0; i < mod->entryCount; i++) {
-      char buf[512];
-      const char *name = modEntryPathStr(&mod->entries[i], buf, sizeof(buf));
-      if (!name) continue;
-      RuntimeValue v = modLoadSource(name, x);
-      if (v.type == VALUE_OBJECT) semSet(e, name, v);
+    if (mod->entryCount != 1) return resultNormal(valueNull());
+    AstModEntry *ben = &mod->entries[0];
+    if (!ben->name || ben->type != MOD_ID) return resultNormal(valueNull());
+
+    char barePath[64];
+    snprintf(barePath, sizeof(barePath), "./%s", ben->name);
+    RuntimeValue mv = modLoadSource(barePath, x);
+    if (mv.type != VALUE_OBJECT) {
+      addImportError(x, IMP_LOC,
+                     "Cannot import '%s' — no './%s.rp' or './%s/index.rp' beside this file",
+                     ben->name, ben->name, ben->name);
+      return resultNormal(valueNull());
     }
+    /* ie.txt import #1: member kalau ada, selain itu whole module =
+     * namespace. Aturan seragam yang sama dengan bentuk `from`. */
+    RuntimeValue fn_val;
+    const char *bindName = ben->key ? ben->key : ben->name;
+    if (valueObjectGet(mv, ben->name, &fn_val))
+      modBind(e, bindName, fn_val);
+    else
+      modBind(e, bindName, mv);
     return resultNormal(valueNull());
   }
 
   bool rupa_root = strcmp(mod->source, "rupa") == 0;
-  struct RuntimeObjectEntry *nsEntries = NULL;
 
   for (int i = 0; i < mod->entryCount; i++) {
     AstModEntry *en = &mod->entries[i];
@@ -99,14 +161,6 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Erro
     const char *pathStr = modEntryPathStr(en, pathBuf, sizeof(pathBuf));
     if (!pathStr) continue;
     const char *bindName = en->key ? en->key : en->name;
-    if (!en->key && en->type == MOD_MEMBER && en->childrens) {
-      /* `b.login` (no alias) → bind under the last segment's name
-       * ("login"), not the module prefix ("b"). */
-      AstModEntry *last = en->childrens;
-      while (last->childrens)
-        last = last->childrens;
-      if (last->name) bindName = last->name;
-    }
 
     /* `import X from rupa` → load each name as its own stdlib module */
     if (rupa_root) {
@@ -126,7 +180,11 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Erro
           namespace_pkg = ok;
         }
       }
-      if (!ok) ok = stdlibGetModule(en->name, &pkg);
+      if (!ok) ok = stdlibGetModule(en->name, &pkg); /* native module (.o) */
+      if (!ok) {
+        addImportError(x, IMP_LOC, "Stdlib package or namespace '%s' not found in 'rupa'", en->name);
+        continue;
+      }
       if (ok) {
         /* A package index may expose a namespace whose public name differs
          * from the package directory, e.g. database/index.rp -> namespace db.
@@ -138,153 +196,62 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Erro
           if (valueObjectGet(pkg, en->name, &ns)) bindValue = ns;
         }
 
-        if (mod->sourceAlias)
-          modAppendEntry(&nsEntries, bindName, bindValue);
-        else
-          semSet(e, bindName, bindValue);
+        modBind(e, bindName, bindValue);
       }
       continue;
     }
 
-    /* Wildcard: `d.*` → load d.rp and bind it / flatten its entries. */
+    /* Wildcard: leading star `import * as x from ./X` — seluruh member
+     * source (bentuk kanonik). Entry bernama kosong. */
     if (en->type == MOD_WILD) {
-      RuntimeValue mv = valueNull();
-      {
-        char fileBuf[512];
-        snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
-        mv = loadModuleFileError(fileBuf, true, x);
+      RuntimeValue whole = modLoadSource(mod->source, x);
+      if (whole.type != VALUE_OBJECT) {
+        addImportError(
+            x, IMP_LOC, "Module '%s' not found, empty, or does not export anything", mod->source);
+        continue;
       }
-      if (mv.type != VALUE_OBJECT) mv = modLoadSource(mod->source, x);
-      if (mv.type != VALUE_OBJECT) continue;
-
       if (en->key) {
-        /* `a.* as form` → bind whole module object */
-        if (mod->sourceAlias)
-          modAppendEntry(&nsEntries, bindName, mv);
-        else
-          semSet(e, bindName, mv);
+        /* `* as x` → bind whole module object */
+        modBind(e, en->key, whole);
       } else {
-        /* `d.*` → flatten module entries into env/namespace */
-        for (struct RuntimeObjectEntry *fe = mv.as.object.entries; fe; fe = fe->next) {
-          if (mod->sourceAlias)
-            modAppendEntry(&nsEntries, fe->key, fe->value);
-          else
-            semSet(e, fe->key, fe->value);
-        }
+        /* `*` tanpa alias → flatten (publik, pola komposisi) */
+        for (struct RuntimeObjectEntry *fe = whole.as.object.entries; fe; fe = fe->next)
+          semSet(e, fe->key, fe->value);
       }
       continue;
     }
 
-    /* ID / MEMBER entries */
-    RuntimeValue mv = valueNull();
-    bool loaded = false;
-
-    /* Entry with alias or sub-path prefers `<source>/<name>` file first:
-     * `a as form` → a.rp, `b.login` → b.rp. */
-    if (en->key || en->type == MOD_MEMBER) {
-      char fileBuf[512];
-      snprintf(fileBuf, sizeof(fileBuf), "%s/%s", mod->source, en->name);
-      mv = loadModuleFileError(fileBuf, true, x);
-      loaded = (mv.type == VALUE_OBJECT);
-    }
-    if (!loaded) {
-      mv = modLoadSource(mod->source, x);
-      loaded = (mv.type == VALUE_OBJECT);
-    }
-    if (!loaded) {
-      /* `import d from ../modules` → try ../modules.d (d.rp) */
+    /* ID entries: member dari source, fallback whole-module untuk
+     * local path, lalu fallback `<source>.<name>` (d.rp). */
+    RuntimeValue mv = modLoadSource(mod->source, x);
+    if (mv.type != VALUE_OBJECT) {
       char fileBuf[512];
       snprintf(fileBuf, sizeof(fileBuf), "%s.%s", mod->source, en->name);
       mv = loadModuleFile(fileBuf, true);
-      loaded = (mv.type == VALUE_OBJECT);
     }
-    if (!loaded) continue;
+    if (mv.type != VALUE_OBJECT) {
+      addImportError(
+          x, IMP_LOC,
+          "Import failed for '%s' from '%s' — module not found or does not export anything",
+          en->name, mod->source);
+      continue;
+    }
 
-    if (en->type == MOD_MEMBER && en->childrens) {
-      /* `b.login` → dig into childrens chain */
-      RuntimeValue cur = mv;
-      bool found = true;
-      for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
-        RuntimeValue nv;
-        if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
-          cur = nv;
-        } else {
-          found = false;
-          break;
-        }
-      }
-      if (found) {
-        if (mod->sourceAlias)
-          modAppendEntry(&nsEntries, bindName, cur);
-        else
-          semSet(e, bindName, cur);
-      }
-    } else if (en->key) {
-      /* `a as form` → bind whole module object */
-      if (mod->sourceAlias)
-        modAppendEntry(&nsEntries, bindName, mv);
-      else
-        semSet(e, bindName, mv);
+    RuntimeValue fn_val;
+    if (valueObjectGet(mv, en->name, &fn_val)) {
+      modBind(e, bindName, fn_val);
+    } else if (mod->entryCount == 1 && modSourceResolvesLeaf(mod->source)) {
+      /* ie.txt import #4: single entry tanpa member yang cocok otomatis
+       * menjadi namespace (whole module). Hanya untuk leaf sungguhan —
+       * path yang di-resolve loader ke parent index (tree nav #5) wajib
+       * menemukan member di sana. */
+      modBind(e, bindName, mv);
     } else {
-      /* plain `X from path` → member X, fallback whole module for local */
-      RuntimeValue fn_val;
-      if (valueObjectGet(mv, en->name, &fn_val)) {
-        if (mod->sourceAlias)
-          modAppendEntry(&nsEntries, bindName, fn_val);
-        else
-          semSet(e, bindName, fn_val);
-      } else if (hasDotSlash(mod->source)) {
-        if (mod->sourceAlias)
-          modAppendEntry(&nsEntries, bindName, mv);
-        else
-          semSet(e, bindName, mv);
-      }
+      addImportError(x, IMP_LOC, "Member '%s' not found in module '%s'", pathStr, mod->source);
     }
   }
 
-  if (mod->sourceAlias) semSet(e, mod->sourceAlias, valueObject(nsEntries));
   return resultNormal(valueNull());
-}
-
-/* Resolve one implicit-file export entry (no `from` on the AstMod): the
- * entry's own name is a file relative to the current directory (same
- * resolution loadModuleFile already does via g_source_file_path), reusing
- * modLoadSource so implicit lookups behave identically to explicit `from`
- * ones. MOD_MEMBER entries drill into en->childrens (mirrors the
- * member-chain walk on the import side); MOD_ID/MOD_WILD bind the whole
- * loaded file. Appends (bindName, value) to *out instead of binding
- * anywhere, so callers decide where it lands (env directly, or merged into
- * a namespace object first). */
-static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntry **out,
-                                       Error *error) {
-  if (!en || !en->name) return;
-  RuntimeValue mv = modLoadSource(en->name, error);
-  if (mv.type != VALUE_OBJECT) return;
-
-  if (en->type == MOD_MEMBER && en->childrens) {
-    RuntimeValue cur = mv;
-    bool found = true;
-    for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
-      RuntimeValue nv;
-      if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
-        cur = nv;
-      } else {
-        found = false;
-        break;
-      }
-    }
-    if (!found) return;
-    /* Bind name defaults to the last chain segment ("connect"), not the
-     * file name ("driver") — same rule as the import-side fix. */
-    AstModEntry *last = en->childrens;
-    while (last->childrens)
-      last = last->childrens;
-    const char *bindName = en->key ? en->key : (last->name ? last->name : en->name);
-    modAppendEntry(out, bindName, cur);
-    return;
-  }
-
-  modAppendEntry(out, en->key ? en->key : en->name, mv);
 }
 
 /* Compute (bindName, value) pairs for one ExportDecl without binding them
@@ -292,20 +259,50 @@ static void resolveImplicitExportEntry(AstModEntry *en, struct RuntimeObjectEntr
  * namespace blocks (merged, deduped, then bound once under the namespace
  * name).
  *
- * `insideNamespace` controls bare MOD_ID entries with no `from`: at top
- * level, `export x` (bare, no dot) stays a pure local marker — a contract
- * for the loader (see loader.c), not something with any own runtime value —
- * so it's skipped, preserving existing behavior. Inside a `namespace`
- * block, every bare name is implicitly a sibling file
- * (`namespace db { export driver }` → load ./driver.rp, bind as "driver"),
- * since referencing other files is the entire point of the block. */
-static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
+ * Bare export (tanpa `from`, design/import_export.txt §Bare) — siklus
+ * sejajar:
+ *   export x, y → ikat member env saat ini (diri sendiri)
+ *   export X    → X.rp sejajar ada → re-export whole module;
+ *                 tidak ada → X adalah member env ini.
+ * Urutan: member sendiri menang, lalu file sejajar. */
+static void computeExportBindings(RuntimeEnv *env, struct AstMod *mod,
                                   struct RuntimeObjectEntry **out, Error *error) {
+  /* `export *` (ie.txt export #1): semua milik file ini. Binding dibaca
+   * di posisi statement export — bukan snapshot whole-env yang dihitung
+   * loader hanya SETELAH semua statement selesai. */
+  if (!mod->source && mod->entryCount == 1 && mod->entries[0].type == MOD_WILD) {
+    for (RuntimeBinding *b = env->bindings; b; b = b->next) {
+      if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
+          strcmp(b->name, "ERROR") == 0)
+        continue;
+      if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
+      if (b->isImport) continue;
+      modAppendEntry(out, b->name, b->value);
+    }
+    return;
+  }
+
   if (!mod->source) {
     for (int i = 0; i < mod->entryCount; i++) {
       AstModEntry *en = &mod->entries[i];
-      if (en->type == MOD_ID && !insideNamespace) continue; /* local marker, no-op */
-      resolveImplicitExportEntry(en, out, error);
+      if (!en->name || en->type != MOD_ID) continue;
+      RuntimeValue self_val;
+      if (semGet(env, en->name, &self_val)) {
+        modAppendEntry(out, en->key ? en->key : en->name, self_val);
+        continue;
+      }
+      /* ie.txt export #3: tidak ada di file ini → otomatis namespace
+       * dari file sejajar (re-export whole module). */
+      char barePath[64];
+      snprintf(barePath, sizeof(barePath), "./%s", en->name);
+      RuntimeValue mv = modLoadSource(barePath, error);
+      if (mv.type == VALUE_OBJECT) {
+        modAppendEntry(out, en->key ? en->key : en->name, mv);
+        continue;
+      }
+      addImportError(error, 0, 0,
+                     "Cannot export '%s' — not defined here and no './%s.rp' beside this file",
+                     en->name, en->name);
     }
     return;
   }
@@ -313,48 +310,62 @@ static void computeExportBindings(struct AstMod *mod, bool insideNamespace,
   RuntimeValue mv = modLoadSource(mod->source, error);
   if (mv.type != VALUE_OBJECT) return;
 
-  /* Single plain entry = namespace re-export (any alias, whole module) */
+  /* Leading star: `export * from ./X` — ekspor seluruh member source
+   * (bentuk kanonik design/import_export.txt). Entry bernama kosong. */
+  if (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_WILD &&
+      mod->entries[0].name && mod->entries[0].name[0] == '\0') {
+    /* Policy private tetap ditegakkan pada hasil flatten. */
+    RuntimeValue src = (mod->policyCount > 0 && mod->policies) ? modFilterPolicies(mod, mv) : mv;
+    if (src.type == VALUE_OBJECT) {
+      for (struct RuntimeObjectEntry *fe = src.as.object.entries; fe; fe = fe->next)
+        modAppendEntry(out, fe->key, fe->value);
+    }
+    return;
+  }
+
+  /* Single plain entry = re-export. Member-first: bila module sumber
+   * punya binding bernama sama (mis. fungsi `open` di open.rp), ikat
+   * member itu; selain itu ikat seluruh module (re-export leaf/
+   * sub-package, mis. `export resources from ./resources`). */
   bool namespace_mode =
       (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_ID);
+  bool tree_nav = modSourceIsTreeNav(mod->source);
 
   if (namespace_mode) {
     const char *ns = mod->entries[0].name;
     if (ns) {
+      RuntimeValue member;
+      if (valueObjectGet(mv, ns, &member)) {
+        modAppendEntry(out, ns, member);
+        return;
+      }
+      if (tree_nav) {
+        /* Tree navigation: member wajib ada di index parent — cabang
+         * yang tidak di-export tidak boleh diam-diam menjadi whole
+         * module (design/import_export.txt). */
+        addImportError(error, 0, 0,
+                       "Export failed for '%s' from '%s' — member not found in parent index",
+                       ns, mod->source);
+        return;
+      }
       RuntimeValue obj = (mod->policyCount > 0 && mod->policies) ? modFilterPolicies(mod, mv) : mv;
       modAppendEntry(out, ns, obj);
     }
     return;
   }
 
-  /* Selective: bind each entry member (dotted chains included) */
+  /* Selective: bind each named member */
   for (int i = 0; i < mod->entryCount; i++) {
     AstModEntry *en = &mod->entries[i];
     if (!en->name) continue;
-
-    if (en->type == MOD_MEMBER && en->childrens) {
-      RuntimeValue cur = mv;
-      bool found = true;
-      for (AstModEntry *c = en->childrens; c && c->name; c = c->childrens) {
-        RuntimeValue nv;
-        if (cur.type == VALUE_OBJECT && valueObjectGet(cur, c->name, &nv)) {
-          cur = nv;
-        } else {
-          found = false;
-          break;
-        }
-      }
-      if (found) {
-        AstModEntry *last = en->childrens;
-        while (last->childrens)
-          last = last->childrens;
-        modAppendEntry(out, en->key ? en->key : (last->name ? last->name : en->name), cur);
-      }
-      continue;
-    }
-
     RuntimeValue item;
-    if (valueObjectGet(mv, en->name, &item))
+    if (valueObjectGet(mv, en->name, &item)) {
       modAppendEntry(out, en->key ? en->key : en->name, item);
+    } else if (tree_nav) {
+      addImportError(error, 0, 0,
+                     "Export failed for '%s' from '%s' — member not found in parent index",
+                     en->name, mod->source);
+    }
   }
 }
 
@@ -370,13 +381,12 @@ static void freeBindingList(struct RuntimeObjectEntry *list) {
 }
 
 /* Interpret ExportDecl at top level: compute bindings and set them directly
- * into env. `export x` (bare, no `from`) stays a no-op marker for the
- * loader; everything else (re-export, or an implicit-file dotted/wildcard
- * export) actually binds. */
+ * into env. Parser hanya menghasilkan export dengan `from`; guard source
+ * NULL di computeExportBindings tinggal no-op. */
 static void interpretModExport(Node *n, int id, RuntimeEnv *e, Error *x) {
   struct AstMod *mod = &n->ast[id].mod;
   struct RuntimeObjectEntry *out = NULL;
-  computeExportBindings(mod, /*insideNamespace=*/false, &out, x);
+  computeExportBindings(e, mod, &out, x);
   for (struct RuntimeObjectEntry *o = out; o; o = o->next)
     semSet(e, o->key, o->value);
   freeBindingList(out);
@@ -407,7 +417,7 @@ static bool interpretModNamespace(Node *n, int id, RuntimeEnv *e, Error *x) {
     if (stmt->type != NODE_MOD || stmt->mod.type != ExportDecl) continue;
 
     struct RuntimeObjectEntry *out = NULL;
-    computeExportBindings(&stmt->mod, /*insideNamespace=*/true, &out, x);
+    computeExportBindings(e, &stmt->mod, &out, x);
 
     struct RuntimeObjectEntry *o = out;
     while (o) {

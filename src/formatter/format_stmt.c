@@ -54,35 +54,28 @@ int fmtNodeEndLine(Node *node, int id) {
       end = fmtNodeEndLine(node, n->block.statements[n->block.length - 1]);
     break;
   case NODE_FUNCTION_DECL:
-    if (n->function.body >= 0)
-      end = fmtNodeEndLine(node, n->function.body);
+    if (n->function.body >= 0) end = fmtNodeEndLine(node, n->function.body);
     break;
   case NODE_STRUCT_DECL:
-    if (n->asStruct.body >= 0)
-      end = fmtNodeEndLine(node, n->asStruct.body);
+    if (n->asStruct.body >= 0) end = fmtNodeEndLine(node, n->asStruct.body);
     break;
   case NODE_ENUM_DECL:
-    if (n->asEnum.body >= 0)
-      end = fmtNodeEndLine(node, n->asEnum.body);
+    if (n->asEnum.body >= 0) end = fmtNodeEndLine(node, n->asEnum.body);
     break;
   case NODE_CLASS_DECL:
-    if (n->asClass.body >= 0)
-      end = fmtNodeEndLine(node, n->asClass.body);
+    if (n->asClass.body >= 0) end = fmtNodeEndLine(node, n->asClass.body);
     break;
   case NODE_MARKER:
     /* @marker membungkus method decl berikutnya — endLine = method-nya. */
-    if (n->asClass.body >= 0)
-      end = fmtNodeEndLine(node, n->asClass.body);
+    if (n->asClass.body >= 0) end = fmtNodeEndLine(node, n->asClass.body);
     break;
   case NODE_IF: {
     int branch = n->asIf.elseBlock >= 0 ? n->asIf.elseBlock : n->asIf.thenBlock;
-    if (branch >= 0)
-      end = fmtNodeEndLine(node, branch);
+    if (branch >= 0) end = fmtNodeEndLine(node, branch);
     break;
   }
   case NODE_LOOP:
-    if (n->loop.body >= 0)
-      end = fmtNodeEndLine(node, n->loop.body);
+    if (n->loop.body >= 0) end = fmtNodeEndLine(node, n->loop.body);
     break;
   default:
     break;
@@ -302,8 +295,7 @@ void fmtEnumDecl(Formatter *f, Node *node, int id) {
   fmtNode(f, node, n->asEnum.name);
   fmtSep(f);
   AstNode *body = n->asEnum.body >= 0 ? &node->ast[n->asEnum.body] : NULL;
-  if (body && body->type == NODE_BLOCK && body->block.length == 0 &&
-      !fmtKeepEmptyBlock(f)) {
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 && !fmtKeepEmptyBlock(f)) {
     fmtStr(f, "{}");
     return;
   }
@@ -357,8 +349,8 @@ void fmtClassDecl(Formatter *f, Node *node, int id) {
   }
   fmtSep(f);
   AstNode *body = n->asClass.body >= 0 ? &node->ast[n->asClass.body] : NULL;
-  if (body && body->type == NODE_BLOCK && body->block.length == 0 &&
-      f->config && !f->config->classKeepEmptyBlock) {
+  if (body && body->type == NODE_BLOCK && body->block.length == 0 && f->config &&
+      !f->config->classKeepEmptyBlock) {
     fmtStr(f, "{}");
     return;
   }

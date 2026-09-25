@@ -1,7 +1,7 @@
 add(a, b) { return a + b }
 
 calc(x, op, y) {
-  case op => {
+  case op {
     "+": return x + y
     "-": return add(x, y * -1)
     default: return null

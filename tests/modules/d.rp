@@ -6,4 +6,3 @@ users() {
     print("d.users called\n")
 }
 
-export d

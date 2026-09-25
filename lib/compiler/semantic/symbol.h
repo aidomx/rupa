@@ -9,7 +9,9 @@ struct RuntimeBinding {
   char *name;
   char *type;
   RuntimeValue value;
-  bool isConst; /* `const x = 1` — semSet setelah init ditolak (ConstError) */
+  bool isConst;  /* `const x = 1` — semSet setelah init ditolak (ConstError) */
+  bool isImport; /* binding hasil `import` — hidden di whole-env export kecuali
+                    opt-in via policy `-> { import: public }` */
   struct RuntimeBinding *next;
 };
 
@@ -21,6 +23,13 @@ struct RuntimeBinding {
 struct RuntimeEnv {
   struct RuntimeEnv *parent;
   struct RuntimeBinding *bindings;
+  /* Hash index bindings (insert-only, open addressing tanpa tombstone;
+  * entries[i] = binding+1, 0 = kosong). Nama binding di-intern ke instance
+  * kanonik (symbol.c) sehingga perbandingan cukup pointer. Hash dihitung
+  * sekali saat declare — lookup O(1) tanpa strcmp. */
+  unsigned long *hash;  /* anggota: nilai = binding + 1; 0 = kosong */
+  unsigned long hashMask; /* hashCap - 1, hashCap power of two */
+  int hashCount;
   bool isRepl;
 };
 
@@ -63,6 +72,8 @@ bool semDeclare(RuntimeEnv *env, const char *name, const char *type);
  * @param value Nilai runtime.
  */
 void semSet(RuntimeEnv *env, const char *name, RuntimeValue value);
+void semMarkImport(RuntimeEnv *env, const char *name);
+bool semIsImport(const RuntimeEnv *env, const char *name);
 
 /**
  * @brief Menulis nilai + mengunci binding sebagai const (deklarasi).
@@ -107,6 +118,54 @@ const char *semType(RuntimeEnv *env, const char *name);
  * @return Pointer ke RuntimeBinding, atau NULL jika tidak ditemukan.
  */
 RuntimeBinding *semFind(RuntimeEnv *env, const char *name);
+
+/* ===== Jalur cepat berbasis nama kanonik =====
+ * Nama di-intern ke instance pointer kanonik (lifetime proses). Pemanggil
+ * yang men-cache (canon, hash) — mis. field IRValue — melompati interning
+ * + hash string di setiap lookup loop panas. */
+
+/**
+ * @brief Pointer kanonik sebuah nama (intern; idempoten).
+ */
+const char *semNameCanonical(const char *name);
+
+/**
+ * @brief Hash dari pointer kanonik (bukan dari isi string).
+ */
+unsigned long semNameHashOf(const void *canon);
+
+/**
+ * @brief semFindLocal untuk nama kanonik + hash precomputed.
+ */
+RuntimeBinding *semFindLocalCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash);
+
+/**
+ * @brief semFind untuk nama kanonik + hash precomputed.
+ */
+RuntimeBinding *semFindCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash);
+
+/**
+ * @brief semGet untuk nama kanonik + hash precomputed.
+ */
+bool semGetCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash, RuntimeValue *out);
+
+/**
+ * @brief semSet untuk nama kanonik + hash precomputed.
+ */
+void semSetCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash, RuntimeValue value);
+
+/**
+ * @brief semIsConst untuk nama kanonik + hash precomputed.
+ */
+bool semIsConstCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash);
+
+/**
+ * @brief semSetConst untuk nama kanonik + hash precomputed.
+ *
+ * @return true jika write berhasil.
+ */
+bool semSetConstCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash,
+                      RuntimeValue value);
 
 /* ====================== Async Event Loop ==================== */
 

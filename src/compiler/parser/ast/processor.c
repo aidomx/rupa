@@ -42,5 +42,7 @@ Node *processGenerate(Request *req) {
     if (p <= before)
       p++;
   }
+
+  syntaxMemoDetach(req); /* memo milik pool generasi ini — ikut habis */
   return req->node;
 }

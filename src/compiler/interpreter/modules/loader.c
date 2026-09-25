@@ -142,8 +142,117 @@ static void propagateModuleErrors(Error *dst, Error *src) {
   }
 }
 
+/* Apakah file punya statement export eksplisit? Scan tekstual ringan —
+ * gate resolusi ie.txt import #5: Z-self hanya dihitung bila Z mengekspor
+ * dirinya ("leaf polos tanpa export tidak dihitung → harus via Y").
+ * `export *` dan `namespace` sama-sama dihitung (setara has_export di
+ * loader); baris komentar // dan # di-skip. */
+static bool fileHasExportStatement(const char *path) {
+  if (!path) return false;
+  FILE *f = fopen(path, "r");
+  if (!f) return false;
+  char line[512];
+  bool found = false;
+  while (!found && fgets(line, sizeof(line), f)) {
+    const char *p = line;
+    while (*p == ' ' || *p == '\t') p++;
+    if (p[0] == '/' && p[1] == '/') continue;
+    if (p[0] == '#') continue;
+    bool is_export = strncmp(p, "export", 6) == 0 &&
+                     (p[6] == '\0' || p[6] == ' ' || p[6] == '\t' ||
+                      p[6] == '*' || p[6] == '\n' || p[6] == '\r');
+    bool is_namespace = strncmp(p, "namespace", 9) == 0 &&
+                        (p[9] == '\0' || p[9] == ' ' || p[9] == '\t');
+    if (is_export || is_namespace) found = true;
+  }
+  fclose(f);
+  return found;
+}
+
 static char *resolveDotPath(const char *module_path, const char *source_dir) {
   if (!module_path || !source_dir) return NULL;
+
+  /* Dual resolution (design/ie.txt import #5): dotted path dicoba sebagai
+   * file/module nyata DULU — Z yang mengekspor dirinya sendiri membuat
+   * X.Y hanya referensi path — baru fallback ke parent index (Z menjadi
+   * sub-module via export Y). Keduanya tidak ada → NULL → ImportError. */
+  const char *p = module_path;
+  while (p[0] == '.' && p[1] == '.' && p[2] == '/') p += 3;
+  if (p[0] == '.' && p[1] == '/') p += 2;
+  const char *lastDot = strrchr(p, '.');
+  if (lastDot && lastDot[1] != '\0' && lastDot[1] != '/') {
+    size_t plen = (size_t)(lastDot - module_path); /* prefix + segmen parent */
+    char *dirpart = malloc(plen + 1);
+    if (!dirpart) return NULL;
+    size_t j = 0;
+    for (size_t i = 0; i < plen; i++) {
+      char c = module_path[i];
+      if (c == '.' && i + 1 < plen && module_path[i + 1] == '.') {
+        dirpart[j++] = '.';
+        dirpart[j++] = '.';
+        i++;
+      } else if (c == '.') {
+        dirpart[j++] = '/';
+      } else {
+        dirpart[j++] = c;
+      }
+    }
+    while (j > 0 && dirpart[j - 1] == '/') j--; /* buang '/' ekor sebelum gabung */
+    dirpart[j] = '\0';
+    /* Nama leaf = segmen terakhir setelah dot terakhir (Z pada X.Y.Z). */
+    const char *leaf = lastDot + 1;
+    size_t llen = strlen(leaf);
+
+    /* 1) Z-self sebagai file: ./X.Y/Z.rp — leaf mengekspor dirinya. */
+    char *leaf_rel = malloc(j + 1 + llen + 4);
+    if (leaf_rel) {
+      memcpy(leaf_rel, dirpart, j);
+      leaf_rel[j] = '/';
+      memcpy(leaf_rel + j + 1, leaf, llen);
+      strcpy(leaf_rel + j + 1 + llen, ".rp");
+      char *full = joinPath(source_dir, leaf_rel);
+      free(leaf_rel);
+      /* ie.txt #5: file ada TAPI tanpa statement export → bukan Z-self,
+       * lanjut ke tree navigation (parent index). */
+      if (full && fileExists(full) && fileHasExportStatement(full)) {
+        free(dirpart);
+        return full;
+      }
+      free(full);
+    }
+
+    /* 2) Z-self sebagai folder: ./X.Y/Z/index.rp. */
+    char *leafdir_rel = malloc(j + 1 + llen + 10);
+    if (leafdir_rel) {
+      memcpy(leafdir_rel, dirpart, j);
+      leafdir_rel[j] = '/';
+      memcpy(leafdir_rel + j + 1, leaf, llen);
+      strcpy(leafdir_rel + j + 1 + llen, "/index.rp");
+      char *full = joinPath(source_dir, leafdir_rel);
+      free(leafdir_rel);
+      if (full && fileExists(full) && fileHasExportStatement(full)) {
+        free(dirpart);
+        return full;
+      }
+      free(full);
+    }
+
+    /* 3) Tree navigation: ./X.Y/index.rp — Z sub-module via export parent. */
+    char *idx_rel = malloc(j + 10);
+    if (!idx_rel) {
+      free(dirpart);
+      return NULL;
+    }
+    memcpy(idx_rel, dirpart, j);
+    idx_rel[j] = '\0';
+    strcat(idx_rel, "/index.rp");
+    char *full = joinPath(source_dir, idx_rel);
+    free(dirpart);
+    free(idx_rel);
+    if (full && fileExists(full)) return full;
+    free(full);
+    return NULL;
+  }
 
   int mlen = (int)strlen(module_path);
   char *rel = malloc(mlen + 16);
@@ -236,7 +345,107 @@ static char *packageRootOf(const char *file_path) {
   return outermost;
 }
 
+/* Apakah dotted path ini resolve ke FILE leaf sungguhan — bukan index
+ * parent dan bukan leaf di dalam package (yang akan di-redirect loader
+ * ke parent-nya)? Dipakai dispatch untuk memilih semantik ie.txt:
+ * leaf → single entry boleh otomatis namespace (#4); via index parent →
+ * member wajib ada (tree nav #5). */
+bool modSourceResolvesLeaf(const char *module_path) {
+  if (!module_path || !hasDotSlash(module_path)) return false;
+  char *source_dir = dirName(g_source_file_path);
+  if (!source_dir) return false;
+  char *full = resolveDotPath(module_path, source_dir);
+  free(source_dir);
+  if (!full) return false;
+  size_t len = strlen(full);
+  bool is_leaf = !(len >= 8 && strcmp(full + len - 8, "/index.rp") == 0);
+  if (is_leaf) {
+    /* Leaf di dalam package: loader hanya me-redirect bila caller di
+     * LUAR package. Caller se-package (mis. open.rp → ./dsn) = muat
+     * langsung → semantik leaf. Caller luar → redirect parent index. */
+    char *pkg_root = packageRootOf(full);
+    if (pkg_root) {
+      char *caller = moduleCanonicalPath(g_source_file_path);
+      if (!caller) {
+        is_leaf = false; /* tanpa konteks caller: anggap redirect */
+      } else {
+        size_t plen = strlen(pkg_root);
+        bool inside = strncmp(caller, pkg_root, plen) == 0 &&
+                      (caller[plen] == '/' || caller[plen] == '\0');
+        is_leaf = inside;
+        gcfree(caller);
+      }
+      free(pkg_root);
+    }
+  }
+  free(full);
+  return is_leaf;
+}
+
+/* ---- Module cache ----
+ * Hasil load per canonical path di-memoize: module yang sama hanya
+ * dieksekusi SEKALI per run program. Tanpa ini, satu ExportDecl
+ * diproses dua kali (interpreter-side + loader re-export) dan setiap
+ * consumer me-load ulang seluruh sub-tree — di package bertingkat
+ * redundansi mengganda per level hingga eksekusi meledak (hang).
+ * Cache diisi hanya untuk module yang SELESAI dimuat; cycle tetap
+ * ditangani module-stack, bukan cache. */
+struct ModuleCacheEntry {
+  char *path; /* canonical, GC-managed */
+  RuntimeValue value;
+};
+static struct ModuleCacheEntry *g_module_cache = NULL;
+static int g_module_cache_count = 0;
+static int g_module_cache_capacity = 0;
+
+static bool moduleCacheGet(const char *canonical, RuntimeValue *out) {
+  for (int i = 0; i < g_module_cache_count; i++)
+    if (strcmp(g_module_cache[i].path, canonical) == 0) {
+      *out = g_module_cache[i].value;
+      return true;
+    }
+  return false;
+}
+
+/* Kepemilikan `canonical_owned` (gcstrdup) pindah ke cache. */
+static void moduleCachePut(char *canonical_owned, RuntimeValue v) {
+  if (g_module_cache_count >= g_module_cache_capacity) {
+    int ncap = g_module_cache_capacity ? g_module_cache_capacity * 2 : 16;
+    struct ModuleCacheEntry *nc = gcmall(ncap * sizeof(*nc));
+    if (!nc) {
+      gcfree(canonical_owned);
+      return;
+    }
+    if (g_module_cache) memcpy(nc, g_module_cache, g_module_cache_count * sizeof(*nc));
+    g_module_cache = nc;
+    g_module_cache_capacity = ncap;
+  }
+  g_module_cache[g_module_cache_count].path = canonical_owned;
+  g_module_cache[g_module_cache_count].value = v;
+  g_module_cache_count++;
+}
+
 /* ---- Public API ---- */
+
+/* Bangun object whole-env dari bindings module — dipakai jalur whole-env
+ * normal DAN pre-redirect cache (tree export). Binding hasil `import`
+ * (isImport) selalu hidden: bukan milik module. */
+static RuntimeValue buildWholeEnvValue(RuntimeEnv *env) {
+  struct RuntimeObjectEntry *entries = NULL;
+  for (RuntimeBinding *b = env->bindings; b; b = b->next) {
+    if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
+        strcmp(b->name, "ERROR") == 0)
+      continue;
+    if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
+    if (b->isImport) continue;
+    struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
+    e->key = gcstrdup(b->name);
+    e->value = b->value;
+    e->next = entries;
+    entries = e;
+  }
+  return valueObject(entries);
+}
 
 /* Kompat: loader tanpa propagasi error ke caller. */
 RuntimeValue loadModuleFile(const char *module_path, bool require_export) {
@@ -295,6 +504,19 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
    * module sendiri setelah mod_env dibuat. */
   const char *caller_path = g_source_file_path;
 
+  /* Sudah pernah dimuat selesai? Return hasil yang sama (memoize). */
+  RuntimeValue cached;
+  if (moduleCacheGet(canonical, &cached)) {
+    gcfree(canonical);
+    return cached;
+  }
+
+  /* Snapshot lokasi error caller — eksekusi module dalam akan menimpa
+   * lokasi global; kembalikan sebelum melaporkan ImportError supaya
+   * error menunjuk statement import, bukan baris terakhir module. */
+  int caller_line = 0, caller_row = 0;
+  getRuntimeErrorLocation(&caller_line, &caller_row);
+
   /* Package boundary (bug rpx_engine): file di dalam package (dir dengan
    * index.rp di rantai ancestor-nya) hanya bisa di-import dari LUAR
    * package bila file itu punya export sendiri — tanpa itu loader
@@ -306,10 +528,16 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
     char *pkg_root = packageRootOf(canonical);
     if (pkg_root) {
       if (caller_path && *caller_path) {
-        size_t plen = strlen(pkg_root);
-        bool inside = strncmp(caller_path, pkg_root, plen) == 0 &&
-                      (caller_path[plen] == '/' || caller_path[plen] == '\0');
-        cross_boundary = !inside;
+        /* caller_path bisa relatif (argv program utama) — kanonikalkan
+         * dulu agar perbandingan prefix dengan pkg_root valid. */
+        char *caller_canon = moduleCanonicalPath(caller_path);
+        if (caller_canon) {
+          size_t plen = strlen(pkg_root);
+          bool inside = strncmp(caller_canon, pkg_root, plen) == 0 &&
+                        (caller_canon[plen] == '/' || caller_canon[plen] == '\0');
+          cross_boundary = !inside;
+          gcfree(caller_canon);
+        }
       }
       free(pkg_root);
     }
@@ -420,7 +648,6 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
 
   bool has_export = false;
   bool has_decl_export = false;
-  bool has_namespace = false;
   {
     AstNode *prog = &node->ast[root];
     for (AstDeclaration *d = prog->program.declarations; d; d = d->next) {
@@ -430,40 +657,77 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
 
       if (decl->mod.type == ExportDecl) {
         has_export = true;
-        if (decl->mod.source) has_decl_export = true;
+        /* `export *` (ie.txt export #1): ekspor semua milik file ini —
+         * hasil module = whole-env snapshot, bukan jalur deklaratif. */
+        bool self_star = !decl->mod.source && decl->mod.entryCount == 1 &&
+                         decl->mod.entries[0].type == MOD_WILD;
+        if (!self_star && decl->mod.source) has_decl_export = true;
       } else if (decl->mod.type == NamespaceDecl) {
         has_export = true;
-        has_namespace = true;
       }
     }
   }
 
   bool enforce = require_export || cross_boundary;
   if (!has_export && enforce) {
+    /* Tree export (design/import_export.txt): leaf package tanpa export
+     * sendiri tetap terjangkau VIA parent index-nya. `import z from
+     * ./x.y.z` bukan akses langsung ke z.rp — loader mengalihkannya ke
+     * `x/y/index.rp` dan menyerahkan ke entry import untuk mengambil
+     * member `z` dari hasil export index cabang itu. Hanya leaf non-index
+     * yang dialihkan; index tanpa export tetap ImportError (bounded —
+     * rantai redirect berhenti di index pertama). */
+    if (cross_boundary) {
+      const char *slash = strrchr(canonical, '/');
+      bool is_index = slash && strcmp(slash, "/index.rp") == 0;
+      if (!is_index && slash && slash != canonical) {
+        size_t dlen = (size_t)(slash - canonical);
+        char *idx = malloc(dlen + 10);
+        if (idx) {
+          memcpy(idx, canonical, dlen);
+          idx[dlen] = '\0';
+          strcat(idx, "/index.rp");
+          if (fileExists(idx)) {
+            /* Cache leaf SEBELUM redirect: parent index pasti me-load
+             * leaf yang sama untuk re-export — dengan cache, leaf hanya
+             * dieksekusi sekali dan parent langsung pakai hasil ini. */
+            moduleCachePut(gcstrdup(canonical), buildWholeEnvValue(mod_env));
+            g_source_file_path = prev_path;
+            modulePopLoading(); /* lepas frame leaf sebelum muat index */
+            RuntimeValue parent_result = loadModuleFileError(idx, require_export, error);
+            free(idx);
+            return parent_result;
+          }
+          free(idx);
+        }
+      }
+    }
+    if (error) {
+      static char message[MAX_MESSAGE_LENGTH];
+      snprintf(message, sizeof(message),
+               "Module '%s' does not export anything — nothing to import\n"
+               "  note: add `export <name>` or `export <name> from ./<file>` in '%s'",
+               canonical, canonical);
+      setRuntimeErrorLocation(caller_line, caller_row); /* undo lokasi module dalam */
+      addError(error, (ErrorInfo){.file = canonical,
+                                  .code = "ImportError",
+                                  .message = message,
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR});
+    }
     g_source_file_path = prev_path;
-    modulePopLoading();
+    modulePopLoading(); /* membebaskan canonical — pesan sudah disalin */
     return valueNull();
   }
 
-  if ((!has_export && !enforce) || (has_namespace && !has_decl_export)) {
-    struct RuntimeObjectEntry *entries = NULL;
-    for (RuntimeBinding *b = mod_env->bindings; b; b = b->next) {
-      /* Runtime-only async status constants are implementation details,
-       * never module exports. Objects must remain here because namespaces
-       * are represented as RuntimeValue objects. */
-      if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
-          strcmp(b->name, "ERROR") == 0)
-        continue;
-      if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
-      struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
-      e->key = gcstrdup(b->name);
-      e->value = b->value;
-      e->next = entries;
-      entries = e;
-    }
-    g_source_file_path = prev_path;
-    modulePopLoading();
-    return resultNormal(valueObject(entries)).value;
+  /* Hasil akhir module — diputuskan sekali di bawah, lalu di-cache.
+   * Whole-env mencakup: module tanpa export yang diizinkan, namespace
+   * tanpa re-export source, dan file yang hanya punya local `export x`
+   * markers. */
+  RuntimeValue mod_result = valueNull();
+  if (!has_decl_export) {
+    mod_result = buildWholeEnvValue(mod_env); /* prev_path/pop/cache di tail */
   }
 
   if (has_decl_export) {
@@ -474,15 +738,107 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
       AstNode *decl = &node->ast[d->nodeId];
       if (decl->type != NODE_MOD || decl->mod.type != ExportDecl) continue;
       struct AstMod *mod = &decl->mod;
-      if (!mod->source) continue; /* local export: no re-export payload */
+
+      /* Bare re-export (design/import_export.txt §Bare): `export test`
+       * di index — muat ./test.rp (atau ./test/index.rp) sejajar dan
+       * terbitkan sebagai member bernama `test`. Bukan file sejajar?
+       * Bukan payload — member tetap mengalir lewat whole-env. */
+      if (!mod->source) {
+        /* `export *` self: tidak menerbitkan apa pun di sini — whole-env
+         * snapshot (jalur !has_decl_export) yang memuat semuanya. */
+        if (mod->entryCount == 1 && mod->entries[0].type == MOD_WILD) continue;
+        for (int i = 0; i < mod->entryCount; i++) {
+          AstModEntry *en = &mod->entries[i];
+          if (!en->name || en->type != MOD_ID) continue;
+          char barePath[64];
+          snprintf(barePath, sizeof(barePath), "./%s", en->name);
+          RuntimeValue bare_val = loadModuleFileError(barePath, false, error);
+          if (bare_val.type != VALUE_OBJECT) continue;
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(en->name);
+          se->value = bare_val;
+          se->next = entries;
+          entries = se;
+        }
+        continue;
+      }
 
       RuntimeValue mod_val = loadModuleFileError(mod->source, false, error);
       if (mod_val.type != VALUE_OBJECT) continue;
 
-      /* Namespace re-export: single plain entry */
+      /* Self-entry `.` (`export . -> { ... }`): bukan re-export binding —
+       * hanya marker module itu sendiri; tidak ada payload untuk
+       * diterbitkan ke consumer. */
+      if (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].name &&
+          strcmp(mod->entries[0].name, ".") == 0)
+        continue;
+
+      /* Leading star re-export: `export * from ./X` — terbitkan seluruh
+       * member source (bentuk kanonik design/import_export.txt). Policy
+       * private tetap ditegakkan; member private diterbitkan sebagai null
+       * + _private metadata, konsisten dengan re-export namespace. */
+      if (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_WILD &&
+          mod->entries[0].name && mod->entries[0].name[0] == '\0') {
+        for (struct RuntimeObjectEntry *fe = mod_val.as.object.entries; fe; fe = fe->next) {
+          bool is_private = false;
+          for (int pi = 0; pi < mod->policyCount; pi++) {
+            if (mod->policies[pi].name && strcmp(fe->key, mod->policies[pi].name) == 0 &&
+                mod->policies[pi].value && strcmp(mod->policies[pi].value, "private") == 0) {
+              is_private = true;
+              break;
+            }
+          }
+          if (is_private) {
+            struct RuntimeObjectEntry *pe = gccalloc(1, sizeof(*pe));
+            pe->key = gcstrdup(fe->key);
+            pe->value = valueNull();
+            pe->next = entries;
+            entries = pe;
+            continue;
+          }
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(fe->key);
+          se->value = fe->value;
+          se->next = entries;
+          entries = se;
+        }
+        struct RuntimeObjectEntry *priv_entries = NULL;
+        for (int pi = 0; pi < mod->policyCount; pi++) {
+          if (mod->policies[pi].name && mod->policies[pi].value &&
+              strcmp(mod->policies[pi].value, "private") == 0) {
+            struct RuntimeObjectEntry *pe = gccalloc(1, sizeof(*pe));
+            pe->key = gcstrdup(mod->policies[pi].name);
+            pe->value = valueNull();
+            pe->next = priv_entries;
+            priv_entries = pe;
+          }
+        }
+        if (priv_entries) {
+          struct RuntimeObjectEntry *pe = gccalloc(1, sizeof(*pe));
+          pe->key = gcstrdup("_private");
+          pe->value = valueObject(priv_entries);
+          pe->next = entries;
+          entries = pe;
+        }
+        continue;
+      }
+
+      /* Namespace re-export: single plain entry. Member-first: binding
+       * bernama sama di module sumber (mis. fungsi `open` di open.rp)
+       * menang atas whole module — konsisten dengan computeExportBindings. */
       if (mod->entryCount == 1 && !mod->entries[0].key && mod->entries[0].type == MOD_ID &&
           mod->entries[0].name) {
         const char *ns_name = mod->entries[0].name;
+
+        RuntimeValue member_val;
+        if (!mod->policies && valueObjectGet(mod_val, ns_name, &member_val)) {
+          struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
+          se->key = gcstrdup(ns_name);
+          se->value = member_val;
+          se->next = entries;
+          entries = se;
+          continue;
+        }
 
         if (mod->policyCount > 0 && mod->policies) {
           struct RuntimeObjectEntry *filtered = NULL;
@@ -536,12 +892,12 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
         continue;
       }
 
-      /* Selective: bind each named member */
+      /* Selective: bind each named member. Guard !en->name dihapus:
+       * tanpa member chain, entry selective selalu bernama. */
       for (int i = 0; i < mod->entryCount; i++) {
         AstModEntry *en = &mod->entries[i];
-        if (!en->name) continue;
         RuntimeValue item_val;
-        if (valueObjectGet(mod_val, en->name, &item_val)) {
+        if (en->name && valueObjectGet(mod_val, en->name, &item_val)) {
           struct RuntimeObjectEntry *se = gccalloc(1, sizeof(*se));
           se->key = gcstrdup(en->key ? en->key : en->name);
           se->value = item_val;
@@ -550,25 +906,12 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
         }
       }
     }
-    g_source_file_path = prev_path;
-    modulePopLoading();
-    return resultNormal(valueObject(entries)).value;
-  }
-
-  struct RuntimeObjectEntry *entries = NULL;
-  for (RuntimeBinding *b = mod_env->bindings; b; b = b->next) {
-    if (strcmp(b->name, "AWAIT") == 0 || strcmp(b->name, "SUCCESS") == 0 ||
-        strcmp(b->name, "ERROR") == 0)
-      continue;
-    if (b->value.type == VALUE_NATIVE_FUNCTION) continue;
-    struct RuntimeObjectEntry *e = gccalloc(1, sizeof(*e));
-    e->key = gcstrdup(b->name);
-    e->value = b->value;
-    e->next = entries;
-    entries = e;
+    mod_result = valueObject(entries); /* prev_path/pop/cache di tail */
   }
 
   g_source_file_path = prev_path;
+  /* Salinan sendiri untuk cache — frame di-pop membebaskan canonical. */
+  moduleCachePut(gcstrdup(canonical), mod_result);
   modulePopLoading();
-  return resultNormal(valueObject(entries)).value;
+  return mod_result;
 }

@@ -100,10 +100,17 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
        * (`x: number[] = []; x = [1]`; `p: People = ...; p = {age: 1}`).
        * new T() type-driven: `x = new Number()` mencatat type `number` */
       const char *declaredType = a->assign.type >= 0 ? typeOf(n, a->assign.type) : NULL;
-      if (!declaredType && r.value.type == VALUE_PTR) {
-        char newType[256];
-        if (memoryNewTypeName(n, a->assign.value, newType, sizeof(newType)))
-          semDeclare(e, k, newType);
+      /* Nilai berupa alokasi `new ...`: tipe binding JUSTRU berasal
+       * dari alokasi ini — validasi ulang terhadap type yang baru
+       * dicatat redundan dan menolak handle raw (new Number tanpa
+       * registry type). Validasi hanya untuk nilai bukan-alokasi. */
+      char newType[256];
+      bool valueIsNewAlloc = r.value.type == VALUE_PTR &&
+                             memoryNewTypeName(n, a->assign.value, newType,
+                                               sizeof(newType));
+      (void)newType;
+      if (!declaredType && valueIsNewAlloc) {
+        semDeclare(e, k, newType);
       }
       if (declaredType) semDeclare(e, k, declaredType);
 
@@ -146,7 +153,8 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
         }
       }
 
-      if (!validateDeclaredType(n, a->assign.value, e, k, r.value, x))
+      if (!valueIsNewAlloc &&
+          !validateDeclaredType(n, a->assign.value, e, k, r.value, x))
         return resultFlow(FLOW_ERROR, valueNull());
       if (a->assign.isConst) {
         /* Deklarasi const: tulis + kunci slot. Binding lama (iterasi

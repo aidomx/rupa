@@ -163,6 +163,11 @@ void test(const char *paths[], int length) {
       continue;
     }
 
+    /* Cache pipeline: simpan hasil generate — grup test lain dalam
+     * proses yang sama (ir/irexec, file tests/syntax yang sama)
+     * melompati lexer + generate + rewrite. */
+    pipelineCachePut(paths[i], node, NULL);
+
     /* Execute — same as ./bin/rupa <file> */
     setSourceFilePath(paths[i]);
     RuntimeEnv *env = semCreateEnv(NULL);
@@ -216,28 +221,39 @@ void testIR(const char *paths[], int length) {
   int failed = 0;
 
   for (int i = 0; i < length; i++) {
-    Buffer *buffer;
-    Token *tokens;
-    Node *node;
+    Node *node = NULL;
+    IRModule *ir = NULL;
 
-    if (!lexParse(state, paths[i], &buffer, &tokens, &node)) {
-      printf("FAIL | %s\n", paths[i]);
-      failed++;
-      continue;
+    /* Cache pipeline: file yang sudah di-pipeline grup sebelumnya
+     * (mis. `test syntax ir`) dipakai ulang tanpa lex + parse ulang. */
+    if (!pipelineCacheGet(paths[i], &node, &ir)) {
+      Buffer *buffer;
+      Token *tokens;
+      if (!lexParse(state, paths[i], &buffer, &tokens, &node)) {
+        printf("FAIL | %s\n", paths[i]);
+        failed++;
+        continue;
+      }
+      pipelineCachePut(paths[i], node, NULL);
     }
 
-    IRModule *ir = createIR();
-    if (!ir || !rewrite(node, -1, ir)) {
-      printf("FAIL | %s (rewrite failed)\n", paths[i]);
-      failed++;
-      continue;
+    /* Entry AST-only (ir NULL): bangun IR dari AST cache lalu
+     * upgrade entry — file yang sama di grup berikutnya full hit. */
+    if (!ir) {
+      ir = createIR();
+      if (!ir || !rewrite(node, -1, ir)) {
+        printf("FAIL | %s (rewrite failed)\n", paths[i]);
+        failed++;
+        continue;
+      }
+      pipelineCachePut(paths[i], node, ir);
     }
 
     printf("\n--- %s ---\n", paths[i]);
     debugIRModule(ir);
     printf("PASS\n");
     passed++;
-    irModuleFree(ir);
+    /* ir dimiliki cache pipeline — tidak di-free di sini. */
   }
 
   printf("\n> IR test summary\n");
@@ -268,59 +284,73 @@ void testIRExec(const char *paths[], int length) {
   printf("> IR execution tests\n");
 
   for (int i = 0; i < length; i++) {
-    if (state->repl) clearReplState(state->repl);
-    clearInput(state->input);
-    clearStateToken(state->tokens);
-    clearStateContext(state->context);
-    state->size = 0;
-    if (state->history) {
-      state->history->size = 0;
-      state->history->currentIndex = -1;
+    Node *cachedNode = NULL;
+    IRModule *cachedIr = NULL;
+
+    /* Cache pipeline (lihat testIR): hit = tanpa lex + parse + rewrite. */
+    if (!pipelineCacheGet(paths[i], &cachedNode, &cachedIr)) {
+      if (state->repl) clearReplState(state->repl);
+      clearInput(state->input);
+      clearStateToken(state->tokens);
+      clearStateContext(state->context);
+      state->size = 0;
+      if (state->history) {
+        state->history->size = 0;
+        state->history->currentIndex = -1;
+      }
+
+      Buffer *buffer = state->buffer;
+      if (!readfile(paths[i], buffer)) {
+        printf("FAIL | %s (file not found)\n", paths[i]);
+        failed++;
+        continue;
+      }
+
+      addToHistory(state);
+      addToInput(state);
+      lexer(state);
+
+      Flags *flags = state->input->flags;
+      Token *tokens = state->tokens;
+      if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
+        printf("FAIL | %s (lex failed)\n", paths[i]);
+        failed++;
+        continue;
+      }
+
+      Request request = createRequest(tokens, 10);
+      cachedNode = processGenerate(&request);
+      if (!cachedNode || cachedNode->length <= 0 || !hasAstDeclarations(tokens)) {
+        printf("FAIL | %s (parse failed)\n", paths[i]);
+        failed++;
+        continue;
+      }
+
+      pipelineCachePut(paths[i], cachedNode, NULL);
     }
 
-    Buffer *buffer = state->buffer;
-    if (!readfile(paths[i], buffer)) {
-      printf("FAIL | %s (file not found)\n", paths[i]);
-      failed++;
-      continue;
-    }
-
-    addToHistory(state);
-    addToInput(state);
-    lexer(state);
-
-    Flags *flags = state->input->flags;
-    Token *tokens = state->tokens;
-    if (!tokens || tokens->length == 0 || (flags && flags->isWaiting)) {
-      printf("FAIL | %s (lex failed)\n", paths[i]);
-      failed++;
-      continue;
-    }
-
-    Request request = createRequest(tokens, 10);
-    Node *node = processGenerate(&request);
-    if (!node || node->length <= 0 || !hasAstDeclarations(tokens)) {
-      printf("FAIL | %s (parse failed)\n", paths[i]);
-      failed++;
-      continue;
+    /* IR: dari cache bila grup sebelumnya sudah membangunnya (mis.
+     * `test ir irexec` — file tests/syntax yang sama). */
+    if (!cachedIr) {
+      cachedIr = createIR();
+      if (!cachedIr || !rewrite(cachedNode, -1, cachedIr)) {
+        printf("FAIL | %s (rewrite failed)\n", paths[i]);
+        failed++;
+        continue;
+      }
+      pipelineCachePut(paths[i], cachedNode, cachedIr);
     }
 
     setSourceFilePath(paths[i]);
-
-    IRModule *ir = createIR();
-    if (!ir || !rewrite(node, -1, ir)) {
-      printf("FAIL | %s (rewrite failed)\n", paths[i]);
-      failed++;
-      continue;
-    }
 
     testHelperReset();
     analyzerReset(); /* registry struct per-file */
 
     printf("\n--- %s ---\n", paths[i]);
     Error *execError = createError(10);
-    int execStatus = executeIRErrorWithEnv(ir, node, execError, executeIRRegisterHelpers);
-    irModuleFree(ir);
+    int execStatus =
+        executeIRErrorWithEnv(cachedIr, cachedNode, execError, executeIRRegisterHelpers);
+    /* cachedIr dimiliki cache pipeline — tidak di-free di sini. */
 
     if (execStatus != 0) {
       printf("FAIL | %s\n", paths[i]);
@@ -805,6 +835,9 @@ void testRepl(const char *paths[], int length) {
   printf("Passed : %d\n", passed);
   printf("Failed : %d\n", failed);
   printf("Status : %s\n", failed == 0 ? "Success" : "Failed");
+  printf("Cache  : memo %d/%d, canonical %d/%d (hit/miss)\n",
+         syntaxMemoHits(), syntaxMemoMisses(), syntaxCanonicalHits(),
+         syntaxCanonicalMisses());
 }
 
 /* ================================================================

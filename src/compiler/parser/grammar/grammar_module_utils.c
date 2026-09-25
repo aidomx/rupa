@@ -106,22 +106,27 @@ char *grammarModuleBuildPath(Token *t, int start, int end) {
   return buf;
 }
 
-/* Detect flat import syntax: `import a.create, b.login as auth, d.*` */
+/* Detect flat import syntax: `import a, b as c, * as m from ./X` */
 int grammarModuleDetectFlatImport(Token *t, int a, int b, int *fromPos) {
   if (a + 2 >= b) return -1;
-  if (t->data[a].type != IDENTIFIER && t->data[a].type != LITERAL_ID) return -1;
-  /* First entry must continue with `.` (a.create) or an `as` alias
-   * (a as form.*) — old-style `import X from Y` falls through to the
-   * legacy parser instead. */
+  /* Leading wildcard: `import * as x from ./X` — whole-module alias.
+   * Setelah `*` boleh langsung `as` atau `from`; entries parser yang
+   * menangani sisanya. */
+  bool leadStar = (t->data[a].type == STAR);
+  if (!leadStar && t->data[a].type != IDENTIFIER && t->data[a].type != LITERAL_ID) return -1;
   if (a + 1 >= b) return -1;
 
-  TokenType next = t->data[a + 1].type;
+  if (!leadStar) {
+    /* Nama pertama dilanjutkan `.` (member chain warisan — ditolak di
+     * loop bawah) atau `as alias` (ie.txt: `as` didukung per-entry).
+     * Nama lain = old-style `import X from Y` → jatuh ke parser itu. */
+    TokenType n1 = t->data[a + 1].type;
+    bool as_alias = (n1 == KEYWORD || n1 == IDENTIFIER || n1 == LITERAL_ID) &&
+                    !strcmp(t->data[a + 1].value, "as");
+    if (n1 != DOT && !as_alias) return -1;
+  }
 
-  bool asAlias = (next == KEYWORD || next == IDENTIFIER || next == LITERAL_ID) &&
-                 !strcmp(t->data[a + 1].value, "as");
-  if (next != DOT && !asAlias) return -1;
-
-  int cur = a;
+  int cur = a + 1; /* token pertama (IDENT atau leading `*`) sudah divalidasi */
   while (cur < b) {
     if ((t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
          t->data[cur].type == LITERAL_ID) &&
@@ -131,9 +136,12 @@ int grammarModuleDetectFlatImport(Token *t, int a, int b, int *fromPos) {
     }
     /* Skip over any token that could appear in the entry list.
      * We check type FIRST to avoid strcmp on tokens that may not
-     * have a valid string (e.g. DOT, STAR, COMMA). */
+     * have a valid string (e.g. DOT, STAR, COMMA).
+     * DOT/STAR di region entry = bentuk warisan (x.y, x.*) — tolak
+     * agar tidak ter-parsing diam-diam sebagai nama polos. */
     TokenType q = t->data[cur].type;
-    if (q == COMMA || q == IDENTIFIER || q == LITERAL_ID || q == DOT || q == STAR || q == SLASH) {
+    if (q == DOT || q == STAR) return -1;
+    if (q == COMMA || q == IDENTIFIER || q == LITERAL_ID || q == SLASH) {
       cur++;
       continue;
     }

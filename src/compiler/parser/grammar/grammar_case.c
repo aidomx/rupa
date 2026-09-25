@@ -1,28 +1,25 @@
 #include <rupa.h>
 
-/* case subject => { pattern: body ... } */
+/* case subject { pattern: body ... } */
 int grammarParseCase(Request *r, int a, int b, int limit, int *pos) {
   (void)b;
   Token *t = r->tokens;
   if (a >= limit || strcmp(t->data[a].value, "case"))
     return GRAMMAR_NO_MATCH;
 
-  int arrow = -1, open = -1;
+  /* Subject berakhir di LBRACE pembuka blok — tanpa arrow. */
+  int open = -1;
   for (int i = a + 1; i < limit; i++) {
-    if (t->data[i].type == FAT_ARROW) {
-      arrow = i;
-      continue;
-    }
-    if (arrow >= 0 && t->data[i].type == LBRACE) {
+    if (t->data[i].type == LBRACE) {
       open = i;
       break;
     }
-    if (arrow < 0 && (t->data[i].type == NEWLINE || isToken(t, i, ENDOF)))
+    if (t->data[i].type == NEWLINE || isToken(t, i, ENDOF))
       return -1;
   }
-  if (arrow < 0 || open < 0)
+  if (open < 0)
     return -1;
-  int subject = grammarParseExpr(r, a + 1, arrow);
+  int subject = grammarParseExpr(r, a + 1, open);
   if (subject < 0)
     return -1;
   int close = grammarMatchClose(t, open, limit, LBRACE, RBRACE);

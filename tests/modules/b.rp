@@ -6,4 +6,3 @@ register() {
     print("b.register called\n")
 }
 
-export b

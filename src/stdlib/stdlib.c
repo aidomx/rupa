@@ -12,6 +12,7 @@ extern InterpreterResult stdDatetimeInit(Node *node, int id, RuntimeEnv *env, Er
 extern InterpreterResult stdNetInit(Node *node, int id, RuntimeEnv *env, Error *error);
 extern InterpreterResult stdRegexInit(Node *node, int id, RuntimeEnv *env, Error *error);
 extern InterpreterResult stdFsbaseInit(Node *node, int id, RuntimeEnv *env, Error *error);
+extern InterpreterResult stdSpecInit(Node *node, int id, RuntimeEnv *env, Error *error);
 
 /* Module registry */
 typedef struct {
@@ -30,6 +31,7 @@ static StdModuleEntry stdlib_modules[] = {{"os", stdOsInit},
                                           {"datetime", stdDatetimeInit},
                                           {"regex", stdRegexInit},
                                           {"fsbase", stdFsbaseInit},
+                                          {"spec", stdSpecInit},
                                           {NULL, NULL}};
 
 /* Initialize stdlib — do NOT register modules as globals.

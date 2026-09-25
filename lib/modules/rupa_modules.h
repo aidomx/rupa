@@ -56,6 +56,16 @@ RuntimeValue parseJsonObject(JsonParser *parser, bool *ok);
 /* Initialize all standard modules and register them in the environment */
 void stdlibInit(RuntimeEnv *env);
 
+/* ---- spec module (src/stdlib/spec.c) — .spec config untuk user code ----
+ * rupa go menyediakan konfigurasi via specModuleProvide(); object
+ * bertag __spec (print ditolak — provenance, lihat value.c). */
+void specModuleProvide(RuntimeValue module);
+void specModuleClear(void);
+void specTagObject(RuntimeValue *obj);
+RuntimeValue specModuleBuild(const char *host, const char *port, const char *protocol,
+                             const char *dbhost, const char *dbport, const char *dbname,
+                             const char *dbuser, const char *domain);
+
 /* Initialize built-in functions (type, len, isNull, toNumber, toString) */
 void builtinsInit(RuntimeEnv *env);
 

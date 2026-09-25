@@ -1,6 +1,6 @@
 import add, subtract from ../modules.selective
 import math_utils from ../modules.ns_entry
-import calc from ../modules.policy
+import add, subtract from ../modules.policy
 
 # Test new export syntax
 # This file tests selective, namespace, and policy exports
@@ -43,20 +43,19 @@ print("   math_utils.multiply(10, 5) = " + result5 + "\n")
 
 print("\n")
 
-# Test 3: Policy Export
-print("3. Policy Export (export calc from ./policy -> { multiply: private, divide: private })\n")
-print("   Expected: add and subtract work, multiply and divide are private\n")
+# Test 3: Selective import
+print("3. Selective import (import add, subtract from ./policy)\n")
+print("   Expected: only add and subtract are imported\n")
 print("\n")
 
-result6 = calc.add(10, 5)
-print("   calc.add(10, 5) = " + result6 + "\n")
+result6 = add(10, 5)
+print("   add(10, 5) = " + result6 + "\n")
 
-result7 = calc.subtract(10, 5)
-print("   calc.subtract(10, 5) = " + result7 + "\n")
+result7 = subtract(10, 5)
+print("   subtract(10, 5) = " + result7 + "\n")
 
-# Try to access multiply (should fail - it's private)
-# result8 = calc.multiply(10, 5)
-# print("   calc.multiply(10, 5) = " + result8 + "\n")
+# multiply/divide tidak di-import — selective hanya add dan subtract
+# result8 = multiply(10, 5)  # ReferenceError: multiply is not defined
 
 print("\n")
 print("=== All tests passed! ===\n")

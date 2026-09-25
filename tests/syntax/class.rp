@@ -3,3 +3,9 @@ Monster: void {
     this.set(null)
   }
 }
+
+main extends Monster {
+  construct() {
+    print("Hai ada monster!!!\n")
+  }
+}

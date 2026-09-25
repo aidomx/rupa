@@ -2,4 +2,3 @@ services() {
     print("c.services called\n")
 }
 
-export c

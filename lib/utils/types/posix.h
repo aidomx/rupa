@@ -24,6 +24,9 @@ struct Request {
   struct Position right;
   int programId;
   struct Error *error;
+  /* Memo parse per-produksi (caches/syntax/expr.c): span konten-identik
+   * → node id. Dibuat lazily oleh memo; hidup di GC arena selama Request. */
+  void *syntaxMemo;
 };
 
 /**

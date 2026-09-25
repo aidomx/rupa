@@ -121,3 +121,8 @@ void setRuntimeErrorLocation(int line, int row) {
   g_error_line = line;
   g_error_row = row;
 }
+
+void getRuntimeErrorLocation(int *line, int *row) {
+  if (line) *line = g_error_line;
+  if (row) *row = g_error_row;
+}

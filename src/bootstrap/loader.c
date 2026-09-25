@@ -111,9 +111,19 @@ int loader(const char *args[], int length) {
     }
 
     else if (strcmp(args[i], "go") == 0) {
+      int result = goCompile(args + i + 1, length - i - 1);
       handled = true;
       autorun = false;
-      break;
+      gcclean();
+      return result;
+    }
+
+    else if (strcmp(args[i], "spec") == 0) {
+      int result = specCommand(args + i + 1, length - i - 1);
+      handled = true;
+      autorun = false;
+      gcclean();
+      return result;
     }
 
     else if (strcmp(args[i], "fmt") == 0) {

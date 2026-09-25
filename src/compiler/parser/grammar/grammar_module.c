@@ -28,7 +28,8 @@ int grammarParseModule(Request *r, int a, int b, int limit, int *pos) {
     if (id != GRAMMAR_NO_MATCH) return id;
   }
 
-  /* Import: flat syntax, then old style, then bare `import X` */
+  /* Import: flat syntax, then old style, then bare `import X`
+   * (siklus sejajar — design/import_export.txt §Bare). */
   if (!strcmp(k, "import")) {
     int id = grammarParseFlatImport(r, t, a + 1, b, pos);
     if (id != GRAMMAR_NO_MATCH) return id;
@@ -42,6 +43,21 @@ int grammarParseModule(Request *r, int a, int b, int limit, int *pos) {
 
   /* Export */
   if (!strcmp(k, "export")) {
+    /* Policy block `-> { ... }` boleh multi-line: grammarLineEnd memotong
+     * di newline, sehingga isi `{ ... }` di baris berikutnya keluar dari
+     * range `b` dan lolos ke parser annotation (simtom: policy hilang,
+     * muncul NODE_ANNOTATION hantu). Perluas b ke penutup brace seimbang
+     * bila ada ARROW (+ newline opsional) diikuti `{`. */
+    for (int i = a; i < b; i++) {
+      if (t->data[i].type != ARROW) continue;
+      int j = i + 1;
+      while (j < limit && (t->data[j].type == NEWLINE || t->data[j].type == TAB)) j++;
+      if (j < limit && t->data[j].type == LBRACE) {
+        int close = grammarMatchClose(t, j, limit, LBRACE, RBRACE);
+        if (close > 0 && close + 1 > b) b = close + 1;
+      }
+      break;
+    }
     int id = grammarParseExport(r, t, a, b, pos);
     if (id != GRAMMAR_NO_MATCH) return id;
   }

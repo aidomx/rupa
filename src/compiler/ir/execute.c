@@ -1,5 +1,4 @@
 #include <rupa.h>
-#include <math.h>
 
 /* ============================================================
  * execute.c — IR -> interpreter
@@ -123,7 +122,13 @@ static RuntimeValue machineGet(IRMachine *m, IRValue *v) {
   case IR_VALUE_GLOBAL: {
     if (v->data.name) {
       RuntimeValue out;
-      if (semGet(m->env, v->data.name, &out)) return out;
+      /* canon = nama ter-intern yang di-cache di IRValue — lookup loop
+       * panas tanpa intern + hash string per iterasi. */
+      if (v->canon) {
+        if (semGetCanon(m->env, v->canon, v->nameHash, &out)) return out;
+      } else if (semGet(m->env, v->data.name, &out)) {
+        return out;
+      }
     }
     return valueNull();
   }
@@ -150,7 +155,12 @@ static void machineSet(IRMachine *m, IRValue *v, RuntimeValue value) {
     return;
   }
 
-  if (v->data.name) semSet(m->env, v->data.name, value);
+  if (v->data.name) {
+    if (v->canon)
+      semSetCanon(m->env, v->canon, v->nameHash, value);
+    else
+      semSet(m->env, v->data.name, value);
+  }
 }
 
 static bool machineTruthy(IRMachine *m, IRValue *v) {
@@ -162,8 +172,7 @@ static bool machineTruthy(IRMachine *m, IRValue *v) {
  * l/r adalah operand; val hasil double-nya. */
 static RuntimeValue irNumericResult(RuntimeValue l, RuntimeValue r, double val) {
   if (l.type == VALUE_NUMBER && r.type == VALUE_NUMBER) {
-    if (isfinite(val) && floor(val) == val &&
-        val >= -(double)LLONG_MAX && val <= (double)LLONG_MAX)
+    if (isfinite(val) && floor(val) == val && val >= -(double)LLONG_MAX && val <= (double)LLONG_MAX)
       return valueNumber((long long)val);
     return valueDecimal(val);
   }
@@ -266,7 +275,10 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
 
   /* 1) Native / function dari env (sejajar interpretCall). */
   RuntimeValue fnValue = valueNull();
-  if (name) semGet(m->env, name, &fnValue);
+  if (callee && callee->canon)
+    semGetCanon(m->env, callee->canon, callee->nameHash, &fnValue);
+  else if (name)
+    semGet(m->env, name, &fnValue);
   /* Callee bisa juga berupa register temp (mis. hasil member_get). */
   if (fnValue.type == VALUE_NULL) fnValue = machineGet(m, callee);
 
@@ -306,11 +318,9 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
     InterpreterResult r = interpretNode(function->node, function->body, local, m->error);
     /* void enforcement (sejajar IR_RETURN & interpretCall):
      * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
-    if (r.flow == FLOW_RETURN && r.value.type != VALUE_NULL &&
-        function->returnType >= 0) {
+    if (r.flow == FLOW_RETURN && r.value.type != VALUE_NULL && function->returnType >= 0) {
       char typeName[256];
-      if (formatAstTypeName(function->node, function->returnType, typeName,
-                            sizeof(typeName)) &&
+      if (formatAstTypeName(function->node, function->returnType, typeName, sizeof(typeName)) &&
           !strcmp(typeName, "void")) {
         if (m->error)
           addError(m->error, (ErrorInfo){.code = "TypeError",
@@ -376,7 +386,13 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
 
   int bound = argc < (int)fn->param_count ? argc : (int)fn->param_count;
   for (int i = 0; i < bound; i++) {
-    if (fn->params[i] && fn->params[i]->data.name) semSet(local, fn->params[i]->data.name, args[i]);
+    IRValue *param = fn->params[i];
+    if (param && param->data.name) {
+      if (param->canon)
+        semSetCanon(local, param->canon, param->nameHash, args[i]);
+      else
+        semSet(local, param->data.name, args[i]);
+    }
   }
 
   IRBlock *block = fn->first_block;
@@ -427,15 +443,21 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
          * assignment asal store (payload nodeId). */
         {
           IRValue *target = i->data.store.target;
-          const char *name =
-              (target && target->kind != IR_VALUE_TEMP) ? target->data.name : NULL;
+          const char *name = (target && target->kind != IR_VALUE_TEMP) ? target->data.name : NULL;
+          const char *canon = (target && target->kind != IR_VALUE_TEMP) ? target->canon : NULL;
           RuntimeValue value = machineGet(&frame, i->data.store.value);
           bool writeOk;
           if (i->data.store.isConst) {
-            semSetConst(m->env, name, value);
+            if (canon)
+              semSetConstCanon(m->env, canon, target->nameHash, value);
+            else
+              semSetConst(m->env, name, value);
             writeOk = true;
           } else {
-            writeOk = !(name && semIsConst(m->env, name));
+            /* semIsConst = semFind penuh tiap store; jalur canon
+             * melompati intern + hash string (loop panas). */
+            writeOk = !(name && (canon ? semIsConstCanon(m->env, canon, target->nameHash)
+                                       : semIsConst(m->env, name)));
           }
           if (writeOk) {
             machineSet(&frame, target, value);
@@ -505,11 +527,9 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
              * tetap mengembalikan null tanpa error. */
             RuntimeValue marker = valueNull();
             if (frame.error && key && strcmp(key, "__enum") != 0 &&
-                valueObjectGet(obj, "__enum", &marker) &&
-                marker.type == VALUE_STRING) {
+                valueObjectGet(obj, "__enum", &marker) && marker.type == VALUE_STRING) {
               static char message[256];
-              snprintf(message, sizeof(message),
-                       "'%s' is not a member of enum '%s'", key,
+              snprintf(message, sizeof(message), "'%s' is not a member of enum '%s'", key,
                        marker.as.string ? marker.as.string : "?");
               addError(frame.error, (ErrorInfo){.code = "EnumError",
                                                 .message = message,
@@ -523,8 +543,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
               return valueNull();
             }
           }
-        }
-        else if (obj.type == VALUE_ARRAY && key && !strcmp(key, "length"))
+        } else if (obj.type == VALUE_ARRAY && key && !strcmp(key, "length"))
           out = valueNumber(obj.as.array.length);
         else if (obj.type == VALUE_STRING && key && !strcmp(key, "length"))
           out = valueNumber(obj.as.string ? (int)strlen(obj.as.string) : 0);
@@ -573,8 +592,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           /* Instance new Object() (design/object.txt): strict layout
            * check + two-way sync ke ref via objectMemberWrite. */
           if (objectIsInstance(obj) && i->data.member_set.member) {
-            if (!objectMemberWrite(obj, i->data.member_set.member, val,
-                                   frame.env, frame.error)) {
+            if (!objectMemberWrite(obj, i->data.member_set.member, val, frame.env, frame.error)) {
               machineHalt(&frame);
               machineFree(&frame);
               return valueNull();
@@ -606,8 +624,8 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           /* Struct handle ptr (C3): field write via layout offset.
            * Handle non-struct (pin) tetap ditolak eksplisit. */
           bool fatal = false;
-          if (obj.as.ptr && memoryMemberSet(obj.as.ptr, i->data.member_set.member, val,
-                                            frame.error, &fatal)) {
+          if (obj.as.ptr &&
+              memoryMemberSet(obj.as.ptr, i->data.member_set.member, val, frame.error, &fatal)) {
             if (fatal) machineHalt(&frame);
           } else if (fatal) {
             machineHalt(&frame);
@@ -648,7 +666,8 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         else if (frame.error && ptr.type != VALUE_NULL) {
           addError(frame.error, (ErrorInfo){.code = "TypeError",
                                             .message = "string slot read on non-handle",
-                                            .line = 0, .row = 0,
+                                            .line = 0,
+                                            .row = 0,
                                             .type = ERR_TYPE_MISMATCH});
           machineHalt(&frame);
         }
@@ -725,12 +744,40 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           if (len >= 2 && !strcmp(type + len - 2, "[]")) type[len - 2] = '\0';
           int elemSize = 0;
           RuntimeValue out = valueNull();
-          if (type[0] && rupaMemorySizeOf(type, &elemSize) && elemSize > 0) {
-            long long n = 1;
-            if (i->data.alloc.count) {
-              RuntimeValue c = machineGet(&frame, i->data.alloc.count);
-              if (c.type == VALUE_NUMBER && c.as.number > 0) n = c.as.number;
+          long long esz = (long long)i->data.alloc.elemSize;
+          if (esz < 0) {
+            /* Calloc custom, elemsize non-literal: negasi node id arg
+             * dievaluasi saat eksekusi (pola IR_INTERP). */
+            RuntimeValue es = valueNull();
+            InterpreterResult esR = interpretNode(m->astRef, (int)-esz, frame.env, m->error);
+            if (esR.flow != FLOW_NORMAL) {
+              machineHalt(&frame);
+              machineFree(&frame);
+              return valueNull();
             }
+            es = esR.value;
+            if (es.type != VALUE_NUMBER || es.as.number <= 0) {
+              addRuntimeError(m->error, ERR_TYPE_MISMATCH,
+                              "new Contract(count, elemsize)",
+                              "elemsize must be a positive number");
+              machineHalt(&frame);
+              machineFree(&frame);
+              return valueNull();
+            }
+            esz = es.as.number;
+          }
+          long long n = 1;
+          if (i->data.alloc.count) {
+            RuntimeValue c = machineGet(&frame, i->data.alloc.count);
+            if (c.type == VALUE_NUMBER && c.as.number > 0) n = c.as.number;
+          }
+          if (esz > 0) {
+            /* new Contract(count, elemsize) — calloc custom: tipe
+             * anotasi tidak harus dikenal, tanpa registrasi elemen
+             * (sejajar jalur AST di memoryContractAssign). */
+            void *handle = gccalloc((size_t)n, (size_t)esz);
+            out = valuePtr(handle);
+          } else if (type[0] && rupaMemorySizeOf(type, &elemSize) && elemSize > 0) {
             void *handle = gccalloc((size_t)n, (size_t)elemSize);
             if (handle) gcregsettype(handle, type);
             out = valuePtr(handle);
@@ -805,8 +852,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         /* Instance new Object() lolos kontrak struct (design/object.txt):
          * stamp __type — set/update/delete strict terhadap layout.
          * Append ke tail shared object: terlihat di binding tujuan. */
-        if (v.type == VALUE_OBJECT && objectIsInstance(v) &&
-            analyzerFindStruct(i->data.check.type))
+        if (v.type == VALUE_OBJECT && objectIsInstance(v) && analyzerFindStruct(i->data.check.type))
           valueObjectSet(&v, "__type", valueString(i->data.check.type));
         break;
       }
@@ -814,8 +860,8 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         RuntimeValue ret = machineGet(&frame, i->data.return_value.value);
         /* void enforcement (sejajar interpretCall interpreter):
          * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
-        if (fn->return_type && fn->return_type->name &&
-            !strcmp(fn->return_type->name, "void") && ret.type != VALUE_NULL) {
+        if (fn->return_type && fn->return_type->name && !strcmp(fn->return_type->name, "void") &&
+            ret.type != VALUE_NULL) {
           if (frame.error)
             addError(frame.error, (ErrorInfo){.code = "TypeError",
                                               .message = "void function cannot return a value",

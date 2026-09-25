@@ -2,7 +2,7 @@ root: .
 
 clean:
   - buildDir: false
-  - compileCommands: false
+  - compileCommands: true
 
 sources:
   - src
@@ -10,6 +10,7 @@ sources:
 flags:
   - Wall
   - Wextra
+  - O2
 
 std: gnu11
 

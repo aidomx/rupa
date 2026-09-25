@@ -2,4 +2,3 @@ add(name: string) {
   print(name + "\n")
 }
 
-export test_1

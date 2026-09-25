@@ -331,6 +331,14 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
        * themselves: `i++` / `i--` must be allowed to end at NEWLINE. */
       TokenType op = last_token_type(state);
       expectValue = op != INCREMENT && op != DECREMENT;
+      /* `export *` / `import *` (design/ie.txt): star setelah keyword
+       * module melengkapi statement — bukan operator yang menunggu
+       * operand, statement boleh berakhir di NEWLINE/EOF. */
+      if (op == STAR && state->tokens->length >= 2 &&
+          state->tokens->data[state->tokens->length - 2].type == KEYWORD &&
+          (!strcmp(state->tokens->data[state->tokens->length - 2].value, "export") ||
+           !strcmp(state->tokens->data[state->tokens->length - 2].value, "import")))
+        expectValue = false;
       if (singleStatement) statementStarted = true;
       continue;
     }
@@ -363,7 +371,14 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
     bool bareReturn = expectValue && !bracket && !paren && !state->isRepl && tk && tk->length > 0 &&
                       tk->data[tk->length - 1].type == KEYWORD &&
                       !strcmp(tk->data[tk->length - 1].value, "return");
-    if (!bareReturn) {
+    /* `export *` / `import *` (design/ie.txt): star adalah bagian sah
+     * statement module — bukan operator yang menunggu operand. */
+    bool modStar = expectValue && !bracket && !paren && tk && tk->length >= 2 &&
+                   tk->data[tk->length - 1].type == STAR &&
+                   tk->data[tk->length - 2].type == KEYWORD &&
+                   (!strcmp(tk->data[tk->length - 2].value, "export") ||
+                    !strcmp(tk->data[tk->length - 2].value, "import"));
+    if (!bareReturn && !modStar) {
       *waiting = true;
       return p;
     }

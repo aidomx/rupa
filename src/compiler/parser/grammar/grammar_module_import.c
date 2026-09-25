@@ -1,48 +1,25 @@
 #include <rupa.h>
 
 /*
- * Import grammar — emits NODE_MOD (AstMod, ImportDecl) for all forms:
+ * Import grammar — emits NODE_MOD (AstMod, ImportDecl) for the canonical
+ * forms (design/ie.txt):
  *
- *   Flat:     import a.create, b.login as auth, d.* from modules as m
- *   Stdlib:   import X, Y from rupa.MODULE
- *             import X from rupa
- *   Old:      import X, Y from path.to.file
- *   Bare:     import X            (bind module X directly)
+ *   import x                  — bare, file/folder sejajar (satu folder)
+ *   import * as x from ./X    — whole module sebagai namespace
+ *   import x, y from ./X      — selective member
+ *   import x as y from ./X    — selective dengan alias per-entry
+ *   import X from rupa(.Y)    — stdlib
+ *   import z from ./X.Y.Z     — dual resolution: leaf dulu, lalu parent index
+ *
+ * Member chain (x.y) dan wildcard member (x.*) tetap dihapus. Bare
+ * `import X` untuk siklus sejajar (satu folder, ie.txt import #1).
  */
 
-/* Build an entry from a dotted path ("a", "a.create", "a.b.c").
- * Wildcard entries keep the full path as name (formatter adds `.*`). */
-AstModEntry *modEntryFromPath(const char *path, bool wild) {
-  if (wild) return modEntryWild(path);
-
-  char parts[16][64];
-  int count = 0;
-  const char *p = path;
-  while (*p && count < 16) {
-    int i = 0;
-    while (*p && *p != '.' && i < 63)
-      parts[count][i++] = *p++;
-    parts[count][i] = '\0';
-    count++;
-    if (*p == '.') p++;
-  }
-  if (count == 0) return NULL;
-  if (count == 1) return modEntry(parts[0]);
-
-  AstModEntry *chain = NULL, *tail = NULL;
-  for (int i = 1; i < count; i++) {
-    AstModEntry *c = modEntry(parts[i]);
-    if (!c) continue;
-    if (tail)
-      tail->childrens = c;
-    else
-      chain = c;
-    tail = c;
-  }
-  return modEntryMember(parts[0], chain);
-}
-
-/* Parse flat import entries between baseIdx and fromPos. */
+/* Parse flat import entries between baseIdx and fromPos.
+ * Menerima: leading `*` (optional `as alias`) dan identifier polos
+ * dipisah koma — masing-masing boleh diikuti `as alias` (ie.txt: `as`
+ * didukung penuh per-entry). Member chain dan wildcard member bukan
+ * grammar. */
 static int parseFlatImportEntries(Request *r, Token *t, int baseIdx, int fromPos,
                                   AstModEntry **entries, int *entryCount) {
   (void)r;
@@ -55,57 +32,53 @@ static int parseFlatImportEntries(Request *r, Token *t, int baseIdx, int fromPos
       continue;
     }
 
+    /* Leading wildcard: `import * as x from ./X` — whole-module alias.
+     * Entry bernama kosong + key alias; runtime memakai source langsung. */
+    if (t->data[cur].type == STAR) {
+      cur++;
+      char *alias = NULL;
+      if (cur < fromPos &&
+          (t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
+           t->data[cur].type == LITERAL_ID) &&
+          !strcmp(t->data[cur].value, "as")) {
+        cur++;
+        if (cur < fromPos &&
+            (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
+          alias = gcstrdup(t->data[cur].value);
+          cur++;
+        }
+      }
+      AstModEntry *e = modEntry("");
+      if (!e) break;
+      e->key = alias; /* NULL jika tanpa alias */
+      e->type = MOD_WILD;
+      entries[(*entryCount)++] = e;
+      continue;
+    }
+
     if (cur >= fromPos || (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
       break;
 
-    int pathStart = cur;
+    AstModEntry *e = modEntry(t->data[cur].value);
     cur++;
-    while (cur < fromPos && t->data[cur].type == DOT) {
-      cur++;
-      if (cur >= fromPos || (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID))
-        break;
-      cur++;
-    }
-
-    char pathBuf[256] = {0};
-    for (int i = pathStart; i < cur; i++) {
-      if (t->data[i].type == DOT) continue;
-      if (pathBuf[0]) strcat(pathBuf, ".");
-      strcat(pathBuf, t->data[i].value);
-    }
-
-    /* Wildcard: path.* */
-    bool wild = false;
-    if (cur < fromPos && t->data[cur].type == STAR) {
-      wild = true;
-      cur++;
-    }
-
-    AstModEntry *e = modEntryFromPath(pathBuf, wild);
-    if (!e) break;
-    entries[(*entryCount)++] = e;
-
-    /* Optional `as alias` */
+    /* `as alias` per-entry: `import x as y from ./X`. */
     if (cur < fromPos &&
         (t->data[cur].type == KEYWORD || t->data[cur].type == IDENTIFIER ||
          t->data[cur].type == LITERAL_ID) &&
         !strcmp(t->data[cur].value, "as")) {
       cur++;
-      if (cur < fromPos && (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
-        e->key = gcstrdup(t->data[cur].value);
+      if (cur < fromPos &&
+          (t->data[cur].type == IDENTIFIER || t->data[cur].type == LITERAL_ID)) {
+        if (e) e->key = gcstrdup(t->data[cur].value);
         cur++;
       }
-      /* Trailing wildcard after alias: `a as form.*` → wildcard entry */
-      if (cur + 1 < fromPos && t->data[cur].type == DOT && t->data[cur + 1].type == STAR) {
-        e->type = MOD_WILD;
-        cur += 2;
-      }
     }
+    entries[(*entryCount)++] = e;
   }
   return cur;
 }
 
-/* Handle flat import: `import a.create, b.login as auth, d.* from modules as m` */
+/* Handle flat import: `import a, b as c, * as m from ./X` */
 int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
   int fromPos = -1;
   /* `a` already points past the `import` keyword to the first entry.
@@ -133,23 +106,11 @@ int grammarParseFlatImport(Request *r, Token *t, int a, int b, int *pos) {
 
   char *fromPath = grammarModuleBuildPath(t, fromStart, fromPathEnd);
 
-  /* Optional `as alias` after from path */
-  char aliasBuf[128] = {0};
-  int afterPath = fromPathEnd + 1;
-  if (afterPath < b &&
-      (t->data[afterPath].type == KEYWORD || t->data[afterPath].type == IDENTIFIER ||
-       t->data[afterPath].type == LITERAL_ID) &&
-      !strcmp(t->data[afterPath].value, "as")) {
-    afterPath++;
-    if (afterPath < b &&
-        (t->data[afterPath].type == IDENTIFIER || t->data[afterPath].type == LITERAL_ID)) {
-      snprintf(aliasBuf, sizeof(aliasBuf), "%s", t->data[afterPath].value);
-      afterPath++;
-    }
-  }
-
-  *pos = afterPath;
-  int id = createModImport(r->node, entries, entryCount, fromPath, aliasBuf[0] ? aliasBuf : NULL);
+  /* Source alias (from X as m) dihapus dari grammar — bentuk warisan.
+   * Path berhenti di token yang bukan bagian path (from path hanya
+   * terdiri dari IDENTIFIER/LITERAL_ID/DOT/SLASH). */
+  *pos = fromPathEnd + 1;
+  int id = createModImport(r->node, entries, entryCount, fromPath, NULL);
   free(fromPath);
   return id;
 }
@@ -185,7 +146,9 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
       return createModImport(r->node, entries, nameCount, fullPath, NULL);
     }
 
-    /* Check for general `from X.Y.Z` (local file import) */
+    /* Check for general `from X.Y.Z` (local file import). Dotted path
+     * tetap utuh sebagai nama source — runtime menafsirkannya sebagai
+     * navigasi pohon package (redirect ke parent index). */
     {
       int pathEnd = -1;
       int pathStart = grammarModuleDetectFrom(t, cur, b, &pathEnd);
@@ -203,6 +166,9 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
     }
 
     if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID) break;
+    /* `as` bukan nama: alias per-entry ditangani flat parser; old parser
+     * tidak menelannya sebagai entry sampah. */
+    if (!strcmp(t->data[cur].value, "as")) break;
 
     names[nameCount++] = cur;
     cur++;
@@ -214,17 +180,23 @@ int grammarParseOldImport(Request *r, Token *t, int a, int b, int *pos) {
   return GRAMMAR_NO_MATCH;
 }
 
-/* Handle bare import: `import X` (no `from`) — bind module X directly. */
+/* Handle bare import: `import X` — siklus sejajar (satu folder,
+ * design/import_export.txt §Bare). Muat ./X.rp atau ./X/index.rp;
+ * runtime yang menegakkan batasan dan melaporkan error bila tidak
+ * ada keduanya. Hanya satu nama polos — bentuk lain bukan grammar. */
 int grammarParseBareImport(Request *r, Token *t, int a, int b, int *pos) {
   int cur = a + 1;
   if (cur >= b) return GRAMMAR_NO_MATCH;
-  if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID) return GRAMMAR_NO_MATCH;
+  if (t->data[cur].type != IDENTIFIER && t->data[cur].type != LITERAL_ID)
+    return GRAMMAR_NO_MATCH;
+  /* Nama kedua (comma/dot/keyword apa pun) → bukan bare import. */
+  if (cur + 1 < b && t->data[cur + 1].type != NEWLINE && t->data[cur + 1].type != ENDOF)
+    return GRAMMAR_NO_MATCH;
 
   AstModEntry *entries[64];
   int entryCount = 0;
   entries[entryCount++] = modEntry(t->data[cur].value);
-  cur++;
 
-  *pos = cur;
+  *pos = cur + 1;
   return createModImport(r->node, entries, entryCount, NULL, NULL);
 }
