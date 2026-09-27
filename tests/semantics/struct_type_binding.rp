@@ -1,26 +1,26 @@
-# Struct declaration registers a type
+// Struct declaration registers a type
 Point {
     x: number
     y: number
 }
 
-# Struct type should be declared in environment
-# (struct declaration registers "Point" as type "struct")
+// Struct type should be declared in environment
+// (struct declaration registers "Point" as type "struct")
 assert(true)
 
-# Person struct
+// Person struct
 Person {
     name: string
     age: number
 }
 
-# Multiple struct declarations
+// Multiple struct declarations
 Config {
     host: string
     port: number
 }
 
-# Struct with annotation
+// Struct with annotation
 data: Data = {
     id: 1,
     value: "test"

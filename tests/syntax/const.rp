@@ -1,5 +1,5 @@
-# const (design/const_def.txt): keyword lexer-level, binding immutable.
-# `const x = v` menulis + mengunci slot; reassignment = ConstError.
+// const (design/const_def.txt): keyword lexer-level, binding immutable.
+// `const x = v` menulis + mengunci slot; reassignment = ConstError.
 
 const x: number = 1
 print(x)
@@ -14,7 +14,7 @@ pi(): number {
 
 print(pi())
 
-# const di dalam loop: re-init sah di setiap iterasi.
+// const di dalam loop: re-init sah di setiap iterasi.
 c = 0
 while c < 3 {
   const t = c * 10

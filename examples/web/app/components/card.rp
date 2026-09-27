@@ -1,0 +1,7 @@
+import render, resources as r from rupa.view
+
+card(msg) {
+  print(type(r.id.card))
+}
+
+export card

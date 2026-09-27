@@ -1,4 +1,4 @@
-# Assignment grammar
+// Assignment grammar
 primary = (1+2) < 3
 fallback = 1+2
 

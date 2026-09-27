@@ -429,14 +429,22 @@ void irModuleFree(IRModule *module) {
 /* Semantic check: validasi value terhadap nama tipe saat eksekusi IR.
  * Nama tipe dibawa sebagai string (gcstrdup, dikelola GC).
  * nodeId = AST id assignment/annotation (-1 jika tidak ada) untuk view
- * type check pin family (provenance sizeof di sisi kanan). */
+ * type check pin family (provenance sizeof di sisi kanan).
+ * funcName = pemilik kontrak return-type (opsional) — mengubah pesan
+ * error menjadi `function 'X' declared to return ...`. */
 IRInstruction *irCheckAt(IRValue *value, const char *type, int nodeId) {
+  return irCheckFunctionAt(value, type, nodeId, NULL);
+}
+
+IRInstruction *irCheckFunctionAt(IRValue *value, const char *type, int nodeId,
+                                 const char *funcName) {
   IRInstruction *i = newInstruction(IR_CHECK);
   if (!i) return NULL;
   i->result = NULL;
   i->data.check.value = value;
   i->data.check.type = type ? gcstrdup(type) : NULL;
   i->data.check.nodeId = nodeId;
+  i->data.check.funcName = funcName ? gcstrdup(funcName) : NULL;
   return i;
 }
 

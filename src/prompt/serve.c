@@ -15,10 +15,12 @@
  *   handleStart() { ... }         # opsional — dipanggil sekali saat boot
  *
  * - handle(method, path) wajib ada; hasilnya jadi body HTTP 200.
- * - Hot reload: watch mtime+nsec serve.rp; saat berubah, proses ulang
- *   serve.rp penuh (fresh env) tanpa membebaskan port. Reload gagal
- *   (syntax error, tanpa handle) = server tetap hidup dengan handler
- *   lama, error ditampilkan.
+ * - Hot reload: watch mtime+nsec serve.rp DAN entry project (app/main.rp)
+ *   — serve.rp idealnya cuma routing tipis yang meng-import logic dari
+ *   app/main.rp, jadi keduanya perlu dipantau; saat salah satu berubah,
+ *   proses ulang serve.rp penuh (fresh env, import main.rp ikut ke-load
+ *   ulang) tanpa membebaskan port. Reload gagal (syntax error, tanpa
+ *   handle) = server tetap hidup dengan handler lama, error ditampilkan.
  * - Gate: hanya aktif di mode dev (spec.debug && !spec.release).
  */
 
@@ -151,6 +153,7 @@ static bool serveExecScript(const char *path, ServeApp *app) {
   clearStateContext(state->context);
   state->size = 0;
   analyzerReset();
+  moduleCacheReset();
 
   Buffer *buffer = state->buffer;
   if (!readfile(path, buffer)) {
@@ -266,12 +269,17 @@ static void serveRespond(int client, const char *body, size_t bodyLen) {
 
 /* ==================== runner ==================== */
 
-int serveRun(const char *path, int portFallback, bool detail) {
+int serveRun(const char *path, const char *watchExtra, int portFallback, bool detail) {
 #if !SERVE_SOCK
-  (void)path; (void)portFallback; (void)detail;
+  (void)path; (void)watchExtra; (void)portFallback; (void)detail;
   fprintf(stderr, "serve: belum didukung di platform ini\n");
   return 1;
 #else
+  /* watchExtra biasanya app/main.rp — hanya relevan bila berbeda dari
+   * serve.rp sendiri dan memang ada (opt.path selalu ada, tapi jaga-jaga
+   * saja). Watch ekstra yang tak diimpor serve.rp tetap aman: reload
+   * cuma menjalankan ulang serve.rp, tidak berefek bila tak dipakai. */
+  bool haveExtraWatch = watchExtra && *watchExtra && strcmp(watchExtra, path) != 0;
   int listenFd = -1;
   int boundPort = portFallback;
   ServeApp app = {0};
@@ -312,6 +320,8 @@ int serveRun(const char *path, int portFallback, bool detail) {
 
   ServeWatch watch;
   serveWatchInit(&watch, path);
+  ServeWatch watchExtraFile;
+  if (haveExtraWatch) serveWatchInit(&watchExtraFile, watchExtra);
 
   for (;;) {
     /* Reload check: jangan blokir — poll socket dulu dengan timeout. */
@@ -321,8 +331,13 @@ int serveRun(const char *path, int portFallback, bool detail) {
     FD_SET(listenFd, &rfds);
     int ready = select(listenFd + 1, &rfds, NULL, NULL, &tv);
 
-    if (serveWatchPoll(&watch)) {
-      if (detail) printf("serve: reload (%s berubah)\n", path);
+    /* Poll keduanya tanpa short-circuit — masing-masing watcher harus
+     * memperbarui baseline mtime-nya sendiri tiap putaran. */
+    bool changedMain = serveWatchPoll(&watch);
+    bool changedExtra = haveExtraWatch && serveWatchPoll(&watchExtraFile);
+    if (changedMain || changedExtra) {
+      if (detail)
+        printf("serve: reload (%s berubah)\n", changedMain ? path : watchExtra);
       ServeApp next = {0};
       next.error = createError(10);
       if (serveExecScript(path, &next)) {

@@ -1,5 +1,5 @@
-# number 64-bit (design/rupa_types_const_void_bigint.txt poin 2):
-# VALUE_NUMBER = long long — overflow 32-bit tidak terjadi di semua jalur.
+// number 64-bit (design/rupa_types_const_void_bigint.txt poin 2):
+// VALUE_NUMBER = long long — overflow 32-bit tidak terjadi di semua jalur.
 a = 2000000000
 b = 2000000000
 big = a + b

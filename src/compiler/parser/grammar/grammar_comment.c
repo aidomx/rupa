@@ -9,11 +9,11 @@ int grammarParseComment(Request *r, int a, int b, int *pos) {
   for (int i = a; i < b; i++) {
     int currType = t->data[i].type;
 
-    if (currType == HASHTAG && i + 1 < b && t->data[i + 1].type == COMMENT) {
-      /* # comment → NODE_INLINE_COMMENT */
-      id = createComment(r->node, t->data[i + 1].value ? t->data[i + 1].value : "",
-                         NODE_INLINE_COMMENT);
-    } else if (currType == SLASH && i + 1 < b && t->data[i + 1].type == COMMENT) {
+    /* Cabang HASHTAG+COMMENT dihapus: `#` bukan komentar lagi
+     * (design/next_print.txt — hex color literal), dan lexer kini
+     * menolak `#` non-hex langsung (return -1) sehingga token HASHTAG
+     * tak pernah ada di token stream. */
+    if (currType == SLASH && i + 1 < b && t->data[i + 1].type == COMMENT) {
       /* // or slash-star comment — distinguish by comment text value */
       const char *text = t->data[i + 1].value;
       const char *safe = text ? text : "";

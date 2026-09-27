@@ -1,0 +1,2 @@
+import resources as r, render from /tmp/rpx_engine.view
+print("ABS-MEMBER:", r.load != undefined, render != undefined)

@@ -188,6 +188,17 @@ int createLoop(Node *root, const char *kind, int condition, int body) {
   n.loop.kind = gcdup(kind ? kind : "");
   n.loop.condition = condition;
   n.loop.body = body;
+  n.loop.init = -1;
+  return createAst(root, n);
+}
+
+int createLoopInit(Node *root, const char *kind, int init, int condition,
+                   int body) {
+  AstNode n = {.type = NODE_LOOP};
+  n.loop.kind = gcdup(kind ? kind : "");
+  n.loop.init = init;
+  n.loop.condition = condition;
+  n.loop.body = body;
   return createAst(root, n);
 }
 

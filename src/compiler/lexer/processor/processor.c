@@ -3,12 +3,11 @@
 static void rollback(Token *tokens, int length) {
   if (!tokens || length < 0 || length > tokens->length)
     return;
-  for (int i = length; i < tokens->length; i++) {
-    free(tokens->data[i].value);
-    free(tokens->data[i].safetyType);
-    tokens->data[i].value = NULL;
-    tokens->data[i].safetyType = NULL;
-  }
+  /* Token value & safetyType dialokasi lewat GC (gcstrdup di
+   * createDataToken) — JANGAN di-free() di sini: free() pada pointer
+   * GC = invalid free, dan gcclean akan double-free block yang sama
+   * (valgrind: "Invalid free ... by gcclean <- loader"). Rollback
+   * cukup membuang entri token; memory dibiarkan untuk GC. */
   tokens->length = length;
 }
 

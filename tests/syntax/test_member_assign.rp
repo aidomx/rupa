@@ -1,29 +1,29 @@
-# Member assignment: obj.field = value
+// Member assignment: obj.field = value
 person = {name: "Budi", age: 25}
 person.name = "Andi"
 person.age = 30
 print(person.name + "\n")
 print(person.age + "\n")
 
-# Array element assignment: arr[i] = value
+// Array element assignment: arr[i] = value
 items = [10, 20, 30]
 items[1] = 99
 print(items[0] + "\n")
 print(items[1] + "\n")
 print(items[2] + "\n")
 
-# Nested member assignment
+// Nested member assignment
 data = { user: { name: "Rupa" } }
 data.user.name = "Updated"
 print(data.user.name + "\n")
 
-# Add new property via assignment
+// Add new property via assignment
 config = { host: "localhost" }
 config.port = 8080
 print(config.host + "\n")
 print(config.port + "\n")
 
-# Mixed: function returning object, then modify
+// Mixed: function returning object, then modify
 createPerson(n) {
   return { name: n, age: 0 }
 }

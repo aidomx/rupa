@@ -1,4 +1,4 @@
-# Simple function returning object
+// Simple function returning object
 createPerson(n) {
     return { name: n, age: 0 }
 }
@@ -6,7 +6,7 @@ p = createPerson("Test")
 print(p.name + "\n")
 print(p.age + "\n")
 
-# Direct object creation and access
+// Direct object creation and access
 q = { name: "Direct", age: 42 }
 print(q.name + "\n")
 print(q.age + "\n")

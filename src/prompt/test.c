@@ -864,10 +864,11 @@ static const struct {
   const char *dir;  /* subfolder di bawah tests/ */
   const char *flag; /* flag binary yang dipakai */
 } testCategories[] = {
-    {"syntax", "syntax", "--test"},       {"ast", "ast", "--test-ast"},
-    {"ir", "syntax", "--test-ir"},        {"irexec", "syntax", "--test-irexec"},
-    {"exec", "execution", "--test-exec"}, {"semantics", "semantics", "--test-exec"},
-    {"repl", "execution", "--test-repl"}, {"fmt", "formatter", "fmt"},
+  {"syntax", "syntax", "syntax"},       {"ast", "ast", "ast"},
+  {"ir", "syntax", "ir"},               {"irexec", "syntax", "irexec"},
+  {"exec", "execution", "exec"},         {"semantic", "semantics", "semantic"},
+  {"stress", "stress", "stress"},         {"repl", "execution", "repl"},
+  {"fmt", "formatter", "fmt"},
 };
 
 static const char *testFindCategoryDir(const char *name) {
@@ -978,33 +979,34 @@ static char **testSelectFiles(const FmtPathList *list, const int *selected, int 
   return paths;
 }
 
-/* Jalankan satu grup: dispatch ke runner sesuai flag binary. */
-static int testRunGroup(const char *flag, char **paths, int count) {
-  if (strcmp(flag, "fmt") == 0) {
+/* Jalankan satu grup: dispatch ke runner sesuai jenis kategori. */
+static int testRunGroup(const char *kind, char **paths, int count) {
+  if (strcmp(kind, "fmt") == 0) {
     testFmt((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test") == 0) {
+  if (strcmp(kind, "syntax") == 0) {
     test((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test-ast") == 0) {
+  if (strcmp(kind, "ast") == 0) {
     testAst((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test-ir") == 0) {
+  if (strcmp(kind, "ir") == 0) {
     testIR((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test-irexec") == 0) {
+  if (strcmp(kind, "irexec") == 0) {
     testIRExec((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test-exec") == 0) {
+  if (strcmp(kind, "exec") == 0 || strcmp(kind, "semantic") == 0 ||
+      strcmp(kind, "stress") == 0) {
     testExec((const char **)paths, count);
     return 0;
   }
-  if (strcmp(flag, "--test-repl") == 0) {
+  if (strcmp(kind, "repl") == 0) {
     testRepl((const char **)paths, count);
     return 0;
   }
@@ -1012,22 +1014,20 @@ static int testRunGroup(const char *flag, char **paths, int count) {
 }
 
 /*
- * Parser argumen test (dipakai testDispatch).
+ * Parser argumen test (dipakai testDispatch) — satu bentuk per perintah:
  *
- * Aturan penempatan token posisi (agar bentuk cluster tetap masuk akal):
- *   - token numerik (boleh koma)     → nilai select (setara --select/-s)
- *   - token non-numerik pertama      → kategori (setara --path/-p)
- *   - token non-numerik kedua        → kategori grup kedua
+ *   rupa test [category] [n,n]
+ *   rupa -t  [category] [n,n]
+ *   rupa list [category]   (loader meneruskan sebagai -lt [category])
  *
- * Contoh yang semuanya valid:
- *   test syntax 1        -t syntax 1        -ts syntax 1      -tps syntax 1
- *   test ast --select 1  -t ast --select 1  -t -p syntax -s 1  -l ast
+ * Token posisi: numerik/koma → selection, selain itu → kategori.
+ * Flag panjang (--list/--path/--select) dan cluster p/s dihapus:
+ * -p setara posisi, -s setara token numerik — tidak perlu dua-duanya.
  */
 typedef struct {
   bool wantList;
-  const char *selectArg;     /* nilai --select / -s (atau NULL) */
-  const char *category;      /* kategori (posisi atau --path) */
-  const char *extraCategory; /* kategori posisi kedua (atau NULL) */
+  const char *selectArg; /* "1,2,3" atau NULL */
+  const char *category;  /* kategori (default syntax) */
 } TestArgs;
 
 /* "1", "1,2,3" dianggap token selection; kategori tidak mungkin numerik. */
@@ -1041,61 +1041,30 @@ static bool testIsSelectionToken(const char *arg) {
 
 static bool testArgsParse(const char *args[], int length, TestArgs *a) {
   memset(a, 0, sizeof(*a));
-  bool wantPath = false;
-  bool wantSelect = false;
 
   for (int i = 0; i < length; i++) {
     const char *arg = args[i];
 
-    if (strcmp(arg, "--list") == 0) {
-      a->wantList = true;
-      continue;
-    }
-    if (strcmp(arg, "--path") == 0) {
-      wantPath = true;
-      continue;
-    }
-    if (strcmp(arg, "--select") == 0) {
-      wantSelect = true;
-      continue;
-    }
-
-    if (arg[0] == '-' && arg[1] != '\0') {
-      /* Cluster pendek: -t, -l, -lp, -ts, -tps, ... (hanya huruf t/l/p/s). */
-      bool ok = true;
-      for (const char *c = arg + 1; *c; c++) {
-        switch (*c) {
-        case 't':
-          break; /* penanda mode test, tanpa efek */
-        case 'l':
-          a->wantList = true;
-          break;
-        case 'p':
-          wantPath = true;
-          break;
-        case 's':
-          wantSelect = true;
-          break;
-        default:
-          ok = false;
-          break;
-        }
+    if (arg[0] == '-') {
+      if (strcmp(arg, "-t") == 0) continue; /* penanda mode test */
+      if (strcmp(arg, "-l") == 0) {
+        a->wantList = true;
+        continue;
       }
+      /* Cluster pendek hanya dari huruf l/t, mis. -lt. */
+      bool ok = arg[1] != '\0';
+      for (const char *c = arg + 1; ok && *c; c++)
+        if (*c != 'l' && *c != 't') ok = false;
       if (!ok) {
         fprintf(stderr, "test: unknown option '%s'\n", arg);
         testUsage();
         return false;
       }
+      if (strchr(arg, 'l')) a->wantList = true;
       continue;
     }
 
-    if (arg[0] == '-') {
-      fprintf(stderr, "test: unknown option '%s'\n", arg);
-      testUsage();
-      return false;
-    }
-
-    /* Token posisi: numerik → select, non-numerik → kategori. */
+    /* Token posisi: numerik → selection, non-numerik → kategori. */
     if (testIsSelectionToken(arg)) {
       if (a->selectArg) {
         fprintf(stderr, "test: unexpected argument '%s'\n", arg);
@@ -1105,8 +1074,6 @@ static bool testArgsParse(const char *args[], int length, TestArgs *a) {
       a->selectArg = arg;
     } else if (!a->category) {
       a->category = arg;
-    } else if (!a->extraCategory && strcmp(arg, a->category) != 0) {
-      a->extraCategory = arg;
     } else {
       fprintf(stderr, "test: unexpected argument '%s'\n", arg);
       testUsage();
@@ -1114,14 +1081,6 @@ static bool testArgsParse(const char *args[], int length, TestArgs *a) {
     }
   }
 
-  if (wantPath && !a->category && !a->extraCategory) {
-    fprintf(stderr, "test: --path requires a category (e.g. syntax, ast)\n");
-    return false;
-  }
-  if (wantSelect && !a->selectArg) {
-    fprintf(stderr, "test: --select requires indexes (e.g. 1,2,3)\n");
-    return false;
-  }
   return true;
 }
 
@@ -1137,11 +1096,6 @@ int testDispatch(const char *args[], int length) {
     keyword = category;
     category = NULL;
   }
-  const char *extraCategory = a.extraCategory;
-  if (extraCategory && !testFindCategoryFlag(extraCategory) && !keyword) {
-    keyword = extraCategory;
-    extraCategory = NULL;
-  }
 
   const char *dir = category ? testFindCategoryDir(category) : "syntax";
 
@@ -1153,10 +1107,6 @@ int testDispatch(const char *args[], int length) {
       if (testCollectPaths(dir, keyword, &list) != 0) return 1;
       fmtPrintList(&list, NULL, 0);
       fmtPathListFree(&list);
-    } else if (extraCategory) {
-      fprintf(stderr, "test: unexpected argument '%s'\n", extraCategory);
-      testUsage();
-      return 1;
     } else {
       /* Tanpa kategori: daftar semua file .rp di tests/. */
       FmtPathList list = {0};
@@ -1169,34 +1119,7 @@ int testDispatch(const char *args[], int length) {
   }
 
   /* --- Mode jalankan --- */
-  const char *flag = testFindCategoryFlag(category ? category : "syntax");
-
-  if (extraCategory) {
-    const char *flag2 = testFindCategoryFlag(extraCategory);
-    if (!flag2) {
-      fprintf(stderr, "test: unknown category '%s'\n", extraCategory);
-      testUsage();
-      return 1;
-    }
-    if (a.selectArg) {
-      fprintf(stderr, "test: --select cannot be combined with two categories\n");
-      return 1;
-    }
-    const char *dir2 = testFindCategoryDir(extraCategory);
-
-    FmtPathList l1 = {0};
-    FmtPathList l2 = {0};
-    if (testCollectPaths(dir, keyword, &l1) != 0) return 1;
-    if (testCollectPaths(dir2, NULL, &l2) != 0) {
-      fmtPathListFree(&l1);
-      return 1;
-    }
-    int r = testRunGroup(flag, l1.items, l1.count);
-    if (r == 0) r = testRunGroup(flag2, l2.items, l2.count);
-    fmtPathListFree(&l1);
-    fmtPathListFree(&l2);
-    return r;
-  }
+  const char *kind = testFindCategoryFlag(category ? category : "syntax");
 
   FmtPathList list = {0};
   if (testCollectPaths(dir, keyword, &list) != 0) return 1;
@@ -1217,7 +1140,7 @@ int testDispatch(const char *args[], int length) {
       fmtPathListFree(&list);
       return 1;
     }
-    result = testRunGroup(flag, paths, selectedCount);
+    result = testRunGroup(kind, paths, selectedCount);
     free(paths);
     free(selected);
   } else {
@@ -1226,7 +1149,7 @@ int testDispatch(const char *args[], int length) {
       fmtPathListFree(&list);
       return 1;
     }
-    result = testRunGroup(flag, list.items, list.count);
+    result = testRunGroup(kind, list.items, list.count);
   }
 
   fmtPathListFree(&list);

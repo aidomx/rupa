@@ -1,0 +1,7 @@
+import resources as r, render from rupa.view
+
+home(method, path) { 
+  render(r.id.title, "Hello rupa")
+}
+
+export home

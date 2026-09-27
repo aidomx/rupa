@@ -1,0 +1,27 @@
+// Ternary standar (design): cond ? then : else
+x = 1
+assertEq(x > 0 ? "ya" : "tidak", "ya")
+assertEq(x > 2 ? "ya" : "tidak", "tidak")
+assertEq(false ? 1 : 0, 0)
+
+// Nested: else berupa ternary lagi (cascade kanan)
+assertEq(x > 5 ? "besar" : x < 0 ? "neg" : "nol", "nol")
+x = -3
+assertEq(x > 5 ? "besar" : x < 0 ? "neg" : "nol", "neg")
+x = 9
+assertEq(x > 5 ? "besar" : x < 0 ? "neg" : "nol", "besar")
+
+// Lazy: arm yang tidak dipilih tidak dievaluasi (undefined di arm
+// mati tidak pernah diakses → tidak boleh ReferenceError)
+r = true ? "ok" : undefinedArm
+assertEq(r, "ok")
+q = false ? undefinedArm : "aman"
+assertEq(q, "aman")
+
+// Kombinasi operator: ? mengikat lebih longgar dari perbandingan
+n = 3
+assertEq(n % 2 == 0 ? "genap" : "ganjil", "ganjil")
+
+// Dalam interpolasi / pemakaian langsung
+v = n > 0 ? 10 : -10
+assertEq(v + 5, 15)

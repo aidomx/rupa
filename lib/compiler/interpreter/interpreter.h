@@ -32,4 +32,12 @@ extern void setSourceFilePath(const char *path);
  */
 extern const char *getSourceFilePath(void);
 
+/**
+ * @brief Get the entry-point script path (main file being run).
+ *
+ * Tidak berubah saat loader mengganti g_source_file_path untuk
+ * modul yang sedang dieksekusi — selalu file yang dijalankan user.
+ */
+extern const char *getMainScriptPath(void);
+
 #endif

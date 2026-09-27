@@ -1,0 +1,10 @@
+root: .
+name: web
+author: -
+version: "1.0"
+
+target: web
+arch: unknown
+debug: true
+release: false
+

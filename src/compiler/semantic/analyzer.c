@@ -320,6 +320,33 @@ bool analyzerCheckType(const char *type, RuntimeValue value, Error *error) {
   return checkTypeValue(type, value, error, 0);
 }
 
+/* Kontrak return-type: validasi value terhadap tipe deklarasi fungsi,
+ * dengan pesan error presisi — `function 'getName' declared to return
+ * 'string' but got 'number'` (bukan pesan generik analyzerCheckType).
+ * Gagal silang antar-function saat concurrent/nested validation: error
+ * milik function yang sedang divalidasi — helper ini dipanggil dari
+ * call site, bukan melintasi frame. VALUE_PTR (handle Contract) via
+ * memoryHandleTypeCheck — pola IR_CHECK. */
+bool analyzerCheckReturnType(const char *funcName, const char *type,
+                             RuntimeValue value, Error *error) {
+  if (!type || value.type == VALUE_NULL) return true;
+  if (value.type == VALUE_PTR)
+    return memoryHandleTypeCheck(value, type, error);
+  if (checkTypeValue(type, value, NULL, 0)) return true;
+  if (error) {
+    static char message[256];
+    snprintf(message, sizeof(message),
+             "function '%s' declared to return '%s' but got '%s'", funcName ? funcName : "?",
+             type, valueTypeName(value.type));
+    addError(error, (ErrorInfo){.code = "TypeError",
+                                .message = message,
+                                .line = 0,
+                                .row = 0,
+                                .type = ERR_TYPE_MISMATCH});
+  }
+  return false;
+}
+
 void analyzerSetErrorLocation(Node *node, int typeId) {
   if (!node || typeId < 0 || typeId >= node->length) return;
   setRuntimeErrorLocation(node->ast[typeId].line, node->ast[typeId].row);

@@ -46,8 +46,9 @@ int getPrecedence(DataToken *token) {
   case ASSIGN:
   case CONDITIONAL_ASSIGN:
     return 9;
-  case ARROW:
-    return 2;
+  case ARROW: /* ternary: cond -> then | else — lebih ketat dari PIPE
+               * supaya cascade c1->v1 | c2->v2 | else parse per-unit */
+    return 4;
   case PIPE:
     return 3;
   case EQUAL:
@@ -58,10 +59,10 @@ int getPrecedence(DataToken *token) {
   case GREATER_THAN:
   case GREATER_EQUAL:
     return 10;
-  case LOGICAL_AND: /* di bawah comparison, di atas PIPE/ARROW */
-    return 5;
+  case LOGICAL_AND:
+    return 6;
   case LOGICAL_OR:
-    return 4;
+    return 5;
   default:
     return -1;
   }

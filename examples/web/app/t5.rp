@@ -1,0 +1,2 @@
+import * as v from ../rpx_engine.view
+print("wild:", v.resources != undefined, v.render != undefined)

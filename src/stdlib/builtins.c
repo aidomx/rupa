@@ -151,6 +151,25 @@ void builtinsInit(RuntimeEnv *env) {
   semSet(env, "isNull", valueNativeFunction("isNull", builtinIsNull, 1));
   semSet(env, "toNumber", valueNativeFunction("toNumber", builtinToNumber, 1));
   semSet(env, "toString", valueNativeFunction("toString", builtinToString, 1));
+
+  /* Pola 4 (design/next_print.txt): stream target print — handle FILE*
+   * dibungkus VALUE_PTR; printStreamOf() memvalidasi hanya stdout/
+   * stderr asli yang diterima (handle memori tidak mungkin lolos). */
+  semSet(env, "stdout", valuePtr(stdout));
+  semSet(env, "stderr", valuePtr(stderr));
+
+  /* Color print bawaan (design/next_print.txt): print(U_RED, "%s", ...)
+   * — dibungkus valueColor() (sejajar enum member bertipe color),
+   * print engine (print_format.c) menerapkan ANSI truecolor + reset.
+   * Palet standar 24-bit; warna custom lewat enum: <n>: color = #hex. */
+  semSet(env, "U_BLACK", valueColor(0x000000));
+  semSet(env, "U_RED", valueColor(0xFF0000));
+  semSet(env, "U_GREEN", valueColor(0x00FF00));
+  semSet(env, "U_YELLOW", valueColor(0xFFFF00));
+  semSet(env, "U_BLUE", valueColor(0x0000FF));
+  semSet(env, "U_MAGENTA", valueColor(0xFF00FF));
+  semSet(env, "U_CYAN", valueColor(0x00FFFF));
+  semSet(env, "U_WHITE", valueColor(0xFFFFFF));
   // memory management (pin family) — global, tanpa import
   rupaMemoryInit(env);
   // memory management type-driven (new/del/Contract, dupl/compare)

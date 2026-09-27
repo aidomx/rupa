@@ -1,16 +1,16 @@
-# Mixed: variables, functions, objects, arrays in sequence
+// Mixed: variables, functions, objects, arrays in sequence
 x = 10
 y = 20
-# Define helper
+// Define helper
 assertEq(x + y, 30)
 square(n) {
   return n * n
 }
-# Object construction
+// Object construction
 assertEq(square(x), 100)
 config = {host: "localhost", port: 8080, debug: true}
-# Array operations
-# Function using object and array
+// Array operations
+// Function using object and array
 assertEq(config.host, "localhost")
 assertEq(config.port, 8080)
 assert(config.debug)

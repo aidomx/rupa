@@ -1,22 +1,22 @@
-# Conditional assignment
+// Conditional assignment
 result ?= valid -> "Sukses"
 
-# Conditional with fallback
+// Conditional with fallback
 value ?= check -> primary | fallback
 
-# If statement
+// If statement
 if true {
     x = 1
 }
 
-# If-else
+// If-else
 if false {
     x = 1
 } else {
     x = 2
 }
 
-# Function with conditional
+// Function with conditional
 check(v) {
     if v {
         return "yes"
@@ -25,7 +25,7 @@ check(v) {
     }
 }
 
-# Annotation with value
+// Annotation with value
 count: number = 42
 name: string = "test"
 active: boolean = true

@@ -53,6 +53,14 @@ bool analyzerIsKnownType(const char *type);
  * ERR_TYPE_MISMATCH bila bentuk tidak cocok. */
 bool analyzerCheckType(const char *type, RuntimeValue value, Error *error);
 
+/* Kontrak return-type: validasi value terhadap tipe deklarasi fungsi.
+ * Pesan error menyebut nama fungsi + tipe deklarasi —
+ * `function 'getName' declared to return 'string' but got 'number'`.
+ * VALUE_NULL selalu lolos (fall-out body); VALUE_PTR via
+ * memoryHandleTypeCheck. */
+bool analyzerCheckReturnType(const char *funcName, const char *type,
+                             RuntimeValue value, Error *error);
+
 /* Validasi object terhadap layout struct (rekursif untuk field bertipe
  * struct / array-of-struct). */
 bool analyzerCheckStruct(const char *name, RuntimeValue value, Error *error);

@@ -2,9 +2,10 @@
 
 #if defined(RUPA_PACKAGE_H)
 
-/* prompt.c — UI */
+/* prompt.c — UI (help per-section dari src/prompt/cmd.txt) */
 extern void welcomeMessage(void);
 extern void help(bool prepend);
+extern bool helpShowSection(const char *name);
 extern void showModuleHelp(void);
 extern void showTestHelp(void);
 extern void showFmtHelp(void);
@@ -20,10 +21,15 @@ extern char *specDecryptText(const char *algo, const char *pass, const char *che
                              const char *hex);
 
 /* serve.c — serve.rp runner dengan hot reload (mode dev) */
-extern int serveRun(const char *path, int portFallback, bool detail);
+extern int serveRun(const char *path, const char *watchExtra, int portFallback, bool detail);
+/* Buang module cache global (loader.c) — lihat module.h di
+ * src/compiler/interpreter/modules/ untuk detail; dideklarasikan ulang
+ * di sini supaya serve.c tak perlu include header internal modules/. */
+extern void moduleCacheReset(void);
 
 /* runner.c — file & code execution */
 extern int run(const char *paths[], int length);
+extern int profileRun(const char *paths[], int length);
 extern void execute(const char *code);
 
 /* test.c — syntax, exec, and REPL tests */

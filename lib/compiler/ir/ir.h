@@ -114,6 +114,10 @@ struct IRInstruction {
       IRValue *value;
       char *type;
       int nodeId; /* AST id assignment/annotation — view check pin family */
+      /* Return-type contract: nama fungsi pemilik return — pesan error
+       * menyebut `function 'X' declared to return ...` (NULL = check
+       * biasa/assignment). */
+      char *funcName;
     } check;
   } data;
   IRInstruction *next;
@@ -201,6 +205,11 @@ IRInstruction *irStrSlotSet(IRValue *pointer, IRValue *value);
 IRInstruction *irCast(IRValue *result, IRValue *value, IRType *type);
 IRInstruction *irCheck(IRValue *value, const char *type);
 IRInstruction *irCheckAt(IRValue *value, const char *type, int nodeId);
+
+/* Varian return-type contract: funcName (gcstrdup) menghasilkan pesan
+ * error `function 'X' declared to return ...` di handler IR_CHECK. */
+IRInstruction *irCheckFunctionAt(IRValue *value, const char *type, int nodeId,
+                                 const char *funcName);
 IRInstruction *irInterpCheck(int nodeId);
 void irInstructionFree(IRInstruction *instruction);
 

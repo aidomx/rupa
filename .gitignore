@@ -21,6 +21,8 @@ build-report.txt
 design
 examples/*
 !calculator
+!web
 .rbot
 Makefile
 todos
+rules.md

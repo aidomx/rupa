@@ -1,5 +1,36 @@
 #include <rupa.h>
 
+/* Runner file bebas (tidak terikat tests/): rupa ast|ir|irexec|exec|semantic|stress|repl <file.rp> */
+static int runSingleFile(const char *cmd, const char *paths[], int length) {
+  if (strcmp(cmd, "repl") == 0 && length < 1) {
+    startRepl(true); /* rupa repl tanpa file = REPL interaktif */
+    return 0;
+  }
+  if (length < 1) {
+    fprintf(stderr, "rupa %s: file.rp diperlukan", cmd);
+    if (strcmp(cmd, "exec") == 0 || strcmp(cmd, "semantic") == 0 ||
+        strcmp(cmd, "stress") == 0)
+      fprintf(stderr, " (batch: rupa test %s)", cmd);
+    fprintf(stderr, "\n");
+    return 1;
+  }
+  if (strcmp(cmd, "ast") == 0) {
+    testAst(paths, length);
+  } else if (strcmp(cmd, "ir") == 0) {
+    testIR(paths, length);
+  } else if (strcmp(cmd, "irexec") == 0) {
+    testIRExec(paths, length);
+  } else if (strcmp(cmd, "exec") == 0 || strcmp(cmd, "semantic") == 0 ||
+             strcmp(cmd, "stress") == 0) {
+    testExec(paths, length);
+  } else if (strcmp(cmd, "repl") == 0) {
+    testRepl(paths, length);
+  } else {
+    return 1;
+  }
+  return 0;
+}
+
 int loader(const char *args[], int length) {
   gcinit(100);
   stdlibLoaderInit(); /* Scan ~/.rupa/stdlib/ and ./stdlib/ */
@@ -16,26 +47,16 @@ int loader(const char *args[], int length) {
 
   /* args[0] adalah nama program, mulai parsing dari args[1]. */
   for (int i = 1; i < length; i++) {
-    if (strcmp(args[i], "help") == 0) {
-      if (i + 1 < length && strcmp(args[i + 1], "module") == 0) {
-        showModuleHelp();
-      } else if (i + 1 < length && strcmp(args[i + 1], "test") == 0) {
-        showTestHelp();
-      } else if (i + 1 < length && !strcmp(args[i + 1], "fmt")) {
-        showFmtHelp();
-      } else {
+    if (strcmp(args[i], "help") == 0 || strcmp(args[i], "--help") == 0) {
+      /* help <topic> generik: topic = nama section di src/prompt/cmd.txt
+       * (compiler, formatter, test, list, project, module, repl). */
+      if (i + 1 < length && helpShowSection(args[i + 1])) {
+        /* topic dikenal */
+      } else if (i + 1 < length) {
+        fprintf(stderr, "help: unknown topic '%s'\n", args[i + 1]);
         help(false);
-      }
-      handled = true;
-      autorun = false;
-      break;
-    }
-
-    else if (strcmp(args[i], "--help") == 0) {
-      if (i + 1 < length && strcmp(args[i + 1], "module") == 0) {
-        showModuleHelp();
-      } else if (i + 1 < length && strcmp(args[i + 1], "test") == 0) {
-        showTestHelp();
+        gcclean();
+        return 1;
       } else {
         help(false);
       }
@@ -55,18 +76,24 @@ int loader(const char *args[], int length) {
       break;
     }
 
-    else if (strcmp(args[i], "--test") == 0) {
-      test(args + i + 1, length - i - 1);
+    else if (strcmp(args[i], "profile") == 0) {
+      int result = profileRun(args + i + 1, length - i - 1);
       handled = true;
       autorun = false;
-      break;
+      gcclean();
+      return result;
     }
 
-    else if (strcmp(args[i], "--test-fmt") == 0) {
-      testFmt(args + i + 1, length - i - 1);
+    else if (strcmp(args[i], "ast") == 0 || strcmp(args[i], "ir") == 0 ||
+             strcmp(args[i], "irexec") == 0 || strcmp(args[i], "exec") == 0 ||
+             strcmp(args[i], "semantic") == 0 || strcmp(args[i], "stress") == 0 ||
+             strcmp(args[i], "repl") == 0) {
+      /* Bentuk bebas single/multi file — tidak terikat tests/. */
+      int result = runSingleFile(args[i], args + i + 1, length - i - 1);
       handled = true;
       autorun = false;
-      break;
+      gcclean();
+      return result;
     }
 
     else if (strcmp(args[i], "test") == 0) {
@@ -77,11 +104,10 @@ int loader(const char *args[], int length) {
       return result;
     }
 
-    else if (strcmp(args[i], "-t") == 0 || strcmp(args[i], "-l") == 0 ||
-             (args[i][0] == '-' && strspn(args[i] + 1, "tlps") == strlen(args[i] + 1) &&
-              strspn(args[i] + 1, "tlps") > 0)) {
-      /* Cluster shortcut test: -t, -l, -lp, -ts, -tps, dst. diteruskan utuh
-       * agar flag dalam cluster (mis. -l pada "-lp") tetap terlihat. */
+    else if (strcmp(args[i], "-t") == 0 ||
+             (args[i][0] == '-' && strspn(args[i] + 1, "tl") == strlen(args[i] + 1) &&
+              strspn(args[i] + 1, "tl") > 0 && strchr(args[i], 't'))) {
+      /* Cluster shortcut test: -t, -lt — diteruskan utuh ke testDispatch. */
       int result = testDispatch(args + i, length - i);
       handled = true;
       autorun = false;
@@ -89,25 +115,40 @@ int loader(const char *args[], int length) {
       return result;
     }
 
-    else if (strcmp(args[i], "--test-ast") == 0) {
-      testAst(args + i + 1, length - i - 1);
+    else if (strcmp(args[i], "-l") == 0) {
+      /* -l = daftar modules; -l <category> = daftar file test kategori. */
+      int result;
+      if (i + 1 < length && args[i + 1][0] != '-') {
+        const char *largs[] = {"-lt", args[i + 1]};
+        result = testDispatch(largs, 2);
+      } else {
+        const char *largs[] = {"list"};
+        result = stdlibManage(largs, 1);
+      }
       handled = true;
       autorun = false;
-      break;
+      gcclean();
+      return result;
     }
 
-    else if (strcmp(args[i], "--test-ir") == 0) {
-      testIR(args + i + 1, length - i - 1);
+    else if (strcmp(args[i], "list") == 0) {
+      /* list = modules; list tests [category] = daftar file test. */
+      int result;
+      if (i + 1 < length && strcmp(args[i + 1], "tests") == 0) {
+        if (i + 2 < length) {
+          const char *largs[] = {"-lt", args[i + 2]};
+          result = testDispatch(largs, 2);
+        } else {
+          const char *largs[] = {"-lt"};
+          result = testDispatch(largs, 1);
+        }
+      } else {
+        result = stdlibManage(args + i, length - i);
+      }
       handled = true;
       autorun = false;
-      break;
-    }
-
-    else if (strcmp(args[i], "--test-irexec") == 0) {
-      testIRExec(args + i + 1, length - i - 1);
-      handled = true;
-      autorun = false;
-      break;
+      gcclean();
+      return result;
     }
 
     else if (strcmp(args[i], "go") == 0) {
@@ -221,20 +262,6 @@ int loader(const char *args[], int length) {
       return result;
     }
 
-    else if (strcmp(args[i], "--test-exec") == 0) {
-      testExec(args + i + 1, length - i - 1);
-      handled = true;
-      autorun = false;
-      break;
-    }
-
-    else if (strcmp(args[i], "--test-repl") == 0) {
-      testRepl(args + i + 1, length - i - 1);
-      handled = true;
-      autorun = false;
-      break;
-    }
-
     else if (strcmp(args[i], "--version") == 0) {
       version();
       handled = true;
@@ -244,13 +271,21 @@ int loader(const char *args[], int length) {
 
     else if (strcmp(args[i], "install") == 0 || strcmp(args[i], "add") == 0 ||
              strcmp(args[i], "update") == 0 || strcmp(args[i], "delete") == 0 ||
-             strcmp(args[i], "remove") == 0 || strcmp(args[i], "list") == 0 ||
-             strcmp(args[i], "-g") == 0) {
+             strcmp(args[i], "remove") == 0) {
       int result = stdlibManage(args + i, length - i);
       handled = true;
       autorun = false;
       gcclean();
       return result;
+    }
+
+    else if (args[i][0] == '-') {
+      /* Opsi tidak dikenal — jangan jatuh ke autorun (membaca file). */
+      fprintf(stderr, "rupa: unknown option '%s' (lihat: rupa help)\n", args[i]);
+      handled = true;
+      autorun = false;
+      gcclean();
+      return 1;
     }
 
     index = length - i;

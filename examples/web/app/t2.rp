@@ -1,0 +1,2 @@
+import view from /tmp/rpx_engine
+print("ABS OK", view)

@@ -33,12 +33,23 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
        * dropped. */
       pid = grammarAnnotationFromSafetyType(r, start, -1);
       if (pid < 0) {
+        /* COLON di argumen hanya pemisah `name: Type` bila TIDAK ada
+         * ternary terbuka: `f(cond ? a : b, c)` — kolon milik ternary
+         * (kedalaman '?' belum 0), bukan annotation. Tanpa ini ternary
+         * sebagai argumen call-statement terparse Annotation. */
         int sep = -1;
-        for (int q = start; q < j; q++)
-          if (t->data[q].type == COLON) {
-            sep = q;
-            break;
+        int qDepth = 0;
+        for (int q = start; q < j; q++) {
+          if (t->data[q].type == QUESTION_MARK) {
+            qDepth++;
+          } else if (t->data[q].type == COLON) {
+            if (qDepth == 0) {
+              sep = q;
+              break;
+            }
+            qDepth--;
           }
+        }
         if (sep >= 0) {
           int pn = grammarParseExpr(r, start, sep);
           int pt = grammarParseExpr(r, sep + 1, j);

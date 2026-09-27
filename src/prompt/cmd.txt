@@ -1,0 +1,133 @@
+---help
+Rupa language v1.0
+
+> usage: rupa <command> [options]
+
+rupa <file.rp>         Run a Rupa script
+rupa -e <code>         Execute code
+rupa go [target]       Run class project (.spec)
+rupa go dev|build      Run in dev or build mode
+rupa spec <target>     Generate .spec.example
+rupa spec -e [algo]    Encrypt .spec.example -> .spec
+rupa spec -d           Decrypt .spec -> .spec.example
+
+rupa fmt <file.rp>     Format Rupa source
+rupa ast <file.rp>     Show AST
+rupa ir <file.rp>      Show IR
+rupa irexec <file.rp>  Execute IR
+rupa profile <file.rp> Profile runtime stages
+rupa exec <file.rp>    Run test file (assert* standard)
+rupa semantic <file.rp> Run semantic check on file
+rupa repl              Start REPL
+
+rupa test [category]   Run tests (default: syntax)
+rupa list [category]   List test files
+rupa list -g           List installed modules
+
+rupa help              Show this help
+rupa help <topic>      Show topic: compiler, formatter, test,
+                       project, module, repl
+rupa version           Show version
+
+Shortcuts:
+
+rupa -t [category]     Same as rupa test
+rupa -l                Same as rupa list
+---endhelp
+
+---compiler
+Compiler commands
+
+rupa ast <file.rp>     Show AST
+rupa ir <file.rp>      Show IR
+rupa irexec <file.rp>  Execute IR
+rupa profile <file.rp> Profile runtime stages
+---endcompiler
+
+---formatter
+Formatter commands
+
+rupa fmt <file.rp>                  Format one file
+rupa fmt -                          Format source from stdin
+rupa fmt --list "syntax"            List tests/syntax files
+rupa fmt --list                     List all tests/*.rp files
+rupa fmt --select "1,2,3" [path]    Format selected test files
+rupa fmt --path "syntax"            Format files with status + source
+rupa fmt --path syntax --select 41  Combine flags in any order
+rupa fmt help                       Show this help
+
+Options:
+  --exclude <path>     Exclude a path; may be repeated
+  --exclude=<path>     Same as above
+
+Selection indexes follow the sorted order shown by --list.
+An optional path (e.g. "syntax") scopes --list, --select and --path.
+---endformatter
+
+---test
+Test commands
+
+rupa test [category]       Run category tests
+rupa test <category> <n,n> Run selected files by listed number
+rupa list [category]       List test files (all tests/ or one category)
+
+Categories: syntax, ast, ir, irexec, exec, semantic, stress, fmt
+
+Examples:
+  rupa test                    Run tests/syntax/*.rp
+  rupa test ast                Run tests/ast/*.rp
+  rupa test exec               Run tests/execution/*.rp
+  rupa test stress             Run tests/stress/*.rp
+  rupa test syntax 1,2         Run selected files by listed number
+  rupa list                    List all tests/**/*.rp
+  rupa list ast                List tests/ast/*.rp
+
+Shortcuts:
+  rupa -t [category]           Same as rupa test
+  rupa -t syntax 1,2           Same as rupa test syntax 1,2
+  rupa -l                      Same as rupa list
+  rupa -l ast                  Same as rupa list ast
+
+Single file (free form, not bound to tests/):
+  rupa ast|ir|irexec <file.rp>
+  rupa exec|semantic|stress <file.rp>
+  rupa repl <file.rp>
+---endtest
+
+---project
+Project commands
+
+rupa go [target]       Run class project (.spec)
+rupa go dev            Dev mode (debug): serve.rp runner / dev server
+rupa go build          Build mode (release)
+rupa go -d             Show detail report
+
+rupa spec <target>     Generate .spec.example (web, android, software, ios)
+rupa spec -e [algo]    Encrypt .spec.example -> .spec (default sha512)
+rupa spec -d           Decrypt .spec -> .spec.example
+
+.spec.example is plaintext and safe to keep in the project; encrypt
+(.spec) before uploading real credentials.
+---endproject
+
+---module
+Module commands
+
+rupa add [-g] <name> <path> [version]   Install a module
+rupa remove [-g] <name>                 Remove a module
+rupa list [-g]                          List installed modules
+rupa update [-g] <name> <path>          Update a module
+
+-g installs to the global archive: ~/.rupa/rupa_modules.tar.gz
+without -g, modules are stored locally: ./modules/rupa_modules.tar.gz
+
+Import local:  import name from name
+Import global: import name from rupa.name
+---endmodule
+
+---repl
+.clear   Clear screen
+.editor  Open editor mode (not ready)
+.exit    For exit the repl
+.help    Show more information
+---endrepl

@@ -1,0 +1,5 @@
+import home from ./app.main
+
+handle(method, path) { 
+  return home(method, path)
+}

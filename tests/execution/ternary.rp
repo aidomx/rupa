@@ -1,0 +1,37 @@
+// Ternary pipe: c1 | v1 | c2 | v2 | else — lazy, pasangan kondisi→nilai
+x = 1
+assertEq(x > 2 | true | false, false)
+assertEq(x > 0 | true | false, true)
+assertEq(x > 0 | "besar" | "kecil", "besar")
+assertEq(x > 2 | "besar" | x < 0 | "negatif" | "nol", "nol")
+
+// Cascade ternary: c1 -> v1 | c2 -> v2 | else
+assertEq(x > 2 -> "besar" | x == 0 -> "nol" | "lain", "lain")
+x = 0
+assertEq(x > 2 -> "besar" | x == 0 -> "nol" | "lain", "nol")
+x = 5
+assertEq(x > 2 -> "besar" | x == 0 -> "nol" | "lain", "besar")
+
+// cond -> then | else (THEN di atas rantai fallback)
+assertEq(1 > 2 -> "ya" | "tidak", "tidak")
+assertEq(1 > 0 -> "ya" | "tidak", "ya")
+
+// Bentuk lama tetap: ?= dengan then|fallback
+z ?= 1 > 2 -> "besar" | "kecil"
+assertEq(z, "kecil")
+
+// or-else dua segmen tidak berubah
+assertEq(5 | "fb", 5)
+assertEq(0 | "fb", "fb")
+assertEq(false | 7, 7)
+
+// THEN polos tanpa pipe: truthy -> nilai, falsy -> null
+assertEq(1 > 0 -> "ya", "ya")
+
+// Lazy: arm yang tidak diambil tidak dievaluasi — bila else
+// terevaluasi, identifier undefined akan menghasilkan ReferenceError
+// dan menggagalkan file ini.
+r2 = 1 > 0 -> "ya" | undefinedArm
+assertEq(r2, "ya")
+r3 = 1 > 2 -> undefinedArm | "tidak"
+assertEq(r3, "tidak")

@@ -55,6 +55,43 @@ static InterpreterResult osGetcwd(int argc, RuntimeValue *argv, RuntimeEnv *env,
   return resultNormal(valueString(cwd));
 }
 
+/* ==================== os.scriptpath() / os.scriptdir() ====================
+ * Path skrip entry point — path aset harus dihitung relatif terhadap
+ * file skrip, bukan cwd proses (mis. load("res") di rpx_engine).
+ * Keduanya null saat REPL (tidak ada file entry). */
+static InterpreterResult osScriptpath(int argc, RuntimeValue *argv,
+                                      RuntimeEnv *env, Error *error) {
+  const char *path = getMainScriptPath();
+  if (!path)
+    return resultNormal(valueNull());
+  return resultNormal(valueString(path));
+}
+
+static InterpreterResult osScriptdir(int argc, RuntimeValue *argv,
+                                     RuntimeEnv *env, Error *error) {
+  const char *path = getMainScriptPath();
+  if (!path)
+    return resultNormal(valueNull());
+
+  const char *slash = strrchr(path, '/');
+  if (!slash)
+    return resultNormal(valueString(".")); /* skrip di cwd */
+
+  size_t len = (size_t)(slash - path);
+  if (len == 0)
+    return resultNormal(valueString("/")); /* "/x.rp" → root */
+
+  char *dir = malloc(len + 1);
+  if (!dir)
+    return osError(error, "IOError", "out of memory");
+  memcpy(dir, path, len);
+  dir[len] = '\0';
+
+  RuntimeValue result = valueString(dir);
+  free(dir);
+  return resultNormal(result);
+}
+
 /* ==================== os.exit(code) ==================== */
 static InterpreterResult osExit(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                 Error *error) {
@@ -257,6 +294,8 @@ InterpreterResult stdOsInit(Node *node, int id, RuntimeEnv *env, Error *error) {
 
   addEntry(&entries, "exec", osExec, 1);
   addEntry(&entries, "getcwd", osGetcwd, 0);
+  addEntry(&entries, "scriptpath", osScriptpath, 0);
+  addEntry(&entries, "scriptdir", osScriptdir, 0);
   addEntry(&entries, "exit", osExit, 1);
   addEntry(&entries, "getenv", osGetenv, 1);
   addEntry(&entries, "chdir", osChdir, 1);

@@ -99,5 +99,15 @@ void processInput(State *state) {
     clearStateToken(state->tokens);
   }
 
+  /* LexerError (token tak sah, mis. `#` non-hex) = fatal di jalur
+   * -e/REPL juga. Cek SETELAH blok atas: lexer yang gagal me-rollback
+   * tokens jadi kosong sehingga blok terlewati — tanpa ini error
+   * ditelan dan exit diam-diam sukses. Print + reset size = pola
+   * repl_input.c agar error tak ter-reprint stale antar baris. */
+  if (state->error && state->error->size > 0) {
+    printErrors(state->error);
+    state->error->size = 0;
+  }
+
   resetFlags(flags);
 }

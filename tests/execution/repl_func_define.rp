@@ -1,4 +1,4 @@
-# Function definition, then call
+// Function definition, then call
 double(n) {
     return n * 2
 }

@@ -1,5 +1,5 @@
 import math from rupa
-# ── Calculate using case ──
+// ── Calculate using case ──
 
 calculate(x: number, op: string, y: number) {
   case op => {

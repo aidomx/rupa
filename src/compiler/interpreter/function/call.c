@@ -8,11 +8,9 @@ static bool isPrivateName(RuntimeEnv *env, const char *name) {
       if (b->value.type != VALUE_OBJECT) continue;
       /* Check if this object has a _private entry */
       RuntimeValue priv_val;
-      if (valueObjectGet(b->value, "_private", &priv_val) &&
-          priv_val.type == VALUE_OBJECT) {
+      if (valueObjectGet(b->value, "_private", &priv_val) && priv_val.type == VALUE_OBJECT) {
         RuntimeValue found;
-        if (valueObjectGet(priv_val, name, &found))
-          return true;
+        if (valueObjectGet(priv_val, name, &found)) return true;
       }
     }
   }
@@ -57,8 +55,8 @@ static const char *calleeName(Node *node, int id) {
  * untuk sekarang tetap lewat jalur ini: identifier yang bukan tipe
  * akan return null.
  */
-static InterpreterResult sizeofCall(Node *node, AstNode *ast, RuntimeEnv *env,
-                                    Error *error, bool *handled) {
+static InterpreterResult sizeofCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
+                                    bool *handled) {
   (void)error;
   *handled = false;
   if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
@@ -127,8 +125,7 @@ static InterpreterResult sizeofCall(Node *node, AstNode *ast, RuntimeEnv *env,
  * Method-style mutators stop at Tier 1 on purpose — map/filter/reduce stay
  * plain functions in stdlib/collections so the core stays minimal.
  */
-static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
-                                          RuntimeEnv *env, Error *error,
+static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast, RuntimeEnv *env, Error *error,
                                           bool *handled) {
   *handled = false;
   if (!node || !ast || ast->type != NODE_CALL) return resultNormal(valueNull());
@@ -140,8 +137,10 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
   if (mid < 0 || mid >= node->length) return resultNormal(valueNull());
   AstNode *m = &node->ast[mid];
   const char *mname = NULL;
-  if (m->type == NODE_IDENTIFIER) mname = m->identifier.name;
-  else if (m->type == NODE_LITERAL_ID) mname = m->string.value;
+  if (m->type == NODE_IDENTIFIER)
+    mname = m->identifier.name;
+  else if (m->type == NODE_LITERAL_ID)
+    mname = m->string.value;
   if (!mname) return resultNormal(valueNull());
 
   bool isPush = !strcmp(mname, "push");
@@ -150,20 +149,18 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
 
   *handled = true;
 
-  InterpreterResult base =
-      interpretNode(node, calleeAst->member.object, env, error);
+  InterpreterResult base = interpretNode(node, calleeAst->member.object, env, error);
   if (base.flow != FLOW_NORMAL) return base;
 
   if (base.value.type != VALUE_ARRAY) {
     if (error)
-      addError(error,
-               (ErrorInfo){.code = "TypeError",
-                           .message = mname == NULL ? "array method expects an array"
-                                      : isPush ? "push() expects an array"
-                                               : "pop() expects an array",
-                           .line = 0,
-                           .row = 0,
-                           .type = ERR_TYPE_MISMATCH});
+      addError(error, (ErrorInfo){.code = "TypeError",
+                                  .message = mname == NULL ? "array method expects an array"
+                                             : isPush      ? "push() expects an array"
+                                                           : "pop() expects an array",
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_TYPE_MISMATCH});
     return resultFlow(FLOW_ERROR, valueNull());
   }
 
@@ -176,16 +173,14 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
       InterpreterResult arg = interpretNode(node, ast->call.args[i], env, error);
       if (arg.flow != FLOW_NORMAL) return arg;
       int newLen = arr.as.array.length + 1;
-      RuntimeValue *items =
-          gcrealloc(arr.as.array.items, sizeof(RuntimeValue) * newLen);
+      RuntimeValue *items = gcrealloc(arr.as.array.items, sizeof(RuntimeValue) * newLen);
       if (!items && newLen > 0) {
         if (error)
-          addError(error,
-                   (ErrorInfo){.code = "InternalError",
-                               .message = "out of memory growing array",
-                               .line = 0,
-                               .row = 0,
-                               .type = ERR_INTERNAL});
+          addError(error, (ErrorInfo){.code = "InternalError",
+                                      .message = "out of memory growing array",
+                                      .line = 0,
+                                      .row = 0,
+                                      .type = ERR_INTERNAL});
         return resultFlow(FLOW_ERROR, valueNull());
       }
       items[newLen - 1] = arg.value;
@@ -197,12 +192,11 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
     /* pop(): no arguments allowed; empty array yields null. */
     if (ast->call.length > 0) {
       if (error)
-        addError(error,
-                 (ErrorInfo){.code = "TypeError",
-                             .message = "pop() expects no arguments",
-                             .line = 0,
-                             .row = 0,
-                             .type = ERR_TYPE_MISMATCH});
+        addError(error, (ErrorInfo){.code = "TypeError",
+                                    .message = "pop() expects no arguments",
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_TYPE_MISMATCH});
       return resultFlow(FLOW_ERROR, valueNull());
     }
     if (arr.as.array.length == 0)
@@ -222,8 +216,7 @@ static InterpreterResult arrayBuiltinCall(Node *node, AstNode *ast,
       baseName = baseAst->identifier.name;
     else if (baseAst->type == NODE_LITERAL_ID)
       baseName = baseAst->string.value;
-    if (baseName)
-      semSet(env, baseName, arr);
+    if (baseName) semSet(env, baseName, arr);
   }
 
   return ret;
@@ -246,16 +239,14 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
    * super = prototype class induk dari env. */
   if (ast->call.callee >= 0 && ast->call.callee < node->length) {
     AstNode *ce = &node->ast[ast->call.callee];
-    if (ce->type == NODE_MEMBER && ce->member.object >= 0 &&
-        ce->member.object < node->length) {
+    if (ce->type == NODE_MEMBER && ce->member.object >= 0 && ce->member.object < node->length) {
       AstNode *o = &node->ast[ce->member.object];
       if (o->type == NODE_IDENTIFIER && o->identifier.name &&
           !strcmp(o->identifier.name, "super")) {
         RuntimeValue thiz = valueNull();
         if (semGet(env, "this", &thiz) && thiz.type == VALUE_OBJECT) {
           RuntimeValue cls = valueNull();
-          if (valueObjectGet(thiz, "_class", &cls) &&
-              cls.type == VALUE_STRING && cls.as.string) {
+          if (valueObjectGet(thiz, "_class", &cls) && cls.type == VALUE_STRING && cls.as.string) {
             const char *pn = analyzerClassParent(cls.as.string);
             RuntimeValue pinst = valueNull();
             if (pn && semGet(env, pn, &pinst) && pinst.type == VALUE_OBJECT)
@@ -281,8 +272,7 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
    * dispatch manual dengan arg raw — identifier posisi key bukan variabel
    * = nama field (design: `people.set(name, "anggi")`). */
   bool objCallHandled = false;
-  InterpreterResult objCallResult =
-      objectMemberCall(node, ast, env, error, &objCallHandled);
+  InterpreterResult objCallResult = objectMemberCall(node, ast, env, error, &objCallHandled);
   if (objCallHandled) return objCallResult;
 
   bool newHandled = false;
@@ -294,8 +284,7 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
 
   /* Array builtin methods (push/pop) mutate in place — see arrayBuiltinCall. */
   bool handled = false;
-  InterpreterResult builtin =
-      arrayBuiltinCall(node, ast, env, error, &handled);
+  InterpreterResult builtin = arrayBuiltinCall(node, ast, env, error, &handled);
   if (handled) return builtin;
 
   InterpreterResult callee = interpretNode(node, ast->call.callee, env, error);
@@ -310,8 +299,10 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
     if (!argv && argc > 0) {
       if (error)
         addError(error, (ErrorInfo){.code = "InternalError",
-                                   .message = "failed to allocate argument list",
-                                   .line = 0, .row = 0, .type = ERR_INTERNAL});
+                                    .message = "failed to allocate argument list",
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_INTERNAL});
       return resultFlow(FLOW_ERROR, valueNull());
     }
     int offset = 0;
@@ -321,7 +312,10 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
     }
     for (int i = 0; i < explicitArgc; i++) {
       InterpreterResult arg = interpretNode(node, ast->call.args[i], env, error);
-      if (arg.flow != FLOW_NORMAL) { free(argv); return arg; }
+      if (arg.flow != FLOW_NORMAL) {
+        free(argv);
+        return arg;
+      }
       argv[i + offset] = arg.value;
     }
     InterpreterResult result = nf->func(argc, argv, env, error);
@@ -340,22 +334,25 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
       const char *name = calleeName(node, ast->call.callee);
       static char message[256];
       if (name && isPrivateName(env, name)) {
-        snprintf(message, sizeof(message),
-                 "'%s' is private and cannot be called from outside", name);
-        addError(error, (ErrorInfo){.code = "PrivateError", .message = message,
-                                     .line = 0, .row = 0,
-                                     .type = ERR_INVALID_CALL});
+        snprintf(message, sizeof(message), "'%s' is private and cannot be called from outside",
+                 name);
+        addError(error, (ErrorInfo){.code = "PrivateError",
+                                    .message = message,
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_INVALID_CALL});
       } else if (name)
-        snprintf(message, sizeof(message),
-                 "'%s' is not a function and cannot be called", name);
+        snprintf(message, sizeof(message), "'%s' is not a function and cannot be called", name);
       else
         snprintf(message, sizeof(message),
                  "value of type '%s' is not a function and cannot be called",
                  valueTypeName(callee.value.type));
       if (!name || !isPrivateName(env, name))
-        addError(error, (ErrorInfo){.code = "TypeError", .message = message,
-                                     .line = 0, .row = 0,
-                                     .type = ERR_INVALID_CALL});
+        addError(error, (ErrorInfo){.code = "TypeError",
+                                    .message = message,
+                                    .line = 0,
+                                    .row = 0,
+                                    .type = ERR_INVALID_CALL});
     }
     return resultFlow(FLOW_ERROR, valueNull());
   }
@@ -365,8 +362,10 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
   if (!local) {
     if (error)
       addError(error, (ErrorInfo){.code = "InternalError",
-                                   .message = "failed to allocate call frame",
-                                   .line = 0, .row = 0, .type = ERR_INTERNAL});
+                                  .message = "failed to allocate call frame",
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_INTERNAL});
     return resultFlow(FLOW_ERROR, valueNull());
   }
 
@@ -392,21 +391,41 @@ InterpreterResult interpretCall(Node *node, AstNode *ast, RuntimeEnv *env, Error
 
   InterpreterResult result = interpretNode(function->node, function->body, local, error);
   if (result.flow == FLOW_RETURN) {
+    /* Nama fungsi untuk pesan error kontrak return-type. */
+    const char *fname = NULL;
+    if (function->name >= 0 && function->name < function->node->length) {
+      AstNode *nn = &function->node->ast[function->name];
+      if (nn->type == NODE_IDENTIFIER) fname = nn->identifier.name;
+      else if (nn->type == NODE_LITERAL_ID) fname = nn->string.value;
+    }
     /* void function: hasil call tak boleh dipakai sebagai value —
      * `x = voidFn()` error; panggilan statement biasa aman. */
-    if (function->returnType >= 0 && function->returnType < node->length &&
-        result.value.type != VALUE_NULL) {
+    if (function->returnType >= 0 && function->returnType < node->length) {
       char typeName[256];
-      if (formatAstTypeName(function->node, function->returnType, typeName,
-                            sizeof(typeName)) &&
-          !strcmp(typeName, "void")) {
-        if (error)
-          addError(error, (ErrorInfo){.code = "TypeError",
-                                      .message = "void function returns no value",
-                                      .line = 0,
-                                      .row = 0,
-                                      .type = ERR_TYPE_MISMATCH});
-        return resultFlow(FLOW_ERROR, valueNull());
+      if (formatAstTypeName(function->node, function->returnType, typeName, sizeof(typeName))) {
+        if (!strcmp(typeName, "void")) {
+          if (result.value.type != VALUE_NULL) {
+            /* void: hasil call tak boleh dipakai sebagai value —
+             * `x = voidFn()` error; panggilan statement biasa aman. */
+            if (error) {
+              static char message[256];
+              snprintf(message, sizeof(message), "function '%s' is void and cannot return a value",
+                       fname ? fname : "?");
+              addError(error, (ErrorInfo){.code = "TypeError",
+                                          .message = message,
+                                          .line = 0,
+                                          .row = 0,
+                                          .type = ERR_TYPE_MISMATCH});
+            }
+            return resultFlow(FLOW_ERROR, valueNull());
+          }
+        } else if (result.value.type != VALUE_NULL) {
+          /* Kontrak return-type non-void: sejajar jalur IR (IR_CHECK di
+           * buildReturn + closure path execCall) — pesan error presisi
+           * via analyzerCheckReturnType. */
+          if (!analyzerCheckReturnType(fname, typeName, result.value, error))
+            return resultFlow(FLOW_ERROR, valueNull());
+        }
       }
     }
     return resultNormal(result.value);

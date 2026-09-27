@@ -1,0 +1,2 @@
+import view from ../rpx_engine.view
+print("got view:", view)

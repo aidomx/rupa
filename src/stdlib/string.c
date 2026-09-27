@@ -212,6 +212,55 @@ InterpreterResult stdStringIndexOf(int argc, RuntimeValue *argv,
   return resultNormal(valueNumber(found ? (int)(found - value) : -1));
 }
 
+/* ==================== string.repeat(n) ==================== */
+InterpreterResult stdStringRepeat(int argc, RuntimeValue *argv,
+                                  RuntimeEnv *env, Error *error) {
+  const char *value;
+  (void)env;
+  if (!getRuntimeString(argc, argv, &value) || argc < 2 ||
+      argv[1].type != VALUE_NUMBER)
+    return stringTypeError(error, "string.repeat() expects a number");
+
+  int count = (int)argv[1].as.number;
+  if (count < 0)
+    count = 0;
+  int len = (int)strlen(value);
+  if (count > 0 && len > 0 && (long long)len * count > 10000000)
+    return stringTypeError(error, "string.repeat() result too large");
+
+  char *result = malloc((size_t)len * (size_t)(count > 0 ? count : 0) + 1);
+  if (!result)
+    return resultNormal(valueNull());
+  for (int i = 0; i < count; i++)
+    memcpy(result + (size_t)i * len, value, (size_t)len);
+  result[(size_t)len * (size_t)count] = '\0';
+
+  RuntimeValue out = valueString(result);
+  free(result);
+  return resultNormal(out);
+}
+
+/* ==================== string.reverse() ==================== */
+InterpreterResult stdStringReverse(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error) {
+  const char *value;
+  (void)env;
+  if (!getRuntimeString(argc, argv, &value))
+    return stringTypeError(error, "string.reverse() expects a string");
+
+  int len = (int)strlen(value);
+  char *result = malloc((size_t)len + 1);
+  if (!result)
+    return resultNormal(valueNull());
+  for (int i = 0; i < len; i++)
+    result[i] = value[len - 1 - i];
+  result[len] = '\0';
+
+  RuntimeValue out = valueString(result);
+  free(result);
+  return resultNormal(out);
+}
+
 /* ==================== string.slice(start, end?) ==================== */
 InterpreterResult stdStringSlice(int argc, RuntimeValue *argv,
                                  RuntimeEnv *env, Error *error) {
@@ -279,6 +328,8 @@ InterpreterResult stdStringInit(Node *node, int id, RuntimeEnv *env,
   addEntry(&entries, "replace", stdStringReplace, 3);
   addEntry(&entries, "split", stdStringSplit, 2);
   addEntry(&entries, "indexOf", stdStringIndexOf, 2);
+  addEntry(&entries, "repeat", stdStringRepeat, 2);
+  addEntry(&entries, "reverse", stdStringReverse, 1);
   addEntry(&entries, "slice", stdStringSlice, 3);
   return resultNormal(valueObject(entries));
 }

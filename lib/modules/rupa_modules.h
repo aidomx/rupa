@@ -64,10 +64,19 @@ void specModuleClear(void);
 void specTagObject(RuntimeValue *obj);
 RuntimeValue specModuleBuild(const char *host, const char *port, const char *protocol,
                              const char *dbhost, const char *dbport, const char *dbname,
-                             const char *dbuser, const char *domain);
+                             const char *dbuser, const char *domain, const char *root);
 
 /* Initialize built-in functions (type, len, isNull, toNumber, toString) */
 void builtinsInit(RuntimeEnv *env);
+
+/* ===== print engine (print_format.c — design/next_print.txt) =====
+ * Pola 3 printf-style: print("%s\n", "hello")
+ * Pola 4 stream target: print(stderr, format, ...)
+ * Satu pintu render untuk interpreter (statement.c), mesin IR
+ * (execute.c), dan REPL. */
+FILE *printStreamOf(RuntimeValue v);
+int printRenderArgs(RuntimeValue *args, int argc, RuntimeEnv *env, Error *error,
+                    FILE *fallback, bool interp, bool *streamed);
 
 /* Initialize blok ops contract (ccpy, cmove, cset) */
 void rupaMemoryInit(RuntimeEnv *env);

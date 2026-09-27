@@ -1,1 +1,1 @@
-for i < 1000000: print(i)
+for i < 1000000: print("%d\n", i)

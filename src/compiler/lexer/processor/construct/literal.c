@@ -41,6 +41,26 @@ int processNumber(State *state, int start, int end, int *next, bool *waiting) {
   bool dot = false;
   bool digitAfterDot = false;
 
+  /* Hex literal 0x... (mis. 0xff, 0xDEADBEEF): digit hex saja —
+   * huruf lain setelah 0x tetap ditolak (bukan identifier). */
+  if (p + 2 < end && s[p] == '0' && (s[p + 1] == 'x' || s[p + 1] == 'X') &&
+      isxdigit((unsigned char)s[p + 2])) {
+    p += 2;
+    while (p < end && isxdigit((unsigned char)s[p]))
+      p++;
+    /* Hex diikuti huruf/underscore = invalid (bukan identifier). */
+    if (p < end && (isalpha((unsigned char)s[p]) || s[p] == '_')) return -1;
+
+    char *value = substring(s, start, p);
+    if (!value) return -1;
+    addToken(state->tokens,
+             createDataToken(value, NULL, NUMBER, line_of(state), start));
+    gcfree(value);
+    *next = p;
+    *waiting = false;
+    return 0;
+  }
+
   while (p < end && isdigit((unsigned char)s[p]))
     p++;
 

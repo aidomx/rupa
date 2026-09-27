@@ -128,6 +128,12 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
     } else if (!strcmp(key, "slice")) {
       fn = stdStringSlice;
       paramCount = 2;
+    } else if (!strcmp(key, "repeat")) {
+      fn = stdStringRepeat;
+      paramCount = 1;
+    } else if (!strcmp(key, "reverse")) {
+      fn = stdStringReverse;
+      paramCount = 0;
     }
     if (fn) {
       RuntimeValue method = valueNativeFunction(key, fn, paramCount);

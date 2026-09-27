@@ -1,9 +1,9 @@
-# Print followed by more execution
+// Print followed by more execution
 x = 42
 print(x)
 y = x * 2
 assertEq(y, 84)
-# Multiple prints
+// Multiple prints
 print("hello")
 print("world")
 z = y + 1

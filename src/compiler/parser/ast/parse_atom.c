@@ -57,6 +57,12 @@ static int parseInterpExpr(const char *exprSrc, Request *req) {
     AstNode n = *src;
     /* Remap child references based on node type */
     switch (n.type) {
+    case NODE_BOOLEAN:
+      /* Literal `true`/`false` di dalam { } / {{ }}: token BOOLEAN
+       * membentuk NODE_BOOLEAN (union .boolean) — tanpa case ini node
+       * jatuh ke default remap-identifier dan interp menghasilkan
+       * null. Bukan identifier: tidak ada child untuk diremap. */
+      break;
     case NODE_BINARY:
       if (n.binary.left >= 0 && n.binary.left < tmpNode->length)
         n.binary.left = map[n.binary.left];
@@ -256,7 +262,18 @@ static int tryParseStringInterp(Request *req, DataToken *data) {
       memcpy(nameBuf, inner + i + 1, nameLen);
       nameBuf[nameLen] = '\0';
 
-      int id = createId(req->node, nameBuf);
+      /* Literal keyword di dalam { }: true/false/null bukan variable —
+      * bentuk node boolean/nullable langsung (design pola 1
+      * `print("{true}")`; sejajar parseAtom). Identifier untuk kata
+      * lain; yang bukan variable pun masih ditolong fallback
+      * evalInterpExpr di runtime (mis. `{42}`). */
+      int id;
+      if (!strcmp(nameBuf, "true") || !strcmp(nameBuf, "false"))
+        id = createBoolean(req->node, strcmp(nameBuf, "true") == 0);
+      else if (!strcmp(nameBuf, "null"))
+        id = createString(req->node, nameBuf, NODE_NULLABLE);
+      else
+        id = createId(req->node, nameBuf);
       if (id >= 0) {
         gcfree(nameBuf);
         PUSH_PART(id);
@@ -341,6 +358,12 @@ int parseAtom(Request *req, DataToken *data) {
     return createString(req->node, data->value, NODE_LITERAL_ID);
 
   case NUMBER:
+    /* Hex literal 0x... (base 16); desimal tetap base 10. strtoll
+     * mengembalikan 0 + endptr==start bila bukan hex — value "0x"
+     * tak mungkin di sini karena lexer hanya mengemit hex valid. */
+    if (data->value && data->value[0] == '0' &&
+        (data->value[1] == 'x' || data->value[1] == 'X'))
+      return createNumber(req->node, strtoll(data->value + 2, NULL, 16));
     return createNumber(req->node, strtoll(data->value, NULL, 10));
 
   case NULLABLE:

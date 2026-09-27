@@ -22,5 +22,9 @@ InterpreterResult stdStringIndexOf(int argc, RuntimeValue *argv,
                                    RuntimeEnv *env, Error *error);
 InterpreterResult stdStringSlice(int argc, RuntimeValue *argv, RuntimeEnv *env,
                                  Error *error);
+InterpreterResult stdStringRepeat(int argc, RuntimeValue *argv, RuntimeEnv *env,
+                                  Error *error);
+InterpreterResult stdStringReverse(int argc, RuntimeValue *argv,
+                                   RuntimeEnv *env, Error *error);
 
 #endif

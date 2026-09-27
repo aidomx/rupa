@@ -144,8 +144,11 @@ InterpreterResult interpretEnum(Node *node, AstNode *ast, RuntimeEnv *env,
          * auto). Nilai eksplisit dievaluasi sebagai expression biasa
          * (number, string, bool, ...). */
         int valueId = -1;
-        if (m->type == NODE_ANNOTATION)
+        int typeId = -1;
+        if (m->type == NODE_ANNOTATION) {
           valueId = m->annotation.value;
+          typeId = m->annotation.type;
+        }
 
         if (valueId >= 0) {
           InterpreterResult r = interpretNode(node, valueId, env, error);
@@ -155,8 +158,21 @@ InterpreterResult interpretEnum(Node *node, AstNode *ast, RuntimeEnv *env,
           } else {
             next = 0; /* non-number: counter kembali ke 0 untuk member berikutnya */
           }
-          semSet(env, mname, r.value);
-          enumAppendEntry(&entries, mname, r.value);
+
+          /* Color print (design/next_print.txt): member bertipe color
+           * (mis. `BLACK: color = #000000`) — nilai hex sudah dievaluasi
+           * lexer jadi NUMBER 24-bit; bungkus jadi color value supaya
+           * print() mengenalinya dan menerapkan ANSI truecolor. */
+          RuntimeValue bound = r.value;
+          if (typeId >= 0 && r.value.type == VALUE_NUMBER) {
+            char typeName[256];
+            if (formatAstTypeName(node, typeId, typeName, sizeof(typeName)) &&
+                !strcmp(typeName, "color"))
+              bound = valueColor(r.value.as.number);
+          }
+
+          semSet(env, mname, bound);
+          enumAppendEntry(&entries, mname, bound);
         } else {
           /* Member tanpa nilai eksplisit → konstanta numerik auto. */
           RuntimeValue v = valueNumber(next);

@@ -1,4 +1,4 @@
-# Basic arithmetic execution
+// Basic arithmetic execution
 x = 1 + 2
 assertEq(x, 3)
 
@@ -8,14 +8,14 @@ assertEq(y, 50)
 z = 100 / 4
 assertEq(z, 25)
 
-# Mixed operations
+// Mixed operations
 w = 2 + 3 * 4
 assertEq(w, 14)
 
-# Modulo
+// Modulo
 m = 10 % 3
 assertEq(m, 1)
 
-# String operations
+// String operations
 s = "hello" + " " + "world"
 assertEq(s, "hello world")

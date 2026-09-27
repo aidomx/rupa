@@ -1,5 +1,5 @@
-# This module demonstrates namespace export
-# The entire module will be exported as 'math_utils'
+// This module demonstrates namespace export
+// The entire module will be exported as 'math_utils'
 
 add(x, y) {
     return x + y

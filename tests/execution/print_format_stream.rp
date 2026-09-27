@@ -1,0 +1,26 @@
+// print format engine (design/next_print.txt) — pola 1, 3, dan 4
+
+// === pola 1: interpolasi (regresi) ===
+print(true)
+print("{true}")
+print("{{1 + 2}}")
+a = 5
+assertEq("{a}", "5")
+assertEq("t={true}", "t=true")
+
+// === pola 3: printf-style ===
+print("%s\n", "hello")
+print("%d + %d = %d\n", 1, 2, 3)
+print("hex=%x char=%c pct=50%%\n", 255, 65)
+print("%f|%g\n", 2.5, 0.5)
+assertEq("%d", "%d") //  format tanpa args = string biasa (dicetak apa adanya)
+
+// === pola 4: stream target ===
+print(stderr, "stderr line\n")
+print(stdout, "stdout line\n")
+print(stderr, "%s=%d\n", "code", 42)
+
+// binding stream: handle FILE* yang sama
+assertEq(stdout == stdout, true)
+assertEq(stderr == stderr, true)
+assertEq(stdout == stderr, false)

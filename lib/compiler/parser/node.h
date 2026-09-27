@@ -112,6 +112,10 @@ int createPrint(struct Node *root, int *args, int length);
 int createBlock(struct Node *root, int *items, int length);
 int createIf(struct Node *root, int condition, int thenBlock, int elseBlock, bool isBlock);
 int createLoop(struct Node *root, const char *kind, int condition, int body);
+/* design/next_loop.txt mixed/old loop: `for i=0; i < 10: ...` —
+ * init (assignment) dieksekusi sekali sebelum loop. */
+int createLoopInit(struct Node *root, const char *kind, int init, int condition,
+                   int body);
 int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body,
                        int returnType);
 int createStructDecl(struct Node *root, int name, int body);

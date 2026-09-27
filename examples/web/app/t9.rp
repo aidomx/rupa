@@ -1,0 +1,4 @@
+s = "ab"
+print(s.repeat(3))
+print(s.reverse())
+print("abc".upper())

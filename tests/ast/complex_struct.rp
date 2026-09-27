@@ -1,17 +1,17 @@
-# Simple struct
+// Simple struct
 Point {
     x: number
     y: number
 }
 
-# Struct with string fields
+// Struct with string fields
 Person {
     name: string
     age: number
     email: string
 }
 
-# Struct declaration (just registration, no instantiation)
+// Struct declaration (just registration, no instantiation)
 Config {
     host: string
     port: number

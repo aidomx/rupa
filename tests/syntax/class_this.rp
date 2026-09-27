@@ -1,4 +1,4 @@
-# class + this + construct (design/new_class.txt langkah 2)
+// class + this + construct (design/new_class.txt langkah 2)
 CounterType {
   value: number
 }

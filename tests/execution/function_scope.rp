@@ -1,5 +1,5 @@
-# Function scope: local variables don't leak
-# Assignment inside function creates local scope (lexical scoping)
+// Function scope: local variables don't leak
+// Assignment inside function creates local scope (lexical scoping)
 counter = 0
 increment() {
     local_val = 10
@@ -9,14 +9,14 @@ result = increment()
 assertEq(result, 10)
 assertEq(counter, 0)
 
-# Function with parameters
+// Function with parameters
 add(a, b) {
     return a + b
 }
 sum = add(3, 7)
 assertEq(sum, 10)
 
-# Nested function calls
+// Nested function calls
 double(n) {
     return n * 2
 }
@@ -26,7 +26,7 @@ triple(n) {
 val = double(triple(5))
 assertEq(val, 30)
 
-# Function returning object
+// Function returning object
 makePoint(px, py) {
     return { x: px, y: py }
 }

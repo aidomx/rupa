@@ -1,0 +1,2 @@
+import resources as r, render from ../rpx_engine.view
+print('OK', resources)

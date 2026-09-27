@@ -223,16 +223,28 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
   case NODE_PRINT: {
     RuntimeValue last = valueNull();
 
-    for (int i = 0; i < a->print.length; i++) {
-      InterpreterResult result = interpretNode(n, a->print.args[i], e, x);
-      last = result.value;
-
-      if (result.flow != FLOW_NORMAL) return result;
-
-      valuePrintInterp(last, e, x);
-
-      if (i + 1 < a->print.length) putchar(' ');
+    /* Evaluasi seluruh args dulu (urutan kiri→kanan), lalu render
+     * via print engine (print_format.c): pola 2 multi-arg + pola 3
+     * format + pola 4 stream target dalam satu pintu. */
+    int argc = a->print.length;
+    RuntimeValue *args = NULL;
+    if (argc > 0) {
+      args = malloc(sizeof(RuntimeValue) * (size_t)argc);
+      if (!args) return resultFlow(FLOW_ERROR, valueNull());
     }
+    for (int i = 0; i < argc; i++) {
+      InterpreterResult result = interpretNode(n, a->print.args[i], e, x);
+      args[i] = result.value;
+      last = result.value;
+      if (result.flow != FLOW_NORMAL) {
+        free(args);
+        return result;
+      }
+    }
+
+    bool streamed = false;
+    printRenderArgs(args, argc, e, x, stdout, e->isRepl, &streamed);
+    free(args);
 
     if (e->isRepl) {
       putchar('\n');

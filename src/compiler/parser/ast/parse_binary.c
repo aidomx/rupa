@@ -60,6 +60,55 @@ static int chainPostfix(Request *req, int current, int i, int end) {
   return current;
 }
 
+/* Ternary standar (parsir bersarang kanan): cond ? then : else.
+ * Split pertama '?' pada level terluar; else = sisi kanan penuh
+ * (memungkinkan else berupa ternary lagi). then: butuh ':' pasangan
+ * dalam rentang then (pertimbangkan kedalaman '?'/':' supaya then
+ * yang mengandung ternary sendiri tetap benar). */
+static int parseTernary(Request *req, int start, int end) {
+  Token *tokens = req->tokens;
+  int q = -1;
+  int depthParen = 0;
+  for (int i = start; i < end; i++) {
+    if (isToken(tokens, i, LPAREN)) depthParen++;
+    else if (isToken(tokens, i, RPAREN)) depthParen--;
+    else if (depthParen == 0 && isToken(tokens, i, QUESTION_MARK)) {
+      q = i;
+      break;
+    }
+  }
+  if (q < 0) return GRAMMAR_NO_MATCH;
+
+  /* then = [q+1, colon); cari ':' pada kedalaman '?' seimbang. */
+  int colon = -1;
+  int qDepth = 0;
+  depthParen = 0;
+  for (int i = q + 1; i < end; i++) {
+    if (isToken(tokens, i, LPAREN)) depthParen++;
+    else if (isToken(tokens, i, RPAREN)) depthParen--;
+    else if (depthParen == 0 && isToken(tokens, i, QUESTION_MARK)) qDepth++;
+    else if (depthParen == 0 && isToken(tokens, i, COLON)) {
+      if (qDepth == 0) { colon = i; break; }
+      qDepth--;
+    }
+  }
+  if (colon < 0) return GRAMMAR_NO_MATCH;
+  if (colon == q + 1 || colon + 1 >= end) return GRAMMAR_NO_MATCH;
+
+  int cond = parseBinary(req, start, q);
+  if (cond < 0) return GRAMMAR_NO_MATCH;
+  int thenId = parseBinary(req, q + 1, colon);
+  if (thenId < 0) return GRAMMAR_NO_MATCH;
+  int elseId = parseBinary(req, colon + 1, end);
+  if (elseId < 0) return GRAMMAR_NO_MATCH;
+
+  /* Render ke AST ternary pipa yang sudah ada: cond -> then | else
+   * (THEN di atas rantai FALLBACK satu segmen) — evaluator & IR
+   * ternary tidak perlu diubah. */
+  int fb = createFallback(req->node, thenId, elseId);
+  return createThen(req->node, cond, fb);
+}
+
 /**
  * parseBinary: parser rekursif untuk binary expression.
  * - Menjaga precedence.
@@ -94,6 +143,26 @@ int parseBinary(Request *req, int start, int end) {
     id = grammarParseAwaitExpr(req, start, end);
     if (id != GRAMMAR_NO_MATCH)
       return id;
+  }
+
+  /* Ternary standar `cond ? then : else` — cek sebelum split binary:
+   * '?' dan ':' tak punya precedence, jadi dicocokkan eksplisit.
+   * Hanya '?' level terluar (di luar bracket/paren) yang dihitung —
+   * '?' dalam sub-ekspresi tidak boleh memicu parse ternary di sini. */
+  {
+    int depthParen = 0, depthBracket = 0;
+    for (int i = start; i < end; i++) {
+      if (isToken(tokens, i, LPAREN)) depthParen++;
+      else if (isToken(tokens, i, RPAREN)) depthParen--;
+      else if (isToken(tokens, i, LBLOCK)) depthBracket++;
+      else if (isToken(tokens, i, RBLOCK)) depthBracket--;
+      else if (depthParen == 0 && depthBracket == 0 &&
+               isToken(tokens, i, QUESTION_MARK)) {
+        int ternary = parseTernary(req, start, end);
+        if (ternary != GRAMMAR_NO_MATCH) return ternary;
+        break;
+      }
+    }
   }
 
   for (int i = start; i < end; i++) {

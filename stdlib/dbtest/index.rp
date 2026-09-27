@@ -1,3 +1,0 @@
-// index.rp — Public entry untuk module dbtest (bentuk kanonik).
-// `import dbtest from rupa` men-bind whole-env index ini sebagai `dbtest`.
-export getUser from ./user

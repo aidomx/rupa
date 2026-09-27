@@ -8,11 +8,21 @@
 struct EventLoop *g_event_loop = NULL;
 const char *g_source_file_path = NULL;
 
+/* Path skrip entry point (file yang dijalankan rupa, serve, go, atau
+ * test). Hanya runner-level yang memanggil setSourceFilePath — loader
+ * modul tidak — sehingga nilainya tidak pernah tertukar oleh import. */
+static const char *g_main_script_path = NULL;
+
 void setSourceFilePath(const char *path) {
   g_source_file_path = path;
+  if (path)
+    g_main_script_path = path;
 }
 const char *getSourceFilePath(void) {
   return g_source_file_path;
+}
+const char *getMainScriptPath(void) {
+  return g_main_script_path;
 }
 struct EventLoop *getEventLoop(void) {
   return g_event_loop;
@@ -304,6 +314,73 @@ static char *resolveDotPath(const char *module_path, const char *source_dir) {
   return NULL;
 }
 
+/* ---- Import absolut ----
+ * "/abs/path" atau "/abs/X.Y.Z". Dicoba berurutan:
+ *   1) file eksplisit (stat reguler — mencakup /x/lib.rp),
+ *   2) direktori → dir/index.rp (package),
+ *   3) bukan berakhiran .rp: + ".rp", lalu + "/index.rp",
+ *   4) bentuk dotted ("/tmp/rpx_engine.view") → resolveDotPath
+ *      terhadap "/" (tiap segmen = direktori).
+ * Return path malloc'd; NULL bila tidak ada yang cocok. */
+static bool absIsFile(const char *p) {
+  struct stat st;
+  return p && stat(p, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+static bool absIsDir(const char *p) {
+  struct stat st;
+  return p && stat(p, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static bool absEndsWith(const char *s, const char *suffix) {
+  size_t sl = strlen(s), ul = strlen(suffix);
+  return sl >= ul && strcmp(s + sl - ul, suffix) == 0;
+}
+
+static char *resolveAbsModulePath(const char *module_path) {
+  if (!module_path || module_path[0] != '/') return NULL;
+
+  /* 1) File eksplisit — termasuk path .rp dari stdlib loader. */
+  if (absIsFile(module_path)) return strdup(module_path);
+
+  /* 2) Direktori → package index. */
+  if (absIsDir(module_path))
+    return joinPath(module_path, "index.rp");
+
+  if (absEndsWith(module_path, ".rp")) return NULL;
+
+  const char *lastDot = strrchr(module_path, '.');
+  bool dotted = lastDot && lastDot[1] != '\0' && lastDot[1] != '/';
+
+  /* 3) + ".rp" */
+  size_t len = strlen(module_path);
+  char *f = malloc(len + 4);
+  if (!f) return NULL;
+  memcpy(f, module_path, len);
+  strcpy(f + len, ".rp");
+  if (absIsFile(f)) return f;
+  free(f);
+
+  /* + "/index.rp" */
+  char *idx = malloc(len + 10);
+  if (!idx) return NULL;
+  memcpy(idx, module_path, len);
+  strcpy(idx + len, "/index.rp");
+  if (absIsFile(idx)) return idx;
+  free(idx);
+
+  /* 4) Dotted: tiap segmen = direktori. */
+  if (dotted) {
+    char *source_dir = strdup("/");
+    if (!source_dir) return NULL;
+    char *full = resolveDotPath(module_path, source_dir);
+    free(source_dir);
+    return full;
+  }
+
+  return NULL;
+}
+
 /* ---- Package boundary ---- */
 
 /* Dir berisi index.rp? */
@@ -427,6 +504,14 @@ static void moduleCachePut(char *canonical_owned, RuntimeValue v) {
 
 /* ---- Public API ---- */
 
+/* Reset cache module (dipanggil serve.c tiap reload — proses dev server
+ * panjang umur & serveExecScript() dieksekusi berkali-kali dalam SATU
+ * proses, jadi cache lama harus dibuang atau import di serve.rp/main.rp
+ * akan selalu mengembalikan versi module yang di-load pertama kali,
+ * bukan yang baru diedit). Isi array GC-managed, cukup lupakan (count=0)
+ * — tanpa free manual, selaras pola GC arena di file ini. */
+void moduleCacheReset(void) { g_module_cache_count = 0; }
+
 /* Bangun object whole-env dari bindings module — dipakai jalur whole-env
  * normal DAN pre-redirect cache (tree export). Binding hasil `import`
  * (isImport) selalu hidden: bukan milik module. */
@@ -462,7 +547,7 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
   char *full_path = NULL;
 
   if (module_path[0] == '/') {
-    full_path = strdup(module_path);
+    full_path = resolveAbsModulePath(module_path);
   } else {
     char *source_dir = dirName(g_source_file_path);
     if (hasDotSlash(module_path)) {
@@ -620,7 +705,9 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
 
   {
     if (module_path[0] == '/') {
-      module_source_path = gcstrdup(module_path);
+      char *abs_resolved = resolveAbsModulePath(module_path);
+      module_source_path = gcstrdup(abs_resolved ? abs_resolved : module_path);
+      free(abs_resolved);
       g_source_file_path = module_source_path;
     } else {
       char *src_dir = dirName(prev_path);

@@ -2,13 +2,13 @@ import add, subtract from ../modules.selective
 import math_utils from ../modules.ns_entry
 import add, subtract from ../modules.policy
 
-# Test new export syntax
-# This file tests selective, namespace, and policy exports
+// Test new export syntax
+// This file tests selective, namespace, and policy exports
 
 print("=== Testing New Export Syntax ===\n")
 print("\n")
 
-# Test 1: Selective Export
+// Test 1: Selective Export
 print("1. Selective Export (export add, subtract from ../modules.selective)\n")
 print("   Expected: add and subtract work, multiply and divide are not accessible\n")
 print("\n")
@@ -19,13 +19,13 @@ print("   add(10, 5) = " + result1 + "\n")
 result2 = subtract(10, 5)
 print("   subtract(10, 5) = " + result2 + "\n")
 
-# Try to import multiply (should fail - not exported)
-# import multiply from ../modules.selective
-# print("   multiply(10, 5) = " + multiply(10, 5) + "\n")
+// Try to import multiply (should fail - not exported)
+// import multiply from ../modules.selective
+// print("   multiply(10, 5) = " + multiply(10, 5) + "\n")
 
 print("\n")
 
-# Test 2: Namespace Export
+// Test 2: Namespace Export
 print("2. Namespace Export (export math_utils from ../modules.namespace_entry)\n")
 print("   Expected: entire module available as math_utils namespace\n")
 print("\n")
@@ -43,7 +43,7 @@ print("   math_utils.multiply(10, 5) = " + result5 + "\n")
 
 print("\n")
 
-# Test 3: Selective import
+// Test 3: Selective import
 print("3. Selective import (import add, subtract from ./policy)\n")
 print("   Expected: only add and subtract are imported\n")
 print("\n")
@@ -54,8 +54,8 @@ print("   add(10, 5) = " + result6 + "\n")
 result7 = subtract(10, 5)
 print("   subtract(10, 5) = " + result7 + "\n")
 
-# multiply/divide tidak di-import — selective hanya add dan subtract
-# result8 = multiply(10, 5)  # ReferenceError: multiply is not defined
+// multiply/divide tidak di-import — selective hanya add dan subtract
+// result8 = multiply(10, 5)  # ReferenceError: multiply is not defined
 
 print("\n")
 print("=== All tests passed! ===\n")

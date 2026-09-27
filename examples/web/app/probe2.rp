@@ -1,0 +1,2 @@
+import resources as r from ../rpx_engine.view.resources
+print("got r:", r)

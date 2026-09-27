@@ -221,6 +221,10 @@ struct AstLoop {
   char *kind;
   int condition;
   int body;
+  /* design/next_loop.txt old_loop/mixed: `for i=0; i < 10: ...` /
+   * `rev i=10; i > 0: ...` — init dieksekusi sekali sebelum loop.
+   * -1 bila tidak ada. */
+  int init;
 };
 
 struct AstFunctionDecl {

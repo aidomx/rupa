@@ -65,6 +65,10 @@ typedef struct GoSpec {
   char *version;
   char *target;
   char *arch;
+  /* `root: .` (design/rupa_go.txt): direktori dasar project relatif
+   * terhadap lokasi .spec ditemukan. Semua path (entry app/main.rp,
+   * serve.rp, res/) dihitung dari sini, bukan cwd proses. */
+  char *root;
   bool debug;
   bool release;
   /* Web (design/rupa_go.txt bagian web_example): */
@@ -154,6 +158,7 @@ static void goSpecApply(GoSpec *c, const char *section, const char *subsection,
 
   /* Top-level (android + web). */
   if (!strcmp(key, "name")) c->name = gcstrdup(value);
+  else if (!strcmp(key, "root")) c->root = gcstrdup(value);
   else if (!strcmp(key, "author")) c->author = gcstrdup(value);
   else if (!strcmp(key, "version")) c->version = gcstrdup(value);
   else if (!strcmp(key, "target")) c->target = gcstrdup(value);
@@ -168,6 +173,7 @@ static GoSpec goSpecDefaults(void) {
   c.name = gcstrdup("-");
   c.author = gcstrdup("-");
   c.version = gcstrdup("0.0.0");
+  c.root = gcstrdup(".");
   /* Prioritas target utama adalah web (design/rupa_go.txt). */
   c.target = gcstrdup("web");
   c.arch = gcstrdup("unknown");
@@ -268,6 +274,8 @@ static void goSpecParseText(GoSpec *c, const char *text) {
   free(copy);
 }
 
+static void goSpecResolveRoot(GoSpec *c, const char *specDir);
+
 static GoSpec goSpecLoad(void) {
   GoSpec c = goSpecDefaults();
   char cwd[PATH_MAX];
@@ -288,6 +296,12 @@ static GoSpec goSpecLoad(void) {
       *slash = '\0';
     }
   }
+
+  /* Direktori .spec = akar default. `root: <path>` di .spec menimpa
+   * (relatif terhadap direktori ini) — di-resolve goSpecResolveRoot
+   * setelah parse. */
+  char *specDir = gcstrdup(dir);
+  c.root = gcstrdup(dir);
 
   char *content = goReadAllFile(configPath);
   if (!content) return c;
@@ -342,18 +356,51 @@ static GoSpec goSpecLoad(void) {
     }
     goSpecParseText(&c, plain);
     free(plain);
+    goSpecResolveRoot(&c, specDir);
     return c;
   }
 
   goSpecParseText(&c, content);
   free(content);
+  goSpecResolveRoot(&c, specDir);
   return c;
+}
+
+/* Root project aktif (dari .spec `root:`) untuk pencarian entry,
+ * serve.rp, dan res/. Default "." = cwd. */
+static const char *g_project_root = ".";
+
+static const char *goProjectRoot(void) {
+  return g_project_root;
+}
+
+static void goSetProjectRoot(const char *root) {
+  if (root && *root) g_project_root = root;
+}
+
+/* Resolve `root:` dari .spec: `.` / kosong = direktori .spec; path
+ * relatif lain digabung ke direktori .spec; absolut dipakai apa adanya.
+ * Hasil: c->root = path absolut direktori akar project. */
+static void goSpecResolveRoot(GoSpec *c, const char *specDir) {
+  if (!c || !c->root || !*c->root) return;
+  const char *r = c->root;
+  if (!strcmp(r, ".")) {
+    c->root = gcstrdup(specDir);
+    return;
+  }
+  if (r[0] == '/') return; /* absolut: pakai apa adanya */
+  size_t need = strlen(specDir) + strlen(r) + 2;
+  char *joined = malloc(need);
+  if (!joined) return;
+  bool needSep = specDir[strlen(specDir) - 1] != '/';
+  snprintf(joined, need, "%s%s%s", specDir, needSep ? "/" : "", r);
+  c->root = joined;
 }
 
 /* ==================== entry point: auto-cari main.rp ==================== */
 
 /* Explicit file menang; bila argumen bukan file, cari main.rp proyek:
- * app/main.rp (design), lalu main.rp di cwd. NULL bila tidak ketemu. */
+ * app/main.rp (design), lalu main.rp di root. NULL bila tidak ketemu. */
 static const char *goFindEntry(const char *explicitPath) {
   static char buf[PATH_MAX];
 
@@ -363,11 +410,15 @@ static const char *goFindEntry(const char *explicitPath) {
     return NULL;
   }
 
+  /* Cari entry dari root project (bukan cwd): app/main.rp dulu, lalu
+   * main.rp langsung di root. */
   static const char *candidates[] = {"app/main.rp", "main.rp"};
   for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+    char full[PATH_MAX + 64];
+    snprintf(full, sizeof(full), "%s/%s", goProjectRoot(), candidates[i]);
     struct stat st;
-    if (stat(candidates[i], &st) == 0 && S_ISREG(st.st_mode)) {
-      snprintf(buf, sizeof(buf), "%s", candidates[i]);
+    if (stat(full, &st) == 0 && S_ISREG(st.st_mode)) {
+      snprintf(buf, sizeof(buf), "%s", full);
       return buf;
     }
   }
@@ -669,6 +720,9 @@ int goCompile(const char *paths[], int length) {
   /* Kredensial asli ada di .spec terenkripsi — gagal membukanya berarti
    * konfigurasi tidak tersedia; jangan pernah jalan pakai defaults. */
   if (spec.encryptedFailed) return 1;
+  /* `root: .` (design): semua path project berikutnya dihitung dari
+   * sini, bukan cwd proses. */
+  goSetProjectRoot(spec.root);
   if (!opt.haveTarget) {
     opt.target = spec.target;
     opt.haveTarget = true;
@@ -737,7 +791,7 @@ int goCompile(const char *paths[], int length) {
   specModuleProvide(specModuleBuild(
       spec.settings.host, spec.settings.port, spec.settings.protocol,
       spec.settings.dbhost, spec.settings.dbport, spec.settings.dbname,
-      spec.settings.dbuser, spec.domain));
+      spec.settings.dbuser, spec.domain, spec.root));
 
   int status = 0;
   if (opt.mode && !strcmp(opt.mode, "build")) {
@@ -749,14 +803,21 @@ int goCompile(const char *paths[], int length) {
              opt.target ? opt.target : "-");
     status = goRunFile(opt.path, &opt);
   } else if (opt.mode && !strcmp(opt.mode, "dev")) {
-    /* dev: serve.rp di project menang — runner penuh dengan hot reload
-     * (port milik runner, reload tidak melepas bind). Tanpa serve.rp —
-     * main.rp jalan sekali + server default dari .spec.settings. */
-    const char *servePath = goFileExists("serve.rp") ? "serve.rp" : NULL;
+    /* dev: serve.rp di root project menang — runner penuh dengan hot
+     * reload (port milik runner, reload tidak melepas bind). Tanpa
+     * serve.rp — main.rp jalan sekali + server default dari
+     * .spec.settings. serve.rp sendiri idealnya hanya routing tipis
+     * yang meng-import logic dari opt.path (app/main.rp) — supaya
+     * perubahan di sana ikut ter-watch, opt.path diteruskan sebagai
+     * watchExtra meski serve.rp tidak meng-import-nya (watch ekstra
+     * yang tak terpakai = tidak berefek, cukup aman). */
+    char serveBuf[PATH_MAX + 32];
+    snprintf(serveBuf, sizeof(serveBuf), "%s/serve.rp", goProjectRoot());
+    const char *servePath = goFileExists(serveBuf) ? serveBuf : NULL;
     if (servePath) {
       int port = atoi(spec.settings.port ? spec.settings.port : "8000");
       if (port <= 0 || port > 65535) port = 8000;
-      return serveRun(servePath, port, opt.detail || specDebug);
+      return serveRun(servePath, opt.path, port, opt.detail || specDebug);
     }
     status = goRunFile(opt.path, &opt);
     if (status != 0) return status;

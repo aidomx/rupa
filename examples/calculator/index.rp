@@ -1,12 +1,12 @@
-# ============================================
-# Calculator — Interactive Mode
-# Uses rupa.io for user input
-# ============================================
+// ============================================
+// Calculator — Interactive Mode
+// Uses rupa.io for user input
+// ============================================
 
 import input, toNumber from rupa.io
 import calculate from ./modules.op
 
-# ── Display menu ──
+// ── Display menu ──
 
 print("╔══════════════════════════╗\n")
 print("║   Rupa Calculator v1.0   ║\n")
@@ -16,7 +16,7 @@ print("Operators: +, -, *, /, %\n")
 print("Type 'q' to quit\n")
 print("\n")
 
-# ── Interactive loop ──
+// ── Interactive loop ──
 
 running = true
 

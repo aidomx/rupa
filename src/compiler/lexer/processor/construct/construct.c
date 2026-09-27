@@ -9,20 +9,20 @@ static bool parseComment(Token *t, const char *s, int *p, int end, int line) {
   char c = s[*p];
   char next = (*p + 1 < end) ? s[*p + 1] : 0;
 
-  /* Single-line comment : # or // */
-  if (c == '#' || (c == '/' && next == '/')) {
+  /* Single-line comment : // (design/next_print.txt Color print:
+   * '#' dilepas dari peran komentar — kini token hex color literal
+   * #abc / #aabbcc, diproses di bawah). */
+  if (c == '/' && next == '/') {
     int start = *p;
-    int marker = (c == '#') ? 1 : 2; /* skip # or // */
-    int pos = start + marker;
+    int pos = start + 2;
     while (pos < end && s[pos] != '\n')
       pos++;
     *p = pos;
 
     addDelim(t, c, NULL, line, start);
-    char *str = substring(s, start + marker, pos);
+    char *str = substring(s, start + 2, pos);
     addToken(t, createDataToken(str, NULL, COMMENT, line, pos));
 
-    if (*p < end && s[*p] == '\n') return true;
     return true;
   }
 
@@ -242,6 +242,44 @@ int processConstruct(State *state, int start, int end, bool *waiting) {
       p = we;
       expectValue = false;
       continue;
+    }
+
+    if (c == '#') {
+      /* Hex color literal (design/next_print.txt Color print):
+       * #abc / #aabbcc -> token NUMBER (hex 24-bit). Bukan komentar
+       * lagi — komentar satu baris memakai //, blok memakai slash-star. */
+      int q = p + 1;
+      while (q < end && isxdigit((unsigned char)s[q]))
+        q++;
+      int ndigits = q - (p + 1);
+      if (ndigits == 3 || ndigits == 6) {
+        long long rgb = 0;
+        for (int i = p + 1; i < q; i++) {
+          char h = s[i];
+          int v = (h >= '0' && h <= '9')   ? h - '0'
+                  : (h >= 'a' && h <= 'f') ? h - 'a' + 10
+                                           : h - 'A' + 10;
+          rgb = (rgb << 4) | v;
+        }
+        if (ndigits == 3) {
+          /* #rgb -> #rrggbb (sejajar CSS) */
+          long long r = (rgb >> 8) & 0xF, g = (rgb >> 4) & 0xF, b = rgb & 0xF;
+          rgb = (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
+        }
+        char value[32];
+        snprintf(value, sizeof(value), "%lld", rgb);
+        addToken(state->tokens,
+                 createDataToken(value, NULL, NUMBER, state->input->line, p));
+        expectValue = false;
+        p = q;
+        continue;
+      }
+      /* # bukan diikuti hex valid: hard failure — token HASHTAG tidak
+       * pernah sah di rupa (komentar = // atau /* *\/), dan parser
+       * diam-diam menelan token asing bila statement lain sukses
+       * (trailing `x = 1 # zz`, `1 + # 2`). Tolak di lexer agar error
+       * muncul di SEMUA pipeline: file, -e, REPL, dan blok. */
+      return -1;
     }
 
     int next = p;

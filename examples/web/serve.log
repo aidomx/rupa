@@ -1,0 +1,28 @@
+rupa go: project=rpxweb version=0.1.0 target=web arch=unknown release=0
+rupa go: entry=app/main.rp
+rupa go: mode=dev
+rupa go: domain=localhost
+rupa go: settings: host=127.0.0.1 port=8080 protocol=http vps=0
+rupa go: db: host=127.0.0.1 port=5432 name=app user=- pass=-
+serve: http://127.0.0.1:8080 (dev server — serve.rp)
+serve: hot reload aktif — Ctrl+C untuk berhenti
+serve.rp:10:275: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:11:303: ReferenceError: gt is not defined
+serve.rp:15:341: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:16:369: ReferenceError: sp is not defined
+serve.rp:22:480: ReferenceError: tagName is not defined
+serve.rp:23:511: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:24:553: ReferenceError: bodyEnd is not defined
+serve.rp:28:601: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:29:635: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:30:683: ReferenceError: head is not defined
+serve.rp:10:275: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:11:303: ReferenceError: gt is not defined
+serve.rp:15:341: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:16:369: ReferenceError: sp is not defined
+serve.rp:22:480: ReferenceError: tagName is not defined
+serve.rp:23:511: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:24:553: ReferenceError: bodyEnd is not defined
+serve.rp:28:601: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:29:635: TypeError: cannot access property 'html' on value of type 'boolean'
+serve.rp:30:683: ReferenceError: head is not defined

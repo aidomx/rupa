@@ -1,11 +1,11 @@
-# Declare struct, then use it
+// Declare struct, then use it
 Point {
   x: number
   y: number
 }
 
 p: Point = {x: 10, y: 20}
-# Distance-like computation
+// Distance-like computation
 assertEq(p.x, 10)
 assertEq(p.y, 20)
 dist = p.x + p.y

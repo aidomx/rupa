@@ -21,6 +21,11 @@ RuntimeValue loadModuleFileError(const char *module_path, bool require_export, E
 RuntimeValue loadModuleFile(const char *module_path, bool require_export);
 bool hasDotSlash(const char *path);
 
+/* Buang isi module cache (lihat definisi di loader.c) — dipakai serve.c
+ * agar tiap reload dev server tidak menahan versi lama module hasil
+ * import. */
+void moduleCacheReset(void);
+
 /* Dotted path resolve ke FILE leaf sungguhan (bukan index parent, bukan
  * leaf yang di-redirect ke parent)? Menentukan semantik ie.txt #4 vs #5
  * untuk single-entry import. */

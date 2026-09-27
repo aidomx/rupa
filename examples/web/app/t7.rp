@@ -1,0 +1,2 @@
+import view from /tmp/rpx_engine.view
+print("ABS-DOT:", view.resources.load != undefined)

@@ -1,4 +1,4 @@
-import dbtest, thread from rupa
+import thread from rupa
 
 loader() {
   if this.status == AWAIT {
@@ -10,13 +10,18 @@ loader() {
   }
 }
 
+getUser() {
+  thread.sleep(50)
+  return ["anggi", "rudi"]
+}
+
 slowGetUsers() {
   thread.sleep(200)
-  return dbtest.getUser()
+  return getUser()
 }
 
 // Fast request with long timeout → SUCCESS
-async dbtest.getUser() -> { loader, 5000 }
+async getUser() -> { loader, 5000 }
 
 // Slow request with short timeout → ERROR
 async slowGetUsers() -> { loader, 50 }

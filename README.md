@@ -151,7 +151,7 @@ z ?= true -> x
 
 ## Menjalankan test
 
-Test dijalankan langsung lewat binary rupa. Kategori test: `syntax` (default), `ast`, `ir`, `irexec`, `exec`, `semantics`, `repl`, dan `fmt`.
+Test dijalankan langsung lewat binary rupa. Kategori test: `syntax` (default), `ast`, `ir`, `irexec`, `exec`, `semantic`, `stress`, `repl`, dan `fmt`.
 
 ```bash
 ./bin/rupa test                  # jalankan tests/syntax/*.rp
@@ -163,33 +163,31 @@ Test dijalankan langsung lewat binary rupa. Kategori test: `syntax` (default), `
 Melihat daftar file test:
 
 ```bash
-./bin/rupa test --list           # semua tests/**/*.rp
-./bin/rupa test --list ast       # hanya tests/ast/*.rp
+./bin/rupa list           # semua tests/**/*.rp
+./bin/rupa list ast       # hanya tests/ast/*.rp
 ```
 
-Menjalankan sebagian file lewat nomor pada `--list`:
+Menjalankan sebagian file lewat nomor pada `list`:
 
 ```bash
-./bin/rupa test --select 1,3     # filter dari tests/syntax/*.rp
-./bin/rupa test --path ast --select 1
+./bin/rupa test syntax 1,3       # filter dari tests/syntax/*.rp
 ```
 
-Flag dan kategori boleh dikombinasikan dalam urutan apa pun. Tersedia juga bentuk pendek:
+Tersedia juga bentuk pendek:
 
 ```bash
 ./bin/rupa -t                    # sama dengan: rupa test
-./bin/rupa -t -p syntax -s 1     # -p = --path, -s = --select
-./bin/rupa -tps syntax 1         # gabungan cluster: -t -p -s
-./bin/rupa -ts ast 1             # test ast, pilih file 1
-./bin/rupa -l                    # sama dengan: rupa test --list
-./bin/rupa -lp ast               # -l -p ast: daftar tests/ast/*.rp
+./bin/rupa -t ast 1              # test ast, pilih file 1
+./bin/rupa -l                    # sama dengan: rupa list (modules)
+./bin/rupa -l ast                # daftar tests/ast/*.rp
+./bin/rupa -lt                   # daftar semua tests/**/*.rp
 ```
 
-Untuk test satu file tertentu (tanpa batch):
+Untuk test satu file tertentu (tanpa batch, bebas tidak terikat tests/):
 
 ```bash
-./bin/rupa --test tests/syntax/module.rp
-./bin/rupa --test-ir tests/syntax/module.rp
+./bin/rupa ast tests/syntax/module.rp
+./bin/rupa ir tests/syntax/module.rp
 ```
 
 > Jika ingin melakukan perubahan pada compiler atau syntax, jalankan test setelah perubahan dibuat. Build yang sukses tidak selalu berarti perilaku bahasa sudah benar.

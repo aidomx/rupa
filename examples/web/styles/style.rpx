@@ -1,0 +1,10 @@
+<style name="AppTheme">
+  <item name="fontFamily">sans</item>
+  <item name="rootColor">2196F3</item>
+</style>
+
+<style name="Title">
+  <item name="textSize">20em</item>
+  <item name="textStyle">bold</item>
+  <item name="textColor">000000</item>
+</style>

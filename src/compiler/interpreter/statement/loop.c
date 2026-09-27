@@ -12,6 +12,19 @@ InterpreterResult interpretLoop(Node *node, AstNode *ast, RuntimeEnv *env,
 
   RuntimeValue last = valueNull();
 
+  /* old_loop/mixed (design/next_loop.txt): `for i=0; i < 10: ...` /
+   * `rev i=10; i > 0 { ... }` — init dieksekusi SEKALI sebelum loop;
+   * increment/decrement tetap diurus sistem (for maju, rev mundur). */
+  if (ast->loop.init >= 0) {
+    InterpreterResult ir = interpretNode(node, ast->loop.init, env, error);
+    if (ir.flow == FLOW_RETURN || ir.flow == FLOW_ERROR)
+      return ir;
+    if (ir.flow == FLOW_BREAK)
+      return resultNormal(ir.value);
+    /* FLOW_CONTINUE pada posisi init: perlakukan sebagai skip ke
+     * iterasi pertama (tanpa efek). */
+  }
+
   /* Dispatch to the appropriate range-loop handler. */
   if (isRangeLoop(ast) && ast->loop.condition >= 0) {
     if (!strcmp(ast->loop.kind, "for"))

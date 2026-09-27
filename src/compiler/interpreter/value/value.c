@@ -54,6 +54,25 @@ RuntimeValue valueString(const char *value) {
       case '\'':
         text[out++] = '\'';
         continue;
+      case 'x': {
+        /* \xNN — byte hex, 1–2 digit (design/next_print.txt color:
+         * fondasi ANSI manual seperti "\x1b[31m" sebelum U_RED). */
+        int hv = 0, nd = 0;
+        while (nd < 2 && i + 1 < end && isxdigit((unsigned char)value[i + 1])) {
+          char h = value[++i];
+          int d = (h >= '0' && h <= '9')   ? h - '0'
+                  : (h >= 'a' && h <= 'f') ? h - 'a' + 10
+                                           : h - 'A' + 10;
+          hv = (hv << 4) | d;
+          nd++;
+        }
+        if (nd > 0) {
+          text[out++] = (char)hv;
+          continue;
+        }
+        text[out++] = value[i]; /* tanpa digit hex: 'x' apa adanya */
+        continue;
+      }
       default:
         text[out++] = value[i];
         continue;
@@ -88,7 +107,6 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env, Error *error, R
 
   State *state = createGlobalState(8, false);
   if (!state || !state->buffer) return false;
-
   clearReplState(state->repl);
   clearInput(state->input);
   clearStateToken(state->tokens);
@@ -131,7 +149,90 @@ static bool evalInterpExpr(const char *exprSrc, RuntimeEnv *env, Error *error, R
   return true;
 }
 
-static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error) {
+/* ==================== Render-to-buffer (print engine) ====================
+ * Satu pintu render untuk print engine (print_format.c): pola 1
+ * (interpolasi), pola 2 (multi-arg), dan pola 4 (stream) semuanya
+ * merender ke buffer — output akhir ditulis printRenderArgs().
+ * printBufAppend = bufAppend versi publik (lihat expression/binary.c). */
+
+void printBufAppend(char **buf, size_t *len, size_t *cap, const char *text) {
+  if (!text) return;
+  size_t tlen = strlen(text);
+  while (*len + tlen + 1 > *cap) {
+    *cap = (*cap) ? (*cap) * 2 : 128;
+    char *grown = realloc(*buf, *cap);
+    if (!grown) return; /* buffer lama tetap valid (NULL-terminated) */
+    *buf = grown;
+  }
+  memcpy(*buf + *len, text, tlen);
+  *len += tlen;
+  (*buf)[*len] = '\0';
+}
+
+void valuePrintTo(char **buf, size_t *len, size_t *cap, RuntimeValue value) {
+  char piece[64];
+  switch (value.type) {
+  case VALUE_NUMBER:
+    snprintf(piece, sizeof(piece), "%lld", value.as.number);
+    printBufAppend(buf, len, cap, piece);
+    break;
+  case VALUE_DECIMAL:
+    snprintf(piece, sizeof(piece), "%g", value.as.decimal);
+    printBufAppend(buf, len, cap, piece);
+    break;
+  case VALUE_BOOLEAN:
+    printBufAppend(buf, len, cap, value.as.boolean ? "true" : "false");
+    break;
+  case VALUE_STRING:
+    printBufAppend(buf, len, cap, value.as.string ? value.as.string : "");
+    break;
+  case VALUE_FUNCTION:
+    printBufAppend(buf, len, cap, "<function>");
+    break;
+  case VALUE_NATIVE_FUNCTION:
+    printBufAppend(buf, len, cap, "<function>");
+    break;
+  case VALUE_PTR:
+    printBufAppend(buf, len, cap, value.as.ptr ? "<ptr>" : "null");
+    break;
+  case VALUE_ARRAY:
+    printBufAppend(buf, len, cap, "[");
+    for (int i = 0; i < value.as.array.length; i++) {
+      if (i) printBufAppend(buf, len, cap, ", ");
+      valuePrintTo(buf, len, cap, value.as.array.items[i]);
+    }
+    printBufAppend(buf, len, cap, "]");
+    break;
+  case VALUE_OBJECT: {
+    bool first = true;
+    printBufAppend(buf, len, cap, "{");
+    for (struct RuntimeObjectEntry *e = value.as.object.entries; e; e = e->next) {
+      /* Skip hidden metadata: sejajar valuePrint(). */
+      if (e->key && (e->key[0] == '\0' || !strncmp(e->key, "__", 2) ||
+                     strcmp(e->key, "_private") == 0 ||
+                     strcmp(e->key, "_imports") == 0 ||
+                     strcmp(e->key, "_class") == 0 ||
+                     strcmp(e->key, "_created") == 0))
+        continue;
+      if (!first) printBufAppend(buf, len, cap, ", ");
+      printBufAppend(buf, len, cap, e->key ? e->key : "?");
+      printBufAppend(buf, len, cap, ": ");
+      valuePrintTo(buf, len, cap, e->value);
+      first = false;
+    }
+    printBufAppend(buf, len, cap, "}");
+    break;
+  }
+  default:
+    printBufAppend(buf, len, cap, "undefined");
+    break;
+  }
+}
+
+/* printStringWithInterp versi buffer — byte-for-byte sama dengan jalur
+ * putchar di bawah (dipakai print engine pola 1/4). */
+static void printStringInterpBuf(char **buf, size_t *len, size_t *cap, const char *str,
+                                 RuntimeEnv *env, Error *error) {
   if (!str) return;
   const char *p = str;
   while (*p) {
@@ -139,30 +240,27 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error
     if (p[0] == '{' && p[1] == '{') {
       const char *end = strstr(p + 2, "}}");
       if (end) {
-        int len = (int)(end - p - 2);
-        if (len > 0) {
-          /* Heap-allocated, sized to the actual match — a fixed stack
-           * buffer here silently truncated any match longer than it
-           * (e.g. printing a stringified object/array that happens to
-           * contain literal braces), corrupting output instead of falling
-           * through to the verbatim fallback below. */
-          char *expr = malloc((size_t)len + 1);
+        int ilen = (int)(end - p - 2);
+        if (ilen > 0) {
+          char *expr = malloc((size_t)ilen + 1);
           if (!expr) {
             p = end + 2;
             continue;
           }
-          memcpy(expr, p + 2, len);
-          expr[len] = '\0';
+          memcpy(expr, p + 2, (size_t)ilen);
+          expr[ilen] = '\0';
 
           RuntimeValue val;
           if (evalInterpExpr(expr, env, error, &val)) {
-            valuePrint(val);
+            valuePrintTo(buf, len, cap, val);
           } else {
-            printf("{{%s}}", expr); /* gagal parse/eval: tampilkan apa adanya */
+            printBufAppend(buf, len, cap, "{{");
+            printBufAppend(buf, len, cap, expr);
+            printBufAppend(buf, len, cap, "}}");
           }
           free(expr);
         } else {
-          printf("{{}}"); /* empty braces */
+          printBufAppend(buf, len, cap, "{{}}"); /* empty braces */
         }
         p = end + 2;
         continue;
@@ -170,45 +268,51 @@ static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error
     }
     /* `{ name }`: nama variabel tunggal (lookup langsung, tanpa parser). */
     if (*p == '{') {
-      /* Find matching closing brace */
       const char *end = strchr(p + 1, '}');
       if (end) {
-        /* Extract variable name */
-        int len = (int)(end - p - 1);
-        if (len > 0) {
-          /* Heap-allocated for the same reason as `expr` above: a fixed
-           * 256-byte buffer would silently truncate anything longer (e.g.
-           * `print(math + "\n")`, where the concatenated object literal
-           * starts with `{` and runs well past 256 chars before its real
-           * closing `}` — the whole tail after the cutoff, including the
-           * actual closing brace and any trailing text, was getting lost).
-           * When `name` isn't a real variable, the unresolved branch below
-           * reprints it byte-for-byte, so this is a safe no-op for content
-           * that only incidentally contains braces. */
-          char *name = malloc((size_t)len + 1);
+        int ilen = (int)(end - p - 1);
+        if (ilen > 0) {
+          char *name = malloc((size_t)ilen + 1);
           if (!name) {
             p = end + 1;
             continue;
           }
-          memcpy(name, p + 1, len);
-          name[len] = '\0';
-          /* Resolve variable */
+          memcpy(name, p + 1, (size_t)ilen);
+          name[ilen] = '\0';
           RuntimeValue val;
           if (env && semGet(env, name, &val)) {
-            valuePrint(val);
+            valuePrintTo(buf, len, cap, val);
+          } else if (evalInterpExpr(name, env, error, &val)) {
+            /* Bukan variable: coba sebagai expression (design pola 1
+             * `print("{true}")` — literal/keyword bukan binding env). */
+            valuePrintTo(buf, len, cap, val);
           } else {
-            printf("{%s}", name); /* unresolved */
+            printBufAppend(buf, len, cap, "{");
+            printBufAppend(buf, len, cap, name);
+            printBufAppend(buf, len, cap, "}");
           }
           free(name);
         } else {
-          printf("{}"); /* empty braces */
+          printBufAppend(buf, len, cap, "{}"); /* empty braces */
         }
         p = end + 1;
         continue;
       }
     }
-    putchar(*p);
+    char c[2] = {*p, 0};
+    printBufAppend(buf, len, cap, c);
     p++;
+  }
+}
+
+static void printStringWithInterp(const char *str, RuntimeEnv *env, Error *error) {
+  if (!str) return;
+  char *buf = NULL;
+  size_t len = 0, cap = 0;
+  printStringInterpBuf(&buf, &len, &cap, str, env, error);
+  if (buf) {
+    fwrite(buf, 1, len, stdout);
+    free(buf);
   }
 }
 
@@ -238,6 +342,39 @@ void valuePrintInterp(RuntimeValue value, RuntimeEnv *env, Error *error) {
     return;
   }
   valuePrint(value);
+}
+
+/* Provenance .spec versi engine (print_format.c): return true + error
+ * SpecError bila value object bertag __spec — print engine menolak
+ * merender-nya ke stream mana pun. Sejajar valuePrintInterp(). */
+bool valueSpecRejected(RuntimeValue value, Error *error) {
+  if (value.type != VALUE_OBJECT) return false;
+  RuntimeValue tag = valueNull();
+  if (valueObjectGet(value, "__spec", &tag) && tag.type == VALUE_BOOLEAN &&
+      tag.as.boolean) {
+    if (error)
+      addError(error, (ErrorInfo){.code = (char *)"SpecError",
+                                  .message = (char *)"print(spec) ditolak — "
+                                             "konfigurasi .spec tidak boleh "
+                                             "ditampilkan; akses field-nya "
+                                             "(spec.settings.host)",
+                                  .line = 0,
+                                  .row = 0,
+                                  .type = ERR_TYPE_MISMATCH});
+    return true;
+  }
+  return false;
+}
+
+/* Interpolasi versi engine (pola 1 di print_format.c): wrapper ke
+ * printStringInterpBuf. NULL buffer = render langsung ke stdout. */
+void printStringInterpTo(char **buf, size_t *len, size_t *cap, const char *str,
+                         RuntimeEnv *env, Error *error) {
+  if (!buf) {
+    printStringWithInterp(str, env, error);
+    return;
+  }
+  printStringInterpBuf(buf, len, cap, str, env, error);
 }
 
 void valuePrint(RuntimeValue value) {
@@ -377,6 +514,41 @@ RuntimeValue valueNativeFunction(const char *name, NativeFn func, int paramCount
 
 RuntimeValue valuePtr(void *ptr) {
   return (RuntimeValue){.type = VALUE_PTR, .as.ptr = ptr};
+}
+
+/* Color value (design/next_print.txt Color print): dibungkus VALUE_OBJECT
+ * bertag "__color" — sejajar "__spec" (provenance .spec), bukan ValueType
+ * baru supaya tidak menyentuh setiap switch(value.type) yang sudah ada.
+ * "__rgb" membawa 24-bit RGB (0xRRGGBB) sebagai VALUE_NUMBER. Keduanya
+ * berawalan "__" sehingga otomatis tersembunyi dari print objek biasa,
+ * equality, dan salinan modul (lihat valuePrint/valueEquals). */
+RuntimeValue valueColor(long long rgb) {
+  struct RuntimeObjectEntry *tag = gccalloc(1, sizeof(*tag));
+  struct RuntimeObjectEntry *val = gccalloc(1, sizeof(*val));
+  if (!tag || !val) return valueNull();
+  tag->key = gcstrdup("__color");
+  tag->value = valueBoolean(true);
+  val->key = gcstrdup("__rgb");
+  val->value = valueNumber(rgb);
+  tag->next = val;
+  val->next = NULL;
+  return valueObject(tag);
+}
+
+/* true bila value adalah color (valueColor) — *rgbOut diisi RGB-nya.
+ * Dipakai print engine (print_format.c) untuk membungkus output dengan
+ * escape ANSI truecolor, sejajar valueSpecRejected() untuk __spec. */
+bool valueColorOf(RuntimeValue value, long long *rgbOut) {
+  if (value.type != VALUE_OBJECT) return false;
+  RuntimeValue tag = valueNull();
+  if (!valueObjectGet(value, "__color", &tag) || tag.type != VALUE_BOOLEAN ||
+      !tag.as.boolean)
+    return false;
+  RuntimeValue rgb = valueNull();
+  if (rgbOut) *rgbOut = valueObjectGet(value, "__rgb", &rgb) && rgb.type == VALUE_NUMBER
+                            ? rgb.as.number
+                            : 0;
+  return true;
 }
 
 bool valueObjectGet(RuntimeValue obj, const char *key, RuntimeValue *out) {

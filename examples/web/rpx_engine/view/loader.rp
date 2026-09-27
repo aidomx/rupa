@@ -1,0 +1,8 @@
+import fs from rupa
+
+loader(): object {
+  return 1
+}
+
+loader()
+

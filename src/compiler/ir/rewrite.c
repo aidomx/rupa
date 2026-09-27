@@ -48,6 +48,7 @@ struct ScopeMap {
 };
 
 static IRValue *buildNode(IRBuilder *b, int id);
+static int pipeSegments(Node *node, int id, int *segs, int cap);
 static IRValue *buildStatementValue(IRBuilder *b, int id);
 
 static void builderInit(IRBuilder *b, Node *ast, IRModule *module) {
@@ -335,9 +336,10 @@ static void buildProgram(IRBuilder *b, Node *node, int root) {
   bool mainCalled = false;
   for (AstDeclaration *d = node->ast[root].program.declarations; d; d = d->next) {
     AstNode *a = &node->ast[d->nodeId];
-    if (a->type == NODE_FUNCTION_DECL && a->function.name >= 0 &&
-        a->function.name < node->length && node->ast[a->function.name].type == NODE_IDENTIFIER &&
-        !strcmp(node->ast[a->function.name].identifier.name, "main") && a->function.paramLength == 0)
+    if (a->type == NODE_FUNCTION_DECL && a->function.name >= 0 && a->function.name < node->length &&
+        node->ast[a->function.name].type == NODE_IDENTIFIER &&
+        !strcmp(node->ast[a->function.name].identifier.name, "main") &&
+        a->function.paramLength == 0)
       hasMainDecl = true;
     if (topLevelIsMainCall(node, d->nodeId)) mainCalled = true;
     buildStatementValue(b, d->nodeId);
@@ -361,13 +363,17 @@ static void buildFunctionDecl(IRBuilder *b, Node *node, const AstNode *a) {
   IRBlock *savedBlock = b->block;
   ScopeMap *savedScope = b->scopes;
 
-  /* Return-type annotation (`foo(): void { }`): catat di IRFunction.
-   * void = IR_TYPE_VOID; tipe lain beri nama saja (belum di-enforce). */
+  /* Return-type annotation (`foo(): string { }`): catat nama tipe di
+   * IRFunction — di-enforce saat eksekusi (IR_CHECK di buildReturn;
+   * void oleh IR_RETURN di execute.c). Kind placeholder, nama yang
+   * dipakai validator. */
   IRType *retT = NULL;
   if (a->function.returnType >= 0) {
     const char *rtName = annotationTypeName(b, a->function.returnType);
     if (rtName && !strcmp(rtName, "void"))
       retT = irTypeCreate(IR_TYPE_VOID, "void", 0);
+    else if (rtName && !strcmp(rtName, "object"))
+      retT = irTypeCreate(IR_TYPE_OBJECT, "object", 0);
     else if (rtName)
       retT = irTypeCreate(IR_TYPE_VOID, rtName, 0); /* placeholder name */
   }
@@ -614,15 +620,19 @@ static void buildAnnotation(IRBuilder *b, Node *node, const AstNode *a) {
 
 static void buildPrint(IRBuilder *b, Node *node, const AstNode *a) {
   (void)node;
-  for (int i = 0; i < a->print.length; i++) {
-    IRValue *v = buildNode(b, a->print.args[i]);
-    if (!v) continue;
-    IRValue *callee = irFunctionValue(nullType(), "print");
-    IRValue **args = gccalloc(1, sizeof(IRValue *));
-    if (!args) continue;
-    args[0] = v;
-    irEmit(b->block, irCall(irTemp(nullType()), callee, args, 1));
+  /* Satu call dengan SEMUA args — print engine (print_format.c)
+   * butuh daftar arg utuh untuk pola 2 (multi-arg), pola 3 (format
+   * printf-style), dan pola 4 (stream target stdout/stderr). */
+  int argc = a->print.length;
+  IRValue **args = NULL;
+  if (argc > 0) {
+    args = gccalloc((size_t)argc, sizeof(IRValue *));
+    if (!args) return;
+    for (int i = 0; i < argc; i++)
+      args[i] = buildNode(b, a->print.args[i]);
   }
+  IRValue *callee = irFunctionValue(nullType(), "print");
+  irEmit(b->block, irCall(irTemp(nullType()), callee, args, (size_t)argc));
 }
 
 static void buildReturn(IRBuilder *b, Node *node, const AstNode *a) {
@@ -636,7 +646,18 @@ static void buildReturn(IRBuilder *b, Node *node, const AstNode *a) {
   }
   IRValue *value =
       a->asReturn.expression >= 0 ? buildNode(b, a->asReturn.expression) : irNull(NULL);
-  irEmit(b->block, irReturn(value ? value : irNull(NULL)));
+  if (!value) value = irNull(NULL);
+  /* Kontrak return-type (annotation non-void): validasi value terhadap
+   * nama tipe saat eksekusi via IR_CHECK — analyzerCheckType menangani
+   * scalar, struct terdaftar, dan "T[]" (nested), sejajar assignment
+   * bertipe. Void ditangani sendiri oleh IR_RETURN (execute.c: nilai
+   * non-null = TypeError). Return sintetis fall-through (buildFunctionDecl)
+   * tidak lewat sini — sejajar interpreter yang tak mengecek fall-out. */
+  if (b->function && b->function->return_type && b->function->return_type->name &&
+      strcmp(b->function->return_type->name, "void") != 0)
+    irEmit(b->block, irCheckFunctionAt(value, b->function->return_type->name,
+                                       a->asReturn.expression, b->function->name));
+  irEmit(b->block, irReturn(value));
 }
 
 static void buildBlock(IRBuilder *b, int id) {
@@ -650,6 +671,157 @@ static void buildBlock(IRBuilder *b, int id) {
   }
   for (int i = 0; i < a->block.length; i++)
     buildStatementValue(b, a->block.statements[i]);
+}
+
+/* ---- Deteksi referensi identifier di subtree AST ----
+ * Untuk optimasi loop: sinkronisasi variable user <- counter internal
+ * per iterasi hanya berarti bila body/condition benar-benar membaca
+ * (atau menulis) variable itu. Walker konservatif: tipe node yang
+ * belum dikenal dianggap "mereferensikan" agar optimasi tidak pernah
+ * mengubah semantik. */
+
+typedef struct {
+  const Node *ast;
+  const char *name;
+  uint64_t *seen;
+  int seenCap;
+  bool found;
+  int depth;
+} IdUseCtx;
+
+static void astIdUseWalk(IdUseCtx *c, int id) {
+  if (c->found || !c->ast || id < 0 || id >= c->ast->length) return;
+  if (id < c->seenCap && (c->seen[id >> 6] >> (id & 63)) & 1) return;
+  if (id < c->seenCap) c->seen[id >> 6] |= (uint64_t)1 << (id & 63);
+  if (++c->depth > 4096) {
+    c->depth--;
+    return;
+  }
+
+  const AstNode *a = &c->ast->ast[id];
+  if (a->type == NODE_IDENTIFIER) {
+    if (a->identifier.name && strcmp(a->identifier.name, c->name) == 0) c->found = true;
+  } else if (a->type == NODE_LITERAL_ID) {
+    if (a->string.value && strcmp(a->string.value, c->name) == 0) c->found = true;
+  }
+
+  if (!c->found) {
+    switch (a->type) {
+    case NODE_ASSIGN:
+      astIdUseWalk(c, a->assign.target);
+      astIdUseWalk(c, a->assign.value);
+      break;
+    case NODE_CONDITIONAL_ASSIGN:
+      astIdUseWalk(c, a->conditionalAssign.target);
+      astIdUseWalk(c, a->conditionalAssign.value);
+      break;
+    case NODE_BINARY:
+      astIdUseWalk(c, a->binary.left);
+      astIdUseWalk(c, a->binary.right);
+      break;
+    case NODE_MEMBER:
+      astIdUseWalk(c, a->member.object);
+      astIdUseWalk(c, a->member.member);
+      break;
+    case NODE_SUBSCRIPT:
+      astIdUseWalk(c, a->subscript.posId);
+      astIdUseWalk(c, a->subscript.index);
+      break;
+    case NODE_CALL: {
+      astIdUseWalk(c, a->call.callee);
+      for (int k = 0; !c->found && k < a->call.length; k++)
+        astIdUseWalk(c, a->call.args[k]);
+      break;
+    }
+    case NODE_PRINT:
+      for (int k = 0; !c->found && k < a->print.length; k++)
+        astIdUseWalk(c, a->print.args[k]);
+      break;
+    case NODE_BLOCK:
+    case NODE_PROGRAM:
+      for (int k = 0; !c->found && k < a->block.length; k++)
+        astIdUseWalk(c, a->block.statements[k]);
+      break;
+    case NODE_IF:
+      astIdUseWalk(c, a->asIf.condition);
+      astIdUseWalk(c, a->asIf.thenBlock);
+      astIdUseWalk(c, a->asIf.elseBlock);
+      break;
+    case NODE_LOOP:
+      astIdUseWalk(c, a->loop.condition);
+      astIdUseWalk(c, a->loop.body);
+      break;
+    case NODE_FUNCTION_DECL:
+      for (int k = 0; !c->found && k < a->function.paramLength; k++)
+        astIdUseWalk(c, a->function.params[k]);
+      astIdUseWalk(c, a->function.body);
+      break;
+    case NODE_RETURN:
+      astIdUseWalk(c, a->asReturn.expression);
+      break;
+    case NODE_ANNOTATION:
+      astIdUseWalk(c, a->annotation.value);
+      break;
+    case NODE_UPDATE:
+      astIdUseWalk(c, a->update.target);
+      astIdUseWalk(c, a->update.value);
+      break;
+    case NODE_MEMBER_ASSIGN:
+      astIdUseWalk(c, a->memberAssign.target);
+      astIdUseWalk(c, a->memberAssign.value);
+      break;
+    case NODE_STRING_INTERP:
+      for (int k = 0; !c->found && k < a->stringInterp.length; k++)
+        astIdUseWalk(c, a->stringInterp.parts[k]);
+      break;
+    case NODE_ARRAY:
+      for (int k = 0; !c->found && k < a->array.length; k++)
+        astIdUseWalk(c, a->array.elements[k]);
+      break;
+    case NODE_OBJECT:
+      for (int k = 0; !c->found && k < a->object.length; k++) {
+        astIdUseWalk(c, a->object.entries[k].key);
+        astIdUseWalk(c, a->object.entries[k].value);
+      }
+      break;
+    case NODE_CASE:
+      astIdUseWalk(c, a->asCase.subject);
+      for (int k = 0; !c->found && k < a->asCase.length; k++) {
+        astIdUseWalk(c, a->asCase.entries[k].pattern);
+        astIdUseWalk(c, a->asCase.entries[k].body);
+      }
+      break;
+    default:
+      /* Tipe tak dikenal / tanpa child integer: anggap mereferensikan
+       * (konservatif — optimasi dilewatkan, semantik aman). */
+      switch (a->type) {
+      case NODE_NUMBER:
+      case NODE_DECIMAL:
+      case NODE_BOOLEAN:
+      case NODE_STRING:
+      case NODE_INLINE_COMMENT:
+      case NODE_BLOCK_COMMENT:
+        break; /* literal & komentar: aman di-skip */
+      default:
+        c->found = true;
+        break;
+      }
+      break;
+    }
+  }
+  c->depth--;
+}
+
+/* true bila subtree id mereferensikan identifier `name` (NULL => false). */
+static bool astUsesIdentifier(const Node *ast, int id, const char *name) {
+  if (!ast || !name || id < 0 || id >= ast->length) return false;
+  int words = (ast->length + 63) / 64;
+  uint64_t *seen = gccalloc((size_t)words, sizeof(uint64_t));
+  if (!seen) return true; /* gagal alokasi => konservatif */
+  IdUseCtx c = {
+      .ast = ast, .name = name, .seen = seen, .seenCap = ast->length, .found = false, .depth = 0};
+  astIdUseWalk(&c, id);
+  return c.found;
 }
 
 static void buildIf(IRBuilder *b, Node *node, const AstNode *a) {
@@ -677,14 +849,44 @@ static void buildIf(IRBuilder *b, Node *node, const AstNode *a) {
 }
 
 static void buildLoop(IRBuilder *b, Node *node, const AstNode *a) {
-  (void)node;
   bool isFor = a->loop.kind && !strcmp(a->loop.kind, "for");
   bool isRev = a->loop.kind && !strcmp(a->loop.kind, "rev");
+
+  /* old_loop/mixed (design/next_loop.txt): `for i=0; i < 10: ...` /
+   * `rev i=10; i > 0 { ... }` — init dieksekusi sekali SEBELUM loop
+   * (menulis slot variable agar counter range membacanya). */
+  if (a->loop.init >= 0) buildStatementValue(b, a->loop.init);
 
   IRBlock *condBlock = newBlock(b, "loop.cond");
   IRBlock *bodyBlock = newBlock(b, "loop.body");
   IRBlock *endBlock = newBlock(b, "loop.end");
   IRBlock *stepBlock = newBlock(b, "loop.step");
+
+  bool isWhile = !isFor && !isRev;
+  /* Variable loop hanya "dipakai" bila BODY mereferensikannya — kondisi
+   * header di level IR selalu memakai counter internal (slot tidak
+   * pernah dibaca per iterasi), jadi walk body saja. Bila body tidak
+   * menyentuh variable: sinkronisasi slot <- counter per iterasi
+   * di-skip — hemat semSetCanon per iterasi untuk loop besar
+   * ber-body kosong/tanpa akses variable. Final store di loop.end
+   * tetap (1x per loop) supaya pembacaan variable SETELAH loop tetap
+   * sejajar interpreter. */
+  const char *loopVarName = NULL;
+  {
+    const AstNode *cn = a->loop.condition >= 0 ? &b->astRef->ast[a->loop.condition] : NULL;
+    if (cn && (cn->type == NODE_IDENTIFIER || cn->type == NODE_LITERAL_ID))
+      loopVarName = cn->type == NODE_IDENTIFIER ? cn->identifier.name : cn->string.value;
+    else if (cn && cn->type == NODE_BINARY) {
+      const AstNode *l = cn->binary.left >= 0 ? &b->astRef->ast[cn->binary.left] : NULL;
+      const AstNode *r = cn->binary.right >= 0 ? &b->astRef->ast[cn->binary.right] : NULL;
+      if (l && (l->type == NODE_IDENTIFIER || l->type == NODE_LITERAL_ID))
+        loopVarName = l->type == NODE_IDENTIFIER ? l->identifier.name : l->string.value;
+      else if (r && (r->type == NODE_IDENTIFIER || r->type == NODE_LITERAL_ID))
+        loopVarName = r->type == NODE_IDENTIFIER ? r->identifier.name : r->string.value;
+    }
+  }
+  bool usesLoopVar =
+      isWhile || !loopVarName || astUsesIdentifier(b->astRef, a->loop.body, loopVarName);
 
   LoopCtx ctx = {.b = b,
                  .breakTarget = endBlock,
@@ -813,8 +1015,10 @@ static void buildLoop(IRBuilder *b, Node *node, const AstNode *a) {
     irEmit(b->block, irBranch(cmp, bodyBlock, endBlock));
 
     b->block = bodyBlock;
-    /* Sinkronkan variable user ke counter internal di awal iterasi. */
-    if (slot) irEmit(b->block, irStore(slot, hidden));
+    /* Sinkronkan variable user ke counter internal di awal iterasi.
+     * Skip saat body/condition tidak mereferensikan variable — bind
+     * per-iterasi percuma (mesin tidak pernah membacanya). */
+    if (slot && usesLoopVar) irEmit(b->block, irStore(slot, hidden));
     buildBlock(b, a->loop.body);
     irEmit(b->block, irJump(stepBlock));
 
@@ -1109,8 +1313,56 @@ static IRValue *buildNode(IRBuilder *b, int id) {
   }
 
   case NODE_THEN: {
-    /* cond -> result : result hanya dievaluasi saat cond truthy;
-     * selain itu hasilnya null (store default sebelum branch). */
+    /* Ternary Rupa: cond -> then | else — THEN di atas rantai
+     * FALLBACK. Kondisi truthy → evaluasi then (seluruh rantai),
+     * bila tidak → sisi else dievaluasi or-else per segmen
+     * (bila result bukan rantai pipe: langsung nilai itu —
+     * semantik THEN lama, hasil null saat cond falsy). */
+    if (b->astRef->ast[a->then.result].type == NODE_FALLBACK) {
+      int segs[64];
+      int nseg = pipeSegments(b->astRef, a->then.result, segs, 64);
+      IRValue *cond = buildNode(b, a->then.condition);
+      IRBlock *thenBlock = newBlock(b, "then.take");
+      IRBlock *elseBlock = newBlock(b, "then.else");
+      IRBlock *endBlock = newBlock(b, "then.end");
+      IRValue *res = irTemp(nullType());
+
+      IRValue *truthy = irTemp(boolType());
+      IRValue *notCond = irTemp(boolType());
+      irEmit(b->block, irUnary(IR_NOT, notCond, cond));
+      irEmit(b->block, irUnary(IR_NOT, truthy, notCond));
+      irEmit(b->block, irStore(res, irNull(nullType())));
+      irEmit(b->block, irBranch(truthy, thenBlock, elseBlock));
+
+      b->block = thenBlock;
+      IRValue *tv = buildNode(b, a->then.result);
+      irEmit(b->block, irStore(res, tv ? tv : irNull(nullType())));
+      irEmit(b->block, irJump(endBlock));
+
+      b->block = elseBlock;
+      irEmit(b->block, irStore(res, irNull(nullType())));
+      for (int i = 1; i < nseg; i++) {
+        IRValue *fbv = buildNode(b, segs[i]);
+        IRBlock *okBlock = newBlock(b, "then.ok");
+        IRBlock *nextBlock = newBlock(b, "then.next");
+        IRValue *truthyFb = irTemp(boolType());
+        IRValue *notFb = irTemp(boolType());
+        irEmit(b->block, irUnary(IR_NOT, notFb, fbv));
+        irEmit(b->block, irUnary(IR_NOT, truthyFb, notFb));
+        irEmit(b->block, irStore(res, fbv ? fbv : irNull(nullType())));
+        irEmit(b->block, irBranch(truthyFb, okBlock, nextBlock));
+        b->block = okBlock;
+        irEmit(b->block, irJump(endBlock));
+        b->block = nextBlock;
+      }
+      irEmit(b->block, irJump(endBlock));
+
+      b->block = endBlock;
+      return res;
+    }
+
+    /* THEN polos: cond -> result : result hanya dievaluasi saat cond
+     * truthy; selain itu hasilnya null (store default sebelum branch). */
     IRValue *cond = buildNode(b, a->then.condition);
     IRBlock *resBlock = newBlock(b, "then.res");
     IRBlock *endBlock = newBlock(b, "then.end");
@@ -1133,30 +1385,98 @@ static IRValue *buildNode(IRBuilder *b, int id) {
   }
 
   case NODE_FALLBACK: {
-    /* primary | fallback : primary dievaluasi dulu; bila truthy dipakai,
-     * bila tidak fallback dievaluasi. */
-    IRValue *primary = buildNode(b, a->fallback.primary);
-    IRBlock *keepBlock = newBlock(b, "fb.keep");
-    IRBlock *fbBlock = newBlock(b, "fb.alt");
-    IRBlock *endBlock = newBlock(b, "fb.end");
+    /* Rantai pipe nested kiri (parseBinary). Rantai >= 3 segmen =
+     * ternary pipa c1 | v1 | c2 | v2 | ... | else (lazy, pasangan
+     * kondisi→nilai); 2 segmen = or-else biasa (primary | fallback). */
+    int segs[64];
+    int nseg = pipeSegments(b->astRef, id, segs, 64);
+
+    if (nseg < 3) {
+      /* primary | fallback : primary dievaluasi dulu; bila truthy
+       * dipakai, bila tidak fallback dievaluasi. */
+      IRValue *primary = buildNode(b, nseg > 0 ? segs[0] : -1);
+      IRBlock *keepBlock = newBlock(b, "fb.keep");
+      IRBlock *fbBlock = newBlock(b, "fb.alt");
+      IRBlock *endBlock = newBlock(b, "fb.end");
+      IRValue *res = irTemp(nullType());
+
+      IRValue *notPrimary = irTemp(boolType());
+      irEmit(b->block, irUnary(IR_NOT, notPrimary, primary));
+      IRValue *truthy = irTemp(boolType());
+      irEmit(b->block, irUnary(IR_NOT, truthy, notPrimary));
+      irEmit(b->block, irStore(res, irNull(nullType())));
+      irEmit(b->block, irBranch(truthy, keepBlock, fbBlock));
+
+      b->block = fbBlock;
+      IRValue *fb = buildNode(b, nseg > 1 ? segs[1] : -1);
+      irEmit(b->block, irStore(res, fb ? fb : irNull(nullType())));
+      irEmit(b->block, irJump(endBlock));
+
+      b->block = keepBlock;
+      irEmit(b->block, irStore(res, primary));
+      irEmit(b->block, irJump(endBlock));
+
+      b->block = endBlock;
+      return res;
+    }
+
+    /* Cascade ternary: segmen THEN (cond -> val) — lengan berurutan,
+     * nilai truthy pertama menang; segmen terakhir = else.
+     * c1 -> v1 | c2 -> v2 | else. */
+    if (b->astRef->ast[segs[0]].type == NODE_THEN) {
+      IRValue *res = irTemp(nullType());
+      IRBlock *endBlock = newBlock(b, "casc.end");
+      irEmit(b->block, irStore(res, irNull(nullType())));
+      for (int i = 0; i + 1 < nseg; i++) {
+        IRValue *v = buildNode(b, segs[i]);
+        IRBlock *okBlock = newBlock(b, "casc.ok");
+        IRBlock *nextBlock = newBlock(b, "casc.next");
+        IRValue *truthy = irTemp(boolType());
+        IRValue *nv = irTemp(boolType());
+        irEmit(b->block, irUnary(IR_NOT, nv, v));
+        irEmit(b->block, irUnary(IR_NOT, truthy, nv));
+        irEmit(b->block, irStore(res, v ? v : irNull(nullType())));
+        irEmit(b->block, irBranch(truthy, okBlock, nextBlock));
+        b->block = okBlock;
+        irEmit(b->block, irJump(endBlock));
+        b->block = nextBlock;
+      }
+      IRValue *lastv = buildNode(b, segs[nseg - 1]);
+      irEmit(b->block, irStore(res, lastv ? lastv : irNull(nullType())));
+      irEmit(b->block, irJump(endBlock));
+      b->block = endBlock;
+      return res;
+    }
+
+    /* Ternary pipa lazy: evaluasi kondisi k→ branch. Nilai hanya
+     * dibangun di bloknya sendiri. Segmen ganjil terakhir = else. */
     IRValue *res = irTemp(nullType());
-
-    IRValue *notPrimary = irTemp(boolType());
-    irEmit(b->block, irUnary(IR_NOT, notPrimary, primary));
-    IRValue *truthy = irTemp(boolType());
-    irEmit(b->block, irUnary(IR_NOT, truthy, notPrimary));
+    IRBlock *endBlock = newBlock(b, "pipe.end");
     irEmit(b->block, irStore(res, irNull(nullType())));
-    irEmit(b->block, irBranch(truthy, keepBlock, fbBlock));
 
-    b->block = fbBlock;
-    IRValue *fb = buildNode(b, a->fallback.fallback);
-    irEmit(b->block, irStore(res, fb ? fb : irNull(nullType())));
+    int i = 0;
+    for (; i + 1 < nseg; i += 2) {
+      IRValue *cond = buildNode(b, segs[i]);
+      IRBlock *takeBlock = newBlock(b, "pipe.take");
+      IRBlock *nextBlock = newBlock(b, "pipe.next");
+      IRValue *truthy = irTemp(boolType());
+      irEmit(b->block, irUnary(IR_NOT, truthy, cond));
+      IRValue *take = irTemp(boolType());
+      irEmit(b->block, irUnary(IR_NOT, take, truthy));
+      irEmit(b->block, irBranch(take, takeBlock, nextBlock));
+
+      b->block = takeBlock;
+      IRValue *val = buildNode(b, segs[i + 1]);
+      irEmit(b->block, irStore(res, val ? val : irNull(nullType())));
+      irEmit(b->block, irJump(endBlock));
+
+      b->block = nextBlock;
+    }
+    if (i < nseg) {
+      IRValue *val = buildNode(b, segs[i]);
+      irEmit(b->block, irStore(res, val ? val : irNull(nullType())));
+    }
     irEmit(b->block, irJump(endBlock));
-
-    b->block = keepBlock;
-    irEmit(b->block, irStore(res, primary));
-    irEmit(b->block, irJump(endBlock));
-
     b->block = endBlock;
     return res;
   }
@@ -1164,6 +1484,24 @@ static IRValue *buildNode(IRBuilder *b, int id) {
   default:
     return irNull(NULL);
   }
+}
+
+/* Kumpulkan segmen rantai pipe nested-kiri (parseBinary) menjadi
+ * urutan source (kiri→kanan). Return jumlah segmen; segs diisi id AST. */
+static int pipeSegments(Node *node, int id, int *segs, int cap) {
+  int nseg = 0;
+  int cur = id;
+  while (cur >= 0 && cur < node->length && node->ast[cur].type == NODE_FALLBACK && nseg < cap - 1) {
+    segs[nseg++] = node->ast[cur].fallback.fallback;
+    cur = node->ast[cur].fallback.primary;
+  }
+  if (cur >= 0 && cur < node->length && nseg < cap) segs[nseg++] = cur;
+  for (int lo = 0; lo < nseg / 2; lo++) {
+    int tmp = segs[lo];
+    segs[lo] = segs[nseg - 1 - lo];
+    segs[nseg - 1 - lo] = tmp;
+  }
+  return nseg;
 }
 
 /* ==================== Statement dispatcher ==================== */

@@ -18,9 +18,16 @@ static bool validateReturnType(Node *node, AstNode *ast, InterpreterResult r,
   if (r.value.type == VALUE_NULL) return true;
 
   if (error) {
+    /* Nama fungsi (NODE_IDENTIFIER / NODE_LITERAL_ID) untuk pesan presisi. */
+    const char *fname = NULL;
+    if (ast->function.name >= 0 && ast->function.name < node->length) {
+      AstNode *nn = &node->ast[ast->function.name];
+      if (nn->type == NODE_IDENTIFIER) fname = nn->identifier.name;
+      else if (nn->type == NODE_LITERAL_ID) fname = nn->string.value;
+    }
     static char message[256];
     snprintf(message, sizeof(message),
-             "void function cannot return a value");
+             "function '%s' is void and cannot return a value", fname ? fname : "?");
     addError(error, (ErrorInfo){.code = "TypeError",
                                 .message = message,
                                 .line = 0,

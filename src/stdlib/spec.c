@@ -50,7 +50,7 @@ static RuntimeValue specPortValue(const char *s) {
 /* Helper rupa go: bangun object settings bertag dari GoSpec. */
 RuntimeValue specModuleBuild(const char *host, const char *port, const char *protocol,
                              const char *dbhost, const char *dbport, const char *dbname,
-                             const char *dbuser, const char *domain) {
+                             const char *dbuser, const char *domain, const char *root) {
   RuntimeValue settings = valueObject(NULL);
   valueObjectSet(&settings, "host", valueString(host ? host : "-"));
   valueObjectSet(&settings, "port", specPortValue(port));
@@ -65,6 +65,10 @@ RuntimeValue specModuleBuild(const char *host, const char *port, const char *pro
   valueObjectSet(&mod, "settings", settings);
   valueObjectSet(&mod, "domain", valueString(domain ? domain : "-"));
   valueObjectSet(&mod, "target", valueString("-"));
+  /* Root project absolut (dari .spec root, di-resolve rupa go) —
+   * dipakai modul resources untuk memindai folder res. */
+  const char *rootFallback = (root && *root) ? root : ".";
+  valueObjectSet(&mod, "root", valueString(rootFallback));
   specTagObject(&mod);
   return mod;
 }

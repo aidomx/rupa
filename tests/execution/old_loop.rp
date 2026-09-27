@@ -1,0 +1,64 @@
+// old_loop/mixed (design/next_loop.txt): for i=0; i < 10: / rev i=10; i > 0:
+// Tidak ada i++/i-- — for selalu maju, rev selalu mundur (diurus sistem).
+
+// for: init; kondisi
+total = 0
+for i=0; i < 5 {
+  total = total + i
+}
+assertEq(total, 10)
+
+for j=1; j < 4: total = total + j
+assertEq(total, 16)
+
+// for dengan bound eksklusif: i terakhir = bound - 1
+last = -1
+for k=0; k < 3: last = k
+assertEq(last, 2)
+
+// rev: mundur inklusif bila >=
+sum = 0
+rev m=5; m >= 1 {
+  sum = sum + m
+}
+assertEq(sum, 15)
+
+// rev: eksklusif bila > — berhenti di bound + 1
+first = -1
+rev p=5; p > 2: first = p
+assertEq(first, 3)
+
+// Nilai variable setelah loop: for -> bound; rev -> nilai gagal pertama
+after = 0
+for t=0; t < 2: after = t
+assertEq(after, 1)
+for u=0; u < 2 { }
+assertEq(u, 2)
+rev v=3; v > 0 { }
+assertEq(v, 0)
+
+// Nested mixed loop
+hits = 0
+for a=0; a < 4 {
+  rev b=2; b > 0: hits = hits + 1
+}
+assertEq(hits, 8)
+
+// break / continue tetap bekerja
+seen = 0
+for w=0; w < 10 {
+  if w == 3 {
+    break
+  }
+  seen = seen + 1
+}
+assertEq(seen, 3)
+
+skipped = 0
+for z=0; z < 5 {
+  if z == 1 {
+    continue
+  }
+  skipped = skipped + z
+}
+assertEq(skipped, 9)

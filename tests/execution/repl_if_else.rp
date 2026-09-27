@@ -1,4 +1,4 @@
-# If/else with single-line body
+// If/else with single-line body
 x = 10
 if x > 5 {
     result = "big"
@@ -6,7 +6,7 @@ if x > 5 {
     result = "small"
 }
 assertEq(result, "big")
-# Change x and re-evaluate
+// Change x and re-evaluate
 x = 3
 if x > 5 {
     result = "big"

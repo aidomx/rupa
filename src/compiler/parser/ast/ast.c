@@ -91,10 +91,19 @@ Request createRequest(Token *tokens, int capacity) {
 void generateAst(Token *tokens) {
   if (!tokens || tokens->length == 0) return;
 
-  Request request = createRequest(tokens, 10);
-  Node *node = processGenerate(&request);
+  /* Error parser ikut terkumpul di error yang sama — sebelumnya
+   * createRequest(NULL error) membuat SyntaxError parse hilang diam
+   * di jalur -e/REPL bila statement lain sukses dieksekusi. */
   Error *error = createError(10);
-  if (node && node->length > 0) (void)interpreter(node, error);
+  Request request = createRequestWithError(tokens, 10, error);
+  Node *node = processGenerate(&request);
+  if (error->size > 0 || !node || node->length <= 0) {
+    printErrors(error);
+    return;
+  }
+  /* interpreter() mencetak error runtime sendiri (interpreter.c) —
+   * jangan print ulang di sini (duplikat). */
+  (void)interpreter(node, error);
 
   (void)node; // GC owns AST lifetime.
 }

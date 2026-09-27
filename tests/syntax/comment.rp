@@ -1,4 +1,3 @@
-# hash comment
 // line comment
 /* block comment */
 /**
@@ -8,4 +7,4 @@ print("comments work\n")
 
 if true {
   print(true)
-  }
+}

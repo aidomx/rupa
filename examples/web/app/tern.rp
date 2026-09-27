@@ -1,0 +1,10 @@
+tpl = {ok: true, ids: {tag: "div", html: "<div/>"}}
+print("q1 and-else:", tpl.ok & tpl.ids)
+bad = {ok: false, ids: {tag: "p"}}
+print("q2 and-else:", bad.ok & bad.ids)
+card = undefined
+card ?= tpl.ok & tpl.ids | undefined
+print("q3 chain   :", card.tag)
+card2 = undefined
+card2 ?= bad.ok & bad.ids | undefined
+print("q4 chain-no:", card2)

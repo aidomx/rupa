@@ -34,9 +34,10 @@ typedef struct IRMachine {
   RuntimeEnv *env;
   Error *error;
   Node *astRef; /* pool AST untuk trampoline IR_INTERP */
-  /* Register temp: hasil IRInstruction dengan result IR_VALUE_TEMP. */
+  /* Register temp: hasil IRInstruction dengan result IR_VALUE_TEMP.
+   * Tanpa flag stored — temp IR SSA-like selalu ditulis sebelum dibaca
+   * di jalur normal; slot lama tidak pernah di-clear per instruksi. */
   RuntimeValue *vals;
-  bool *stored;
   int valLen;
   int valCap;
   /* Flag halt: error fatal (FLOW_ERROR) menghentikan eksekusi. Frame
@@ -67,10 +68,12 @@ static bool machineHalted(const IRMachine *m) {
 
 static void machineFree(IRMachine *m) {
   if (m->vals) free(m->vals);
-  if (m->stored) free(m->stored);
   memset(m, 0, sizeof(*m));
 }
 
+/* Reserve: hanya grow buffer — slot lama tidak pernah di-clear. Temp
+ * IR SSA-like dibaca selalu setelah ditulis; inisialisasi null hanya
+ * untuk slot yang baru dialokasi. */
 static void machineReserve(IRMachine *m, uint32_t id) {
   if ((int)id < m->valLen) return;
   int need = (int)id + 1;
@@ -79,16 +82,12 @@ static void machineReserve(IRMachine *m, uint32_t id) {
     while (need > cap)
       cap *= 2;
     RuntimeValue *vals = realloc(m->vals, sizeof(RuntimeValue) * cap);
-    bool *stored = realloc(m->stored, sizeof(bool) * cap);
-    if (!vals || !stored) return;
+    if (!vals) return;
     m->vals = vals;
-    m->stored = stored;
     m->valCap = cap;
   }
-  for (int i = m->valLen; i < need; i++) {
+  for (int i = m->valLen; i < need; i++)
     m->vals[i] = valueNull();
-    m->stored[i] = false;
-  }
   m->valLen = need;
 }
 
@@ -112,10 +111,13 @@ static RuntimeValue machineGet(IRMachine *m, IRValue *v) {
     }
   }
 
-  case IR_VALUE_TEMP:
+  case IR_VALUE_TEMP: {
+    /* Fast path: temp sudah ada di buffer pada jalur normal (ditulis
+     * sebelum dibaca) — bounds check saja, tanpa reserve/clear. */
+    if ((int)v->id < m->valLen) return m->vals[v->id];
     machineReserve(m, v->id);
-    if ((int)v->id < m->valLen) return m->stored[v->id] ? m->vals[v->id] : valueNull();
     return valueNull();
+  }
 
   case IR_VALUE_PARAM:
   case IR_VALUE_LOCAL:
@@ -147,11 +149,8 @@ static void machineSet(IRMachine *m, IRValue *v, RuntimeValue value) {
   if (!v) return;
 
   if (v->kind == IR_VALUE_TEMP) {
-    machineReserve(m, v->id);
-    if ((int)v->id < m->valLen) {
-      m->vals[v->id] = value;
-      m->stored[v->id] = true;
-    }
+    if ((int)v->id >= m->valLen) machineReserve(m, v->id);
+    if ((int)v->id < m->valLen) m->vals[v->id] = value;
     return;
   }
 
@@ -316,19 +315,41 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
       if (pname) semSet(local, pname, machineGet(m, args[i]));
     }
     InterpreterResult r = interpretNode(function->node, function->body, local, m->error);
+    /* Nama fungsi untuk pesan error kontrak return-type. */
+    const char *fname = NULL;
+    if (function->name >= 0 && function->name < function->node->length) {
+      AstNode *nn = &function->node->ast[function->name];
+      if (nn->type == NODE_IDENTIFIER) fname = nn->identifier.name;
+      else if (nn->type == NODE_LITERAL_ID) fname = nn->string.value;
+    }
     /* void enforcement (sejajar IR_RETURN & interpretCall):
      * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
-    if (r.flow == FLOW_RETURN && r.value.type != VALUE_NULL && function->returnType >= 0) {
+    if (r.flow == FLOW_RETURN && function->returnType >= 0) {
       char typeName[256];
-      if (formatAstTypeName(function->node, function->returnType, typeName, sizeof(typeName)) &&
-          !strcmp(typeName, "void")) {
-        if (m->error)
-          addError(m->error, (ErrorInfo){.code = "TypeError",
-                                         .message = "void function cannot return a value",
-                                         .line = 0,
-                                         .row = 0,
-                                         .type = ERR_TYPE_MISMATCH});
-        machineHalt(m);
+      if (formatAstTypeName(function->node, function->returnType, typeName, sizeof(typeName))) {
+        if (!strcmp(typeName, "void")) {
+          /* void: nilai apa pun (non-null) = TypeError fatal. */
+          if (r.value.type != VALUE_NULL) {
+            if (m->error) {
+              static char message[256];
+              snprintf(message, sizeof(message), "function '%s' is void and cannot return a value",
+                       fname ? fname : "?");
+              addError(m->error, (ErrorInfo){.code = "TypeError",
+                                             .message = message,
+                                             .line = 0,
+                                             .row = 0,
+                                             .type = ERR_TYPE_MISMATCH});
+            }
+            machineHalt(m);
+          }
+        } else if (r.value.type != VALUE_NULL) {
+          /* Kontrak return-type non-void: sejajar IR_CHECK di buildReturn —
+           * pesan error presisi via analyzerCheckReturnType. */
+          if (!analyzerCheckReturnType(fname, typeName, r.value, m->error)) {
+            machineHalt(m);
+            return valueNull(); /* jangan propagasi nilai yang gagal kontrak */
+          }
+        }
       }
     }
     if (r.flow == FLOW_ERROR) machineHalt(m);
@@ -352,12 +373,20 @@ static RuntimeValue execCall(IRMachine *m, IRValue *callee, IRValue **args, size
     }
   }
 
-  /* 4) Fallback builtin IR: print (bila env tidak punya binding print). */
+  /* 4) Fallback builtin IR: print (bila env tidak punya binding print).
+   * Render via print engine (print_format.c) — sejajar interpreter:
+   * pola 2 multi-arg + pola 3 format + pola 4 stream target. */
   if (name && !strcmp(name, "print")) {
-    for (size_t i = 0; i < count; i++) {
-      if (i) putchar(' ');
-      valuePrint(machineGet(m, args[i]));
+    RuntimeValue *argv = NULL;
+    if (count > 0) {
+      argv = malloc(sizeof(RuntimeValue) * count);
+      if (!argv) return valueNull();
+      for (size_t i = 0; i < count; i++)
+        argv[i] = machineGet(m, args[i]);
     }
+    bool streamed = false;
+    printRenderArgs(argv, (int)count, m->env, m->error, stdout, false, &streamed);
+    free(argv);
     return valueNull();
   }
 
@@ -397,10 +426,18 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
 
   IRBlock *block = fn->first_block;
   while (block) {
+    /* Error fatal menghentikan eksekusi: cek per-blok (bukan
+     * per-instruksi). Cabang halt di handler tetap break keluar; satu
+     * instruksi sisa setelah fatal tidak mengubah hasil (nilai sudah
+     * error dan mesin langsung bailing out). */
+    if (machineHalted(&frame)) break;
     IRBlock *next = NULL;
 
     for (IRInstruction *i = block->first; i; i = i->next) {
-      if (machineHalted(&frame)) break; /* error fatal — hentikan */
+      /* Halt fatal (TypeError/MemoryError/ConstError dari call/sebelumnya)
+       * menghentikan sisa instruksi blok — tanpa ini nilai hasil call yang
+       * gagal kontrak tetap mengalir ke instruksi berikutnya. */
+      if (machineHalted(&frame)) break;
       switch (i->op) {
       case IR_CONST:
       case IR_LOAD:
@@ -484,13 +521,27 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
         }
         break;
       case IR_ADD:
+      case IR_LT:
+        /* Fast path integer (loop panas): dua operand number dihitung
+         * langsung di domain integer — tanpa konversi double + floor.
+         * Jalur lambat (decimal/campuran/concat) jatuh ke evalBinary. */
+        if (i->result) {
+          RuntimeValue l = machineGet(&frame, i->data.binary.left);
+          RuntimeValue r = machineGet(&frame, i->data.binary.right);
+          if (l.type == VALUE_NUMBER && r.type == VALUE_NUMBER)
+            machineSet(&frame, i->result,
+                       i->op == IR_ADD ? valueNumber(l.as.number + r.as.number)
+                                       : valueBoolean(l.as.number < r.as.number));
+          else
+            machineSet(&frame, i->result, evalBinaryValue(i->op, l, r));
+        }
+        break;
       case IR_SUB:
       case IR_MUL:
       case IR_DIV:
       case IR_MOD:
       case IR_EQ:
       case IR_NE:
-      case IR_LT:
       case IR_LE:
       case IR_GT:
       case IR_GE:
@@ -757,8 +808,7 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
             }
             es = esR.value;
             if (es.type != VALUE_NUMBER || es.as.number <= 0) {
-              addRuntimeError(m->error, ERR_TYPE_MISMATCH,
-                              "new Contract(count, elemsize)",
+              addRuntimeError(m->error, ERR_TYPE_MISMATCH, "new Contract(count, elemsize)",
                               "elemsize must be a positive number");
               machineHalt(&frame);
               machineFree(&frame);
@@ -838,7 +888,15 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
           AstNode *vn = &m->astRef->ast[i->data.check.nodeId];
           setRuntimeErrorLocation(vn->line, vn->row);
         }
-        if (v.type == VALUE_PTR) {
+        if (i->data.check.funcName) {
+          /* Return-type contract: pesan error presisi dengan nama fungsi
+           * (analyzerCheckReturnType). */
+          if (!analyzerCheckReturnType(i->data.check.funcName, i->data.check.type, v, m->error)) {
+            machineHalt(&frame);
+            machineFree(&frame);
+            return valueNull();
+          }
+        } else if (v.type == VALUE_PTR) {
           if (!memoryHandleTypeCheck(v, i->data.check.type, m->error)) {
             machineHalt(&frame);
             machineFree(&frame);
@@ -862,14 +920,19 @@ static RuntimeValue execFunction(IRMachine *m, IRFunction *fn, RuntimeValue *arg
          * `foo(): void { return v }` dengan v non-null = TypeError fatal. */
         if (fn->return_type && fn->return_type->name && !strcmp(fn->return_type->name, "void") &&
             ret.type != VALUE_NULL) {
-          if (frame.error)
+          if (frame.error) {
+            static char message[256];
+            snprintf(message, sizeof(message), "function '%s' is void and cannot return a value",
+                     fn->name ? fn->name : "?");
             addError(frame.error, (ErrorInfo){.code = "TypeError",
-                                              .message = "void function cannot return a value",
+                                              .message = message,
                                               .line = 0,
                                               .row = 0,
                                               .type = ERR_TYPE_MISMATCH});
+          }
           machineHalt(&frame);
         }
+
         machineFree(&frame);
         return ret;
       }

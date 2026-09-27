@@ -1,1 +1,0 @@
-export startsWith, endsWith, repeat, reverse, contains, trim from ./strings
