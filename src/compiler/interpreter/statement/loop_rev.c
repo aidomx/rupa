@@ -27,6 +27,9 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
   long long value = 0;
   const char *op = NULL;
   bool range = false;
+  /* Binding loop implisit (design loop): capture SEBELUM semSet pertama
+   * yang men-set counter — semSet itu sendiri menciptakan binding. */
+  bool preExisting = false;
 
   if (condition->type == NODE_IDENTIFIER ||
       condition->type == NODE_LITERAL_ID) {
@@ -35,6 +38,7 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
     if (name && semGet(env, name, &current) && current.type == VALUE_NUMBER) {
       bound = current.as.number;
       value = bound;
+      preExisting = semFind(env, name) != NULL;
       semSet(env, name, valueNumber(value));
       range = true;
     }
@@ -53,6 +57,7 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
           value = current.as.number;
         else
           value = bound;
+        preExisting = semFind(env, name) != NULL;
         range = true;
       }
     }
@@ -72,6 +77,7 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
         if (r.value.type == VALUE_NUMBER) {
           bound = 0;
           value = r.value.as.number;
+          preExisting = semFind(env, name) != NULL;
           semSet(env, name, valueNumber(value));
           range = true;
         }
@@ -80,6 +86,9 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
   }
 
   if (range) {
+    /* Binding loop implisit (design loop): variable belum ada saat loop
+     * mulai = binding milik loop — di-unbind setelah loop (print(i) =>
+     * undefined). preExisting di-capture sebelum semSet pertama. */
     for (;;) {
       bool valid = op ? evalRevCondition(value, bound, op) : (value >= 0);
       if (!valid)
@@ -100,6 +109,8 @@ InterpreterResult interpretRevLoop(Node *node, AstNode *ast, RuntimeEnv *env,
     // Setelah rev 10..0
     // Nilai original menjadi -1
     semSet(env, name, valueNumber(value));
+    if (!preExisting)
+      semUnsetLocal(env, name);
     return resultNormal(*last);
   }
 

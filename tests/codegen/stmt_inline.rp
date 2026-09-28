@@ -1,0 +1,7 @@
+// Statement satu baris: pemisah ; dan , (grammarStatementSplit).
+x = 1; y = 2
+a = 10, b = 20
+print(x + y)
+print(a + b)
+t = 5;
+print(t) // ; di akhir baris = terminator kosong

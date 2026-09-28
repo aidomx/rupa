@@ -26,6 +26,8 @@ static const char *keyword_name(KeywordType type) {
     return "extends";
   case KEYWORD_NAMESPACE:
     return "namespace";
+  case KEYWORD_PUB:
+    return "pub";
   case KEYWORD_ENUM:
     return "enum";
   case KEYWORD_CONST:

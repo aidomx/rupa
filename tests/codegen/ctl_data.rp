@@ -1,0 +1,11 @@
+// Kontrol & data: if/else, while, array, object, call — jalur umum backend.
+grade(n) {
+  if n >= 80 { return "A" }
+  return "B"
+}
+nums = [3, 1, 4]
+sum = 0
+for i < nums.length { sum = sum + nums[i] }
+w = 0
+while w < 3 { w++ }
+print(grade(90), grade(50), sum, w)

@@ -58,6 +58,16 @@ enum IROpcode {
   IR_FREE,
   IR_STRSLOT_GET,
   IR_STRSLOT_SET,
+  /* Binding loop implisit (design loop): probe = "nama belum ter-bind
+   * di env?" (result <- bool); unbind = lepas binding bila condition
+   * (opsional) truthy. Dipasangkan: probe sebelum loop, unbind sesudah
+   * — variable yang dibuat loop sendiri hilang setelah loop, variable
+   * milik user tetap. */
+  IR_PROBE_ABSENT,
+  IR_UNBIND,
+  /* Tandai binding sebagai `pub` (design fn/namespace): export surface
+   * module = binding pub saja bila file punya `pub`. */
+  IR_MARK_PUB,
   /* Conversion */
   IR_CAST
 };

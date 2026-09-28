@@ -29,6 +29,9 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
   long long value = 0;
   const char *op = NULL;
   bool range = false;
+  /* Binding loop implisit (design loop): capture SEBELUM semSet pertama
+   * yang men-set counter — semSet itu sendiri menciptakan binding. */
+  bool preExisting = false;
 
   if (condition->type == NODE_IDENTIFIER ||
       condition->type == NODE_LITERAL_ID) {
@@ -37,6 +40,7 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
     if (name && semGet(env, name, &current) && current.type == VALUE_NUMBER) {
       bound = current.as.number;
       value = 0;
+      preExisting = semFind(env, name) != NULL;
       semSet(env, name, valueNumber(value));
       range = true;
     }
@@ -55,6 +59,7 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
           value = current.as.number == -1 ? bound : current.as.number;
         else
           value = 0;
+        preExisting = semFind(env, name) != NULL;
         semSet(env, name, valueNumber(value));
         range = true;
       }
@@ -73,6 +78,7 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
             value = current.as.number;
           else
             value = 0;
+          preExisting = semFind(env, name) != NULL;
           semSet(env, name, valueNumber(value));
           range = true;
         }
@@ -81,6 +87,10 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
   }
 
   if (range) {
+    /* Binding loop implisit (design loop): bila variable BELUM ada di
+     * env saat loop mulai, loop mendeklarasikannya sendiri — setelah
+     * loop di-unbind (print(i) => undefined). Bila sudah ada
+     * (i = 0; for i < 10), nilai akhirnya = bound (tetap). */
     for (;;) {
       bool valid = op ? evalForCondition(value, bound, op) : (value < bound);
       if (!valid)
@@ -101,6 +111,8 @@ InterpreterResult interpretForLoop(Node *node, AstNode *ast, RuntimeEnv *env,
     // Setelah for 0..9
     // Nilai originalnya menjadi 10
     semSet(env, name, valueNumber(bound));
+    if (!preExisting)
+      semUnsetLocal(env, name);
     return resultNormal(*last);
   }
 

@@ -1,0 +1,11 @@
+// Empty-body peeling: loop kosong besar di-peel jadi final store + unbind.
+// Regresi: semantik for/rev fresh & pre-existing di backend C harus sama
+// dengan interpreter (Runner membandingkan stdout binary vs interpreter).
+s = 0
+for i < 100000 {}
+print("peel-done")
+i = 0
+for i < 3 {}
+print(i) // 3 — final store = bound
+rev j > 0 {}
+print("rev-empty-done")

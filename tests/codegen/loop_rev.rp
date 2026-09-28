@@ -1,0 +1,5 @@
+// Loop mundur + mixed init (opcode unary neg, IR_GE).
+rev k = 3; k > 0 { print(k) }
+total = 0
+rev n < 4 { total = total + n }
+print(total)

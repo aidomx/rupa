@@ -1,0 +1,7 @@
+// Visibility pub: IR_MARK_PUB — binding pub & private di satu file.
+pub pubv = 41
+privv = 7
+pub bump(n) { return n + 1 }
+print(pubv)
+print(bump(pubv))
+print(privv) // private tetap terlihat di file sendiri

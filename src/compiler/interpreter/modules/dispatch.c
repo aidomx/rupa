@@ -239,6 +239,21 @@ static InterpreterResult interpretModImport(Node *n, int id, RuntimeEnv *e, Erro
 
     RuntimeValue fn_val;
     if (valueObjectGet(mv, en->name, &fn_val)) {
+      /* Member private (mode pub: null + tercatat di _private) TIDAK
+       * boleh di-import — tolak saat import dengan PrivateError, bukan
+       * bind null yang gagal sebagai TypeError saat dipanggil. */
+      if (fn_val.type == VALUE_NULL) {
+        RuntimeValue priv;
+        if (valueObjectGet(mv, "_private", &priv) && priv.type == VALUE_OBJECT) {
+          RuntimeValue found;
+          if (valueObjectGet(priv, en->name, &found)) {
+            addImportError(x, IMP_LOC,
+                           "'%s' is private and cannot be imported from '%s'", en->name,
+                           mod->source);
+            continue;
+          }
+        }
+      }
       modBind(e, bindName, fn_val);
     } else if (mod->entryCount == 1 && modSourceResolvesLeaf(mod->source)) {
       /* ie.txt import #4: single entry tanpa member yang cocok otomatis

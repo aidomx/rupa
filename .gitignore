@@ -13,12 +13,12 @@ cscope.out
 docs/node_modules
 tags
 rupa-*.tar.gz
-problem.txt
-shared
 modules/*.tar.gz
 !.gitkeep
 build-report.txt
-design
+design/*
+!.gitkeep
+!README.md
 examples/*
 !calculator
 !web
@@ -26,3 +26,8 @@ examples/*
 Makefile
 todos
 rules.md
+lib/librupa.a
+lib/librupa.so
+
+# Codegen test artifacts
+*.rupa.gen.c

@@ -208,7 +208,20 @@ int grammarParseNamespace(Request *r, Token *t, int a, int limit, int *pos) {
   snprintf(nameBuf, sizeof(nameBuf), "%s", t->data[cur].value);
   cur++;
 
+  /* Bentuk file-level TANPA `{ }` (design namespace): `namespace user`
+   * satu baris — seluruh export surface file dibungkus nama namespace
+   * ini saat module di-load. Deteksi dari token MENTAH setelah nama
+   * (sebelum skip whitespace): NEWLINE/ENDOF/SEMICOLON = akhir baris.
+   * Tanpa ini, skip whitespace melompati NEWLINE dan bentuk bare tak
+   * pernah tercapai bila ada statement menyusul. */
+  if (cur >= limit || t->data[cur].type == NEWLINE || t->data[cur].type == ENDOF ||
+      t->data[cur].type == SEMICOLON) {
+    *pos = cur;
+    return createModNamespaceBare(r->node, nameBuf);
+  }
+
   while (cur < limit && grammarIsWhitespace(t, cur)) cur++;
+
   if (cur >= limit || t->data[cur].type != LBRACE) return GRAMMAR_NO_MATCH;
 
   int next = cur;

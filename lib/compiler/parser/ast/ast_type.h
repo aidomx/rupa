@@ -22,6 +22,8 @@ struct AstAssignment {
   int type; // -1 jika tidak ada explicit type annotation
   int value;
   bool isConst; /* `const x: number = 1` — binding immutable (ConstError saat reassign) */
+  bool isPub; /* `pub x = 10` — binding publik (design namespace: export
+                 surface dari member pub saja) */
 };
 
 /* Comment */
@@ -233,6 +235,8 @@ struct AstFunctionDecl {
   int paramLength;
   int body;
   int returnType; /* node id tipe kembalian (`foo(): void`) — -1 jika tanpa anotasi */
+  bool isPub; /* `pub a() {}` — deklarasi publik (design fn: default private);
+                 tanpa pub = private (tidak ikut export otomatis) */
 };
 
 struct AstStructDecl {
@@ -313,6 +317,9 @@ struct AstMod {
   int body; /* NamespaceDecl only: NODE_BLOCK id holding nested ExportDecl
              * statements (`namespace db { export ...; export ...; }`).
              * -1 for ImportDecl/ExportDecl. */
+  bool bare; /* NamespaceDecl file-level (design namespace): `namespace user`
+              * TANPA `{ }` — seluruh export surface file dibungkus nama
+              * namespace ini (`user.x`, `user.add`). */
 };
 
 struct AstModule {

@@ -12,6 +12,10 @@ struct RuntimeBinding {
   bool isConst;  /* `const x = 1` — semSet setelah init ditolak (ConstError) */
   bool isImport; /* binding hasil `import` — hidden di whole-env export kecuali
                     opt-in via policy `-> { import: public }` */
+  bool isPub;    /* `pub x = 10` / `pub a() {}` — binding publik (design fn
+                    & namespace: export surface dari member pub saja) */
+  bool dead;     /* unbind variabel loop implisit (design loop): semGet
+                    melewati binding mati — baca ulang = undefined */
   struct RuntimeBinding *next;
 };
 
@@ -31,6 +35,8 @@ struct RuntimeEnv {
   unsigned long hashMask; /* hashCap - 1, hashCap power of two */
   int hashCount;
   bool isRepl;
+  bool hasPub; /* file/env punya binding `pub` — export surface = pub saja
+                  (design fn/namespace; tanpa pub = perilaku lama) */
 };
 
 /**
@@ -118,6 +124,17 @@ const char *semType(RuntimeEnv *env, const char *name);
  * @return Pointer ke RuntimeBinding, atau NULL jika tidak ditemukan.
  */
 RuntimeBinding *semFind(RuntimeEnv *env, const char *name);
+
+/* Unbind variabel di scope LOKAL (design loop): binding tidak dihapus
+ * (hash index insert-only, simpul list milik arena) — ditandai dead.
+ * semGet/semFind melewatinya; semSet berikutnya menghidupkan kembali. */
+void semUnsetLocal(RuntimeEnv *env, const char *name);
+
+/* Tandai binding lokal sebagai `pub` (design fn/namespace) + set flag
+ * hasPub di env. Dipanggil saat deklarasi fungsi/assignment pub. */
+void semMarkPub(RuntimeEnv *env, const char *name);
+/* Cek flag hasPub env (export surface = pub saja bila true). */
+bool semHasPub(const RuntimeEnv *env);
 
 /* ===== Jalur cepat berbasis nama kanonik =====
  * Nama di-intern ke instance pointer kanonik (lifetime proses). Pemanggil

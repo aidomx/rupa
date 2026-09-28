@@ -127,6 +127,10 @@ RuntimeBinding *semFindLocal(RuntimeEnv *env, const char *name) {
   return NULL;
 }
 
+/* NB: semFindLocal TIDAK memeriksa flag dead — penulis (semSet/
+ * semUnsetLocal) butuh akses ke binding mati untuk menghidupkannya.
+ * Pembaca lewat semFind/semFindCanon yang menyaring dead. */
+
 /* Varian canon: penelepon memegang pointer kanonik + hash-nya (cache
  * IRValue) — tanpa intern, tanpa hash string. Binding selalu dibuat
  * lewat semDeclare (nama di-intern) sehingga perbandingan pointer
@@ -147,11 +151,11 @@ RuntimeBinding *semFind(RuntimeEnv *env, const char *name) {
   for (; env; env = env->parent) {
     if (env->hash) {
       RuntimeBinding *b = envHashFind(env, canon, h);
-      if (b) return b;
-      continue; /* env ini tidak punya — lanjut parent */
+      if (b && !b->dead) return b;
+      continue; /* tidak ada / dead — lanjut parent */
     }
     for (RuntimeBinding *b = env->bindings; b; b = b->next)
-      if (b->name == canon || !strcmp(b->name, name)) return b;
+      if ((b->name == canon || !strcmp(b->name, name)) && !b->dead) return b;
   }
   return NULL;
 }
@@ -161,14 +165,36 @@ RuntimeBinding *semFindCanon(RuntimeEnv *env, const char *canon, unsigned long c
   for (; env; env = env->parent) {
     if (env->hash) {
       RuntimeBinding *b = envHashFind(env, canon, canonHash);
-      if (b) return b;
+      if (b && !b->dead) return b;
       continue;
     }
     for (RuntimeBinding *b = env->bindings; b; b = b->next)
-      if (b->name == canon) return b;
+      if (b->name == canon && !b->dead) return b;
   }
   return NULL;
 }
+
+void semUnsetLocal(RuntimeEnv *env, const char *name) {
+  if (!env || !name) return;
+  const char *canon = semIntern(name);
+  RuntimeBinding *b = canon ? semFindLocalCanon(env, canon, semPtrHash(canon)) : NULL;
+  if (b) b->dead = true;
+}
+
+void semMarkPub(RuntimeEnv *env, const char *name) {
+  if (!env || !name) return;
+  RuntimeBinding *b = semFindLocal(env, name);
+  if (!b) {
+    if (!semDeclare(env, name, NULL)) return;
+    b = semFindLocal(env, name);
+  }
+  if (b) {
+    b->isPub = true;
+    env->hasPub = true;
+  }
+}
+
+bool semHasPub(const RuntimeEnv *env) { return env ? env->hasPub : false; }
 
 bool semDeclare(RuntimeEnv *env, const char *name, const char *type) {
   if (!env || !name) return false;
@@ -202,7 +228,10 @@ void semSet(RuntimeEnv *env, const char *name, RuntimeValue value) {
     if (!semDeclare(env, name, NULL)) return;
     b = semFindLocal(env, name);
   }
-  if (b) b->value = value;
+  if (b) {
+    b->value = value;
+    b->dead = false; /* semSet menghidupkan kembali binding yang dead */
+  }
 }
 
 /* Tandai binding sebagai hasil `import` — hidden di whole-env export
@@ -230,9 +259,11 @@ bool semSetConst(RuntimeEnv *env, const char *name, RuntimeValue value) {
   }
   if (!b) return false;
   /* Deklarasi const selalu menulis + mengunci ulang: re-init sah di
-   * setiap iterasi loop / call fungsi (slot lama di-reset). */
+   * setiap iterasi loop / call fungsi (slot lama di-reset). Tulis
+   * menghidupkan binding dead (sejajar semSet/semSetCanon). */
   b->isConst = true;
   b->value = value;
+  b->dead = false;
   return true;
 }
 
@@ -276,6 +307,7 @@ void semSetCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash, Ru
     return;
   }
   b->value = value;
+  b->dead = false; /* sejajar semSet: tulis menghidupkan ulang tombstone */
 }
 
 bool semIsConstCanon(RuntimeEnv *env, const char *canon, unsigned long canonHash) {

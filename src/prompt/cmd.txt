@@ -16,13 +16,16 @@ rupa ast <file.rp>     Show AST
 rupa ir <file.rp>      Show IR
 rupa irexec <file.rp>  Execute IR
 rupa profile <file.rp> Profile runtime stages
+rupa profile --optimizer [root] Detect duplicate work + patch hints
+rupa profile --cache   List in-process caches
+rupa profile --clean   Reset in-process caches
 rupa exec <file.rp>    Run test file (assert* standard)
 rupa semantic <file.rp> Run semantic check on file
 rupa repl              Start REPL
 
 rupa test [category]   Run tests (default: syntax)
-rupa list [category]   List test files
-rupa list -g           List installed modules
+rupa list              List local installed modules
+rupa list -g           List global installed modules
 
 rupa help              Show this help
 rupa help <topic>      Show topic: compiler, formatter, test,
@@ -42,6 +45,9 @@ rupa ast <file.rp>     Show AST
 rupa ir <file.rp>      Show IR
 rupa irexec <file.rp>  Execute IR
 rupa profile <file.rp> Profile runtime stages
+rupa profile --optimizer [root] Detect duplicate work + patch hints
+rupa profile --cache   List in-process caches
+rupa profile --clean   Reset in-process caches
 ---endcompiler
 
 ---formatter
@@ -69,9 +75,9 @@ Test commands
 
 rupa test [category]       Run category tests
 rupa test <category> <n,n> Run selected files by listed number
-rupa list [category]       List test files (all tests/ or one category)
+rupa -lt [category]       List test files (all tests/ or one category)
 
-Categories: syntax, ast, ir, irexec, exec, semantic, stress, fmt
+Categories: syntax, ast, ir, irexec, exec, semantic, stress, fmt, codegen
 
 Examples:
   rupa test                    Run tests/syntax/*.rp
@@ -79,15 +85,13 @@ Examples:
   rupa test exec               Run tests/execution/*.rp
   rupa test stress             Run tests/stress/*.rp
   rupa test syntax 1,2         Run selected files by listed number
-  rupa list                    List all tests/**/*.rp
-  rupa list ast                List tests/ast/*.rp
+  rupa -lt                     List all tests/**/*.rp
+  rupa -lt ast                 List tests/ast/*.rp
 
 Shortcuts:
   rupa -t [category]           Same as rupa test
   rupa -t syntax 1,2           Same as rupa test syntax 1,2
-  rupa -l                      Same as rupa list
-  rupa -l ast                  Same as rupa list ast
-
+  
 Single file (free form, not bound to tests/):
   rupa ast|ir|irexec <file.rp>
   rupa exec|semantic|stress <file.rp>
@@ -115,7 +119,8 @@ Module commands
 
 rupa add [-g] <name> <path> [version]   Install a module
 rupa remove [-g] <name>                 Remove a module
-rupa list [-g]                          List installed modules
+rupa list                               List local installed modules
+rupa list [-g]                          List global installed modules
 rupa update [-g] <name> <path>          Update a module
 
 -g installs to the global archive: ~/.rupa/rupa_modules.tar.gz

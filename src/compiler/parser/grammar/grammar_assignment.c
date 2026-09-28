@@ -16,6 +16,17 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
       a++;
   }
 
+  /* `pub x = 10` (design namespace): binding publik — ikut export
+   * surface module. Boleh dikombinasikan dengan const. */
+  bool isPub = false;
+  if (t->data[a].type == KEYWORD && t->data[a].value &&
+      !strcmp(t->data[a].value, "pub")) {
+    isPub = true;
+    a++;
+    while (a < b && grammarIsWhitespace(t, a))
+      a++;
+  }
+
   /* Find the ASSIGN token at depth 0 to avoid matching '=' inside nested
    * parentheses/brackets/braces. */
   int assignPos = -1;
@@ -54,9 +65,13 @@ int grammarParseAssignment(Request *r, int a, int b, int *pos) {
     if (t->data[a].type == IDENTIFIER && t->data[a].safetyType)
       type = createTypeNode(r->node, t->data[a].safetyType);
     *pos = b;
-    if (l >= 0)
-      return isConst ? createAssignmentConst(r->node, l, type, rr, true)
-                     : createAssignment(r->node, l, type, rr);
+    if (l >= 0) {
+      int id = isConst ? createAssignmentConst(r->node, l, type, rr, true)
+                       : createAssignment(r->node, l, type, rr);
+      if (id >= 0 && isPub)
+        r->node->ast[id].assign.isPub = true;
+      return id;
+    }
     return -1;
   }
 

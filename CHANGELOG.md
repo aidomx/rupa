@@ -2,6 +2,143 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — 2026-09-28
+
+### Added
+
+- **`rupa profile --optimizer [root]`** — deteksi pekerjaan duplikasi
+  lintas file: pindai file .rp (rekursif, default cwd), jalankan
+  lex+parse per file dengan trace event pool canonical (publish/adopt
+  di caches/syntax/canonical.c), lalu laporkan grup ekspresi yang
+  di-adopt (>= 2 kemunculan) dengan file:baris pertama/terakhir,
+  cuplikan sumber, dan saran patch (ekstraksi helper). Tidak mengubah
+  file — patch otomatis sumber user berisiko; laporan bersifat saran.
+- **`rupa profile --cache`** — laporan daftar cache in-process:
+  pipeline (AST+IR per file, status valid/basi), canonical pool,
+  statistik hit/miss/rate pipeline + canonical + memo parse, FileCache,
+  dan module cache. API inspeksi baru: `pipelineCacheEntryCount/Path/
+  Valid`, `syntaxCanonicalCount`, `moduleCacheCount`.
+- **`rupa profile --clean`** — reset seluruh cache in-process
+  (pipeline, canonical, FileCache, module) via `runnerFileCacheReset`
+  + reset yang sudah ada. Berguna sebagai titik audit; cache CLI tunggal
+  memang hidup hanya selama proses.
+- **Header publik terverifikasi (item header publik librupa)** —
+  audit konsumer eksternal: `#include <rupa.h>` + link `lib/librupa.a`
+  / `lib/librupa.so` cukup untuk embed runtime penuh (loader/execute,
+  semantic/value API, IR + debugIRModule, GC). Ditemukan & dibereskan:
+  `lib/librupa.a` lama memuat objek basi `memory.o` (unit monolitik
+  sebelum split) yang membuat link gagal simbol duplikat — arsip
+  dibangun ulang bersih. Test konsumer: embed loader (`main` →
+  `loader(argv, argc)`) menjalankan file .rp dan `-e` dengan benar.
+- **`pub` — visibility eksplisit + namespace file-level (design fn &
+  namespace)** — `pub a() {}` / `pub x = 10` menandai binding publik;
+  default TANPA `pub` = private. Export surface module: bila file
+  punya `pub`, hanya member pub yang diterbitkan (private = null +
+  metadata `_private`, akses dari luar = PrivateError); file tanpa
+  `pub` = perilaku lama, kompatibel penuh. Policy export lama tetap
+  berlaku. Namespace file-level `namespace user` (tanpa `{ }`):
+  seluruh export surface file dibungkus object bernama namespace —
+  `import user from ./b` lalu `user.x`, `user.add(1,2)`; akses member
+  private = PrivateError di jalur IR (IR_MEMBER_GET) dan interpreter
+  (interpretMember). Implementasi: keyword `pub` (lexer/keyword), flag
+  `isPub` (AstFunctionDecl/AstAssignment), `isPub` + `bare` di AstMod,
+  binding flag `isPub` + env `hasPub` (semMarkPub/semHasPub), opcode
+  `IR_MARK_PUB`, parser `namespace <nama>` bare di grammar_module_export,
+  filter pub di buildWholeEnvValue, pembungkus namespace di loader.c.
+- **Binding variabel loop implisit (design loop)** — `for i < 10 {}`
+  tanpa deklarasi: `i` tidak lagi bocor ke scope luar; `print(i)`
+  setelah loop = undefined (ReferenceError). Variable yang sudah ada
+  (`i = 0; for i < 10`) tetap hidup dengan nilai akhirnya (10).
+  Implementasi lintas jalur: `semUnsetLocal` + flag `dead` di binding
+  (semGet/semFind melewati dead, semSet menghidupkan kembali), opcode
+  IR baru `IR_PROBE_ABSENT`/`IR_UNBIND` (emit di buildLoop, probe env
+  runtime sebagai sumber kebenaran), dan unbind di interpreter
+  loop_for/loop_rev.
+- **Statement satu baris `x = 1; y = 2` / `x = 1, y = 2`**
+  (design/variable.txt) — `,`/`;` top-level memisah statement dalam
+  satu baris via `grammarStatementSplit` di grammar.c; parser sebelumnya
+  menelan separator dan menghasilkan AST salah (`x = 1 = 2`). `,` di
+  akhir baris diperlakukan terminator kosong; statement ber-keyword
+  tidak di-split (header `for i=0; i<10` dan daftar `import a, b`
+  dikonsumsi grammar masing-masing). `grammarParseStatement` dipecah:
+  `grammarParseStatementBody` menampung pemilihan grammar.
+- **Backend C menutup gap opcode loop/pub** — `rupa <file> -o` gagal
+  `unsupported IR opcode 34` untuk program ber-loop (`tests/stress/
+  el.rp`): `IR_PROBE_ABSENT`/`IR_UNBIND`/`IR_MARK_PUB` (opcode baru
+  loop binding + pub) kini di-emit ke C via helper `rupa_absent`/
+  `rupa_unbind` + `semMarkPub`. Semantik compiled = interpreter
+  (loop var implisit undefined setelah loop, pub surface).
+- **Compile `-o` dari direktori mana pun** — codegen sebelumnya memakai
+  path relatif (`-Iinclude -I.`, `lib/librupa.a`) yang menunjuk cwd
+  user; compile dari luar project gagal dengan implicit declaration
+  (`semUnsetLocal` dsb) karena menemukan header setengah jalan.
+  Root project kini di-resolve dari lokasi binary (`/proc/self/exe`
+  → `<root>/bin/`) dengan sanity check `include/rupa.h`; `RUPA_LIB`
+  tetap bisa menimpa. Diverifikasi compile+jalankan dari
+  `~/rupa/experiments` dan `/tmp`.
+- **Empty-body loop peeling** — observasi `rupa profile`: `for i <
+  100000 {}` menghabiskan ~97% waktu di stage execute padahal body
+  kosong (blok body hanya jump step). Loop for/rev dengan body BLOCK
+  kosong, kondisi ident-kiri, bound literal, dan variable belum
+  ter-bind kini di-peel saat rewrite: nol iterasi di-emit, cukup
+  final store (for: variable = bound) + unbind implisit — IR turun
+  dari ~700rb instruksi per loop ke 2–3. Loop lain (body berisi
+  statement, while, bound non-literal, variable eksplisit, ident-
+  kanan, ber-init) jalan jalur normal. File `tests/codegen/
+  loop_empty_peel.rp` ditambahkan (codegen 8→9).
+- **Bug revive binding** (ditemukan test codegen baru): tulis ke
+  binding yang sudah di-unbind loop (tombstone `dead`) tidak
+  menghidupkannya di jalur canon mesin IR — `for i<5 {}; i=0;
+  print(i)` mencetak `undefined`, harusnya `0`. `semSetCanon`,
+  `semSetConst`, dan `semSetConstCanon` kini sejajar `semSet`:
+  menulis menghidupkan ulang binding dead.
+- **Test kategori baru `codegen`** — `rupa test codegen`: 7 file di
+  `tests/codegen/*.rp` di-compile via backend C lalu output binary
+  dibandingkan dengan eksekusi interpreter (harus identik). Cover:
+  loop binding implisit/eksplisit, rev loop, loop 50rb iterasi,
+  IR_MARK_PUB (pub/private), statement satu baris `;`/`,`, kontrol &
+  data (if/while/array/object/call). Runner `src/prompt/test_codegen.c`
+  + helper `runnerCaptureStdoutTo` (runner.c).
+- **Import member private = ImportError** — `import x from ./mod` saat
+  `x` non-pub (mode pub) kini ditolak saat import dengan
+  `ImportError: 'x' is private and cannot be imported from './mod'`;
+  sebelumnya ter-bind null lalu gagal `TypeError` saat dipanggil.
+- Header internal `src/prompt/profile.h` + unit baru `profile_stats.c`,
+  `profile_clean.c`, `profile_optimizer.c` — inti profileRun tetap di
+  runner.c.
+- Jalur mati di `run()` (blok interpreter lama setelah return backend
+  IR) dihapus.
+
+### Changed
+
+- **Modularisasi file membengkak** — semua file >1000 line dipecah
+  menjadi unit kecil (rules.md: modular, jangan membengkak). Contract
+  lintas-unit di header internal; deklarasi publik tetap di header lama
+  (lib/prompt/prompt.h, lib/modules/rupa_modules.h, module.h):
+  - `src/prompt/test.c` (1157) → `test_internal.h` + 7 unit:
+    `test_common.c` (printSource/lexParse), `test_syntax.c` (test+testAst),
+    `test_ir.c` (testIR+testIRExec), `test_exec.c`, `test_repl.c`,
+    `test_fmt.c`, `test_dispatch.c` (dispatcher + tabel kategori).
+  - `src/stdlib/memory.c` (1040) → 4 unit: `memory_new.c` (new/Contract),
+    `memory_index.c` (indexing VALUE_PTR), `memory_member.c` (member
+    access struct + string slot), `memory_builtin.c` (del/dupl/compare
+    + memoryInit).
+  - `src/compiler/ir/execute.c` (1039) → `execute_internal.h` (struct
+    IRMachine) + 4 unit: `execute_machine.c` (register/get/set/binary),
+    `execute_call.c` (execCall + lookup), `execute_function.c`
+    (execFunction + handler instruksi), `execute.c` (entry modul).
+  - `src/compiler/interpreter/modules/loader.c` (1004) → 4 unit:
+    `loader_state.c` (state global, circular guard, module cache),
+    `loader_path.c` (resolusi path import), `loader_export.c`
+    (export entries), `loader.c` (entry); contract di module.h.
+  - (Sesi sebelumnya) `src/compiler/ir/rewrite.c` (1624) → 7 unit;
+    `src/formatter/format_normalize.c` (1214) → 3 unit.
+  - Fungsi static lintas-unit menjadi non-static dengan prefix
+    sesuai domain (`testLexParse`, `modJoinPath`, `modFileExists`,
+    dll.) untuk menghindari bentrok dengan helper static TU lain.
+- Selesai item: tidak ada lagi file .c/.h di src/ dan lib/ yang
+  melebihi 1000 line (terbesar: src/prompt/go.c 833).
+
 ## [Unreleased] — 2026-09-27
 
 ### Added
@@ -89,6 +226,30 @@ got 'number'` (sebelumnya hanya `void` yang di-enforce). Validasi
   - Pesan void diberi nama fungsi di semua titik:
     `function 'foo' is void and cannot return a value`
     (declaration probe, interpretCall, IR_RETURN, execCall closure).
+- **Opcode disassembler (`rupa ir`)** — `src/compiler/ir/debug.c` ditulis
+  ulang sebagai disassembler lengkap per opcode untuk tooling:
+  - pc 4-digit kontinu antar fungsi; signature `; ---- function f(params)
+    -> rettype`; header block `name:  ; N insns`.
+  - SEMUA operand tercetak: binary/unary, member/index get-set, call
+    (`; argc=N`), jump/branch (`-> block`), alloc (count/elemsz/zeroed),
+    realloc, free, strslot get/set, cast. Konstanta string ter-escape
+    (`\n`, `\"`, byte non-printable); `IR_VALUE_FUNCTION` tampil `fn:name`;
+    tipe array rekursif `T[]`.
+  - `IR_CHECK` varian return-type menampilkan `; fn=X node#N` — kontrak
+    `function 'f' declared to return ...` kini terlihat di listing.
+  - `IR_STRSLOT_GET/SET` kini ikut tercetak (dulu hilang); prefix dobel
+    pada ret/free/check diperbaiki; opcode enum yang belum didisasm
+    jatuh ke marker `<op ?>` (tidak pernah dicetak diam).
+  - Header modul: jumlah function/block/instruction + histogram opcode
+    (`; opcodes: add x3 ...`).
+- **Build library `librupa.a` + `librupa.so`** — rbot diperbarui
+  (v0.1.2, di repo tools/rbot) mendukung produksi library dari object
+  build yang sama (`output.libraryName` / `libraryShared` / `libDir`,
+  `-fPIC` otomatis saat shared aktif, `exclude` untuk melepas `main.c`
+  dari pengemasan tanpa memengaruhi binary). Buildfile rupa kini
+  memproduksi `lib/librupa.a` (182 object, tanpa `main.o`) dan
+  `lib/librupa.so` (mengekspor API: `debugIRModule`, `semCreateEnv`,
+  `stdlibInit`, ...) — `main.c` tetap ikut binary `bin/rupa`.
 
 ### Changed
 

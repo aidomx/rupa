@@ -111,6 +111,17 @@ struct IRInstruction {
       IRType *type;
     } cast;
     struct {
+      IRValue *result; /* temp bool penerima hasil probe */
+      IRValue *target; /* named value yang diperiksa */
+    } probe;
+    struct {
+      IRValue *target;    /* named value (LOCAL/GLOBAL) yang di-unbind */
+      IRValue *condition; /* NULL = unbind tanpa syarat */
+    } unbind;
+    struct {
+      IRValue *target; /* named value yang di-mark pub */
+    } mark_pub;
+    struct {
       IRValue *value;
       char *type;
       int nodeId; /* AST id assignment/annotation — view check pin family */
@@ -202,6 +213,9 @@ IRInstruction *irRealloc(IRValue *result, IRValue *pointer, IRValue *size);
 IRInstruction *irFree(IRValue *pointer);
 IRInstruction *irStrSlotGet(IRValue *result, IRValue *pointer);
 IRInstruction *irStrSlotSet(IRValue *pointer, IRValue *value);
+IRInstruction *irUnbind(IRValue *target, IRValue *condition);
+IRInstruction *irProbeAbsent(IRValue *result, IRValue *target);
+IRInstruction *irMarkPub(IRValue *target);
 IRInstruction *irCast(IRValue *result, IRValue *value, IRType *type);
 IRInstruction *irCheck(IRValue *value, const char *type);
 IRInstruction *irCheckAt(IRValue *value, const char *type, int nodeId);

@@ -39,4 +39,9 @@ void pipelineCacheReset(void);
 int pipelineCacheHits(void);
 int pipelineCacheMisses(void);
 
+/* Inspeksi isi cache (mode `rupa profile --cache`). */
+int pipelineCacheEntryCount(void);
+const char *pipelineCacheEntryPath(int index); /* NULL di luar jangkauan */
+bool pipelineCacheEntryValid(int index); /* stat ulang; tanpa menyentuh counter */
+
 #endif

@@ -163,6 +163,9 @@ InterpreterResult interpretStatement(Node *n, int id, RuntimeEnv *e, Error *x) {
       } else {
         semSet(e, k, r.value);
       }
+      /* `pub x = 10` (design namespace): binding publik — ikut export
+       * surface module (buildWholeEnvValue / namespace bare). */
+      if (a->assign.isPub) semMarkPub(e, k);
     }
     return r;
   }

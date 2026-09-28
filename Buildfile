@@ -52,8 +52,14 @@ embedded:
         - tar: true
         - ext: gz
 
+exclude:
+  - main.c
+
 output:
   - binaryName: rupa
   - binaryDir: bin
   - buildDir: build
   - compileCommands: auto # compile_commands.json
+  - libraryName: rupa # lib/librupa.a
+  - libDir: lib
+  - libraryShared: true # lib/librupa.so

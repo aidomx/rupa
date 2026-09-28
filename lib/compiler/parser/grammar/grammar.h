@@ -65,6 +65,11 @@ bool grammarIsWhitespace(struct Token *t, int i);
  */
 int grammarParseStatement(struct Request *r, int *pos, int limit);
 
+/* Isi pemilihan grammar untuk satu statement [a,b) — dipanggil
+ * grammarParseStatement; dipisah agar split `;`/`,` (statement satu
+ * baris, design/variable.txt) bisa parse bagian sebelum separator. */
+int grammarParseStatementBody(struct Request *r, int a, int b, int limit, int *pos);
+
 /* ====================== Helper bersama (grammar_shared.c) ============= */
 
 /**

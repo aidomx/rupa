@@ -52,6 +52,62 @@ static struct {
 static int g_canonHits = 0;
 static int g_canonMisses = 0;
 
+/* ---- Diagnostik `rupa profile --optimizer` ----
+ * Ring buffer kecil: event publish/adopt dicatat hanya saat trace
+ * aktif (mode optimizer), diambil per-file oleh pemindai. */
+#define CANON_EVENT_CAP 256
+static bool g_trace = false;
+static bool g_traceOverflow = false;
+static SyntaxCanonEvent g_events[CANON_EVENT_CAP];
+static int g_eventCount = 0;
+
+static void canonTracePush(SyntaxCanonEventKind kind, int entry, int line) {
+  if (!g_trace)
+    return;
+  if (g_eventCount >= CANON_EVENT_CAP) {
+    g_traceOverflow = true;
+    return;
+  }
+  g_events[g_eventCount].kind = kind;
+  g_events[g_eventCount].entry = entry;
+  g_events[g_eventCount].line = line;
+  g_eventCount++;
+}
+
+void syntaxCanonicalTraceEnable(bool on) {
+  g_trace = on;
+  g_traceOverflow = false;
+  g_eventCount = 0;
+}
+
+int syntaxCanonicalTakeEvents(SyntaxCanonEvent *out, int max) {
+  if (!out || max <= 0)
+    return 0;
+  int n = g_eventCount < max ? g_eventCount : max;
+  memcpy(out, g_events, sizeof(SyntaxCanonEvent) * (size_t)n);
+  g_eventCount = 0;
+  return n;
+}
+
+int syntaxCanonicalEntryText(int entry, char *out, int max) {
+  if (!out || max <= 0 || entry < 0 || entry >= g_canon.count)
+    return -1;
+
+  CanonEntry *e = &g_canon.items[entry];
+  int len = 0;
+  for (int i = 0; i < e->streamLen; i++) {
+    const char *v = e->streamValue[i];
+    if (!v)
+      continue;
+    if (len > 0 && len < max - 1)
+      out[len++] = ' ';
+    for (const char *s = v; *s && len < max - 1; s++)
+      out[len++] = *s;
+  }
+  out[len] = '\0';
+  return len;
+}
+
 /* Tipe aman di-share: ekspresi murni (tanpa statement/scope). */
 static bool canonNodeShareable(const AstNode *n) {
   switch (n->type) {
@@ -300,6 +356,9 @@ void syntaxCanonicalPublish(Request *req, int spanA, int spanB, int rootId) {
   g_canon.buckets[bucket] = g_canon.count;
   g_canon.count++;
   gcfree(c.map);
+
+  /* Diagnostik: kemunculan pertama ekspresi ini. */
+  canonTracePush(CANON_EVENT_PUBLISH, g_canon.count - 1, t->data[a].line);
 }
 
 /* ---- Adopt: verifikasi stream penuh, lalu install dengan remap ---- */
@@ -400,6 +459,8 @@ int syntaxCanonicalAdopt(Request *req, int spanA, int spanB) {
     if (!equal) continue;
 
     g_canonHits++;
+    /* Diagnostik: duplikat — subtree ini di-adopt tanpa parse ulang. */
+    canonTracePush(CANON_EVENT_ADOPT, i, t->data[a].line);
     return canonInstall(req, e);
   }
   g_canonMisses++;
@@ -411,8 +472,14 @@ void syntaxCanonicalReset(void) {
   memset(g_canon.buckets, 0xFF, sizeof(g_canon.buckets)); /* -1 semua */
   g_canonHits = 0;
   g_canonMisses = 0;
+
+  /* Event diagnostik ikut kosong — index entri tidak berlaku lagi. */
+  g_eventCount = 0;
+  g_traceOverflow = false;
 }
 
 int syntaxCanonicalHits(void) { return g_canonHits; }
 
 int syntaxCanonicalMisses(void) { return g_canonMisses; }
+
+int syntaxCanonicalCount(void) { return g_canon.count; }

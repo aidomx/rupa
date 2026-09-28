@@ -146,7 +146,30 @@ InterpreterResult interpretMember(Node *node, AstNode *ast, RuntimeEnv *env, Err
 
   if (obj.value.type == VALUE_OBJECT) {
     RuntimeValue val;
-    if (valueObjectGet(obj.value, key, &val)) return resultNormal(val);
+    if (valueObjectGet(obj.value, key, &val)) {
+      /* Member private (metadata `_private`, design namespace/fn): nilai
+       * null di surface + nama tercatat di _private → akses luar =
+       * PrivateError, bukan null senyap. */
+      if (val.type == VALUE_NULL && key) {
+        RuntimeValue priv;
+        if (valueObjectGet(obj.value, "_private", &priv) && priv.type == VALUE_OBJECT) {
+          RuntimeValue found;
+          if (valueObjectGet(priv, key, &found)) {
+            static char msgPriv[192];
+            snprintf(msgPriv, sizeof(msgPriv),
+                     "'%s' is private and cannot be accessed from outside", key);
+            if (error)
+              addError(error, (ErrorInfo){.code = "PrivateError",
+                                          .message = gcdup(msgPriv),
+                                          .line = ast->line,
+                                          .row = ast->row,
+                                          .type = ERR_UNDEFINED_VAR});
+            return resultFlow(FLOW_ERROR, valueNull());
+          }
+        }
+      }
+      return resultNormal(val);
+    }
     /* this.get("key") / this.set({...}) — accessor generic pada this
      * (design/new_class.txt contoh). get: argumen nama field; set:
      * object literal field yang ditulis. Instance new Object()

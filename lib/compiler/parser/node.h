@@ -118,6 +118,10 @@ int createLoopInit(struct Node *root, const char *kind, int init, int condition,
                    int body);
 int createFunctionDecl(struct Node *root, int name, int *params, int paramLength, int body,
                        int returnType);
+/* Varian pub (design fn): `pub a() {}` — deklarasi publik; default
+ * tanpa keyword = private (tidak ikut export otomatis). */
+int createFunctionDeclPub(struct Node *root, int name, int *params, int paramLength, int body,
+                          int returnType);
 int createStructDecl(struct Node *root, int name, int body);
 int createEnumDecl(struct Node *root, int name, int body);
 int createClassDecl(struct Node *root, int name, int typeId, int body);
@@ -171,6 +175,9 @@ int createModExport(struct Node *root, AstModEntry **entries, int entryCount, co
  * @return ID node yang dibuat, atau -1 jika gagal.
  */
 int createModNamespace(struct Node *root, const char *name, int body);
+/* Namespace file-level (design namespace): `namespace user` tanpa { } —
+ * export surface file dibungkus nama namespace saat module di-load. */
+int createModNamespaceBare(struct Node *root, const char *name);
 
 /**
  * @brief Membuat request baru untuk parser.

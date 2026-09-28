@@ -7,6 +7,7 @@
 #include "ir/execute.h"
 #include "ir/ir.h"
 #include "ir/rewrite.h"
+#include "codegen/c.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "semantic/analyzer.h"

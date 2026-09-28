@@ -8,17 +8,17 @@ print("\n")
 rev i > 0: print("syntax rev i > 0: print(i) hasilnya = " + i + "\n")
 print("\n")
 for i < 10 {
-    print(i + "\n")
+  print(i + "\n")
 }
 print("\n")
 rev i > 0 {
-    print(i + "\n")
+  print(i + "\n")
 }
 print("\n")
 x = 0
 while x < 10 {
-    print("syntax while x < 10 hasilnya = " + x + "\n")
-    x++
+  print("syntax while x < 10 hasilnya = " + x + "\n")
+  x++
 }
 print("\n")
 for i < 10 {

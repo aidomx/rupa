@@ -118,6 +118,25 @@ int createModNamespace(Node *root, const char *name, int body) {
   n.mod.policies = NULL;
   n.mod.policyCount = 0;
   n.mod.body = body;
+  n.mod.bare = false;
+  return createAst(root, n);
+}
+
+/* Namespace file-level (design namespace): `namespace user` TANPA `{ }`.
+ * Seluruh export surface file dibungkus nama namespace ini saat module
+ * di-load (`user.x`, `user.add`). */
+int createModNamespaceBare(Node *root, const char *name) {
+  if (!root) return -1;
+  AstNode n = {.type = NODE_MOD};
+  n.mod.type = NamespaceDecl;
+  n.mod.entries = NULL;
+  n.mod.entryCount = 0;
+  n.mod.source = name ? gcdup(name) : NULL;
+  n.mod.sourceAlias = NULL;
+  n.mod.policies = NULL;
+  n.mod.policyCount = 0;
+  n.mod.body = -1;
+  n.mod.bare = true;
   return createAst(root, n);
 }
 
@@ -210,7 +229,16 @@ int createFunctionDecl(Node *root, int name, int *params, int paramLength, int b
   n.function.paramLength = paramLength;
   n.function.body = body;
   n.function.returnType = returnType;
+  n.function.isPub = false;
   return createAst(root, n);
+}
+
+/* Varian pub (design fn): `pub a() {}` — deklarasi publik. */
+int createFunctionDeclPub(Node *root, int name, int *params, int paramLength, int body,
+                          int returnType) {
+  int id = createFunctionDecl(root, name, params, paramLength, body, returnType);
+  if (id >= 0) root->ast[id].function.isPub = true;
+  return id;
 }
 
 int createStructDecl(Node *root, int name, int body) {

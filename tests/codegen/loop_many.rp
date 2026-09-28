@@ -1,0 +1,4 @@
+// Loop besar: stress opcode kontrol loop di backend C (el.rp ringkas).
+x = 0
+for i < 50000 { x = x + 2 }
+print(x)

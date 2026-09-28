@@ -361,6 +361,29 @@ IRInstruction *irStrSlotSet(IRValue *pointer, IRValue *value) {
   return i;
 }
 
+IRInstruction *irUnbind(IRValue *target, IRValue *condition) {
+  IRInstruction *i = newInstruction(IR_UNBIND);
+  if (!i) return NULL;
+  i->data.unbind.target = target;
+  i->data.unbind.condition = condition;
+  return i;
+}
+
+IRInstruction *irProbeAbsent(IRValue *result, IRValue *target) {
+  IRInstruction *i = newInstruction(IR_PROBE_ABSENT);
+  if (!i) return NULL;
+  i->result = result;
+  i->data.probe.target = target;
+  return i;
+}
+
+IRInstruction *irMarkPub(IRValue *target) {
+  IRInstruction *i = newInstruction(IR_MARK_PUB);
+  if (!i) return NULL;
+  i->data.mark_pub.target = target;
+  return i;
+}
+
 IRInstruction *irCast(IRValue *result, IRValue *value, IRType *type) {
   IRInstruction *i = newInstruction(IR_CAST);
   if (!i) return NULL;

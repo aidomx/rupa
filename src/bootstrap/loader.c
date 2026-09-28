@@ -280,6 +280,20 @@ int loader(const char *args[], int length) {
     }
 
     else if (args[i][0] == '-') {
+      /* -o adalah modifier untuk autorun; mode compile diputuskan di run()
+       * setelah frontend menghasilkan IR. */
+      if (strcmp(args[i], "-o") == 0 && i == 2) {
+        if (i + 1 >= length) {
+          fprintf(stderr, "rupa: -o requires an output file\n");
+          handled = true;
+          autorun = false;
+          gcclean();
+          return 1;
+        }
+        i++;
+        continue;
+      }
+
       /* Opsi tidak dikenal — jangan jatuh ke autorun (membaca file). */
       fprintf(stderr, "rupa: unknown option '%s' (lihat: rupa help)\n", args[i]);
       handled = true;
@@ -293,7 +307,7 @@ int loader(const char *args[], int length) {
 
   if (autorun) {
     // rupa <file>
-    int result = run(args, index);
+    int result = run(args, length);
     handled = true;
     if (result != 0) {
       gcclean();

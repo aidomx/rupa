@@ -26,11 +26,19 @@ extern int serveRun(const char *path, const char *watchExtra, int portFallback, 
  * src/compiler/interpreter/modules/ untuk detail; dideklarasikan ulang
  * di sini supaya serve.c tak perlu include header internal modules/. */
 extern void moduleCacheReset(void);
+/* Jumlah entri module cache saat ini (profile_stats.c). */
+extern int moduleCacheCount(void);
+/* Path utilitas loader (loader_path.c) — dideklarasikan ulang untuk
+ * profile_optimizer.c (rekursi direktori scan .rp). */
+extern char *modJoinPath(const char *dir, const char *rel);
 
 /* runner.c — file & code execution */
 extern int run(const char *paths[], int length);
 extern int profileRun(const char *paths[], int length);
 extern void execute(const char *code);
+/* Jalankan run() dengan stdout dialihkan ke file (dipakai test_codegen
+ * membandingkan output interpreter vs binary hasil backend C). */
+extern int runnerCaptureStdoutTo(const char *outPath, const char *paths[], int length);
 
 /* test.c — syntax, exec, and REPL tests */
 extern void test(const char *paths[], int length);

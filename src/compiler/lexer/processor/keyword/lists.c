@@ -12,7 +12,8 @@ const char *keywordList[] = {
     "import",   // import modul
     "export",   // export modul
     "extends",  // extends
-    "namespace", // namespace db { export ... }
+    "namespace", // namespace
+    "pub",       // pub — deklarasi publik (design fn: default private) db { export ... }
     "enum",     // enum TokenType { ... }
     "const",    // const x: number = 1 — binding immutable
     "return",   // return
@@ -40,6 +41,7 @@ KeywordType keywordType[] = {
     KEYWORD_EXPORT,    // export
     KEYWORD_EXTENDS,   // extends
     KEYWORD_NAMESPACE, // namespace
+    KEYWORD_PUB,       // pub
     KEYWORD_ENUM,      // enum
     KEYWORD_CONST,     // const
     KEYWORD_RETURN,    // return

@@ -136,3 +136,27 @@ void pipelineCacheReset(void) {
 int pipelineCacheHits(void) { return g_hits; }
 
 int pipelineCacheMisses(void) { return g_misses; }
+
+/* ---- Inspeksi isi cache (mode `rupa profile --cache`) ---- */
+
+int pipelineCacheEntryCount(void) { return g_count; }
+
+const char *pipelineCacheEntryPath(int index) {
+  if (index < 0 || index >= g_count)
+    return NULL;
+  return g_entries[index].path;
+}
+
+/* Valid = metadata disk (mtime+nsec+size) masih cocok. Sambil
+ * memeriksa, entry basi ditandai invalid — sama dengan pipelineFind.
+ * TIDAK menyentuh counter hit/miss (inspeksi bukan akses cache). */
+bool pipelineCacheEntryValid(int index) {
+  if (index < 0 || index >= g_count)
+    return false;
+
+  struct stat st;
+  if (stat(g_entries[index].path, &st) != 0)
+    return false;
+
+  return g_entries[index].valid && pipelineEntryFresh(&g_entries[index], &st);
+}

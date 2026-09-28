@@ -1,4 +1,5 @@
 #include <rupa.h>
+#include "profile.h"
 
 #if defined(RUPA_WINDOWS)
 #include <io.h>
@@ -84,6 +85,44 @@ static void runnerStdoutRestore(void) {
   close(g_savedStdout);
 #endif
   g_savedStdout = -1;
+}
+
+/* Jalankan run(paths) dengan stdout dialihkan ke file outPath — dipakai
+ * test_codegen untuk membandingkan output interpreter vs binary hasil
+ * backend C. Return status run(). */
+int runnerCaptureStdoutTo(const char *outPath, const char *paths[], int length) {
+  fflush(stdout);
+#if defined(RUPA_WINDOWS)
+  int saved = _dup(_fileno(stdout));
+  int out = _open(outPath, _O_WRONLY | _O_CREAT | _O_TRUNC, _S_IREAD | _S_IWRITE);
+#else
+  int saved = dup(fileno(stdout));
+  int out = open(outPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+#endif
+  if (saved < 0) return 1;
+  if (out < 0) {
+    close(saved);
+    return 1;
+  }
+#if defined(RUPA_WINDOWS)
+  _dup2(out, _fileno(stdout));
+  _close(out);
+#else
+  dup2(out, fileno(stdout));
+  close(out);
+#endif
+
+  int status = run(paths, length);
+  fflush(stdout);
+
+#if defined(RUPA_WINDOWS)
+  _dup2(saved, _fileno(stdout));
+  _close(saved);
+#else
+  dup2(saved, fileno(stdout));
+  close(saved);
+#endif
+  return status;
 }
 
 /* stderr: disuppress HANYA saat warmup — error (lexer/parser/runtime)
@@ -254,9 +293,31 @@ int run(const char *paths[], int length) {
     return 1;
   }
 
-  const char *index = paths[length];
+  /* run() receives the complete argv/argc so the frontend is built once
+   * and the final IR can be sent either to executeIR() or compileIR(). */
+  if (length < 2 || !paths[1] || !*paths[1]) {
+    fprintf(stderr, "No such file for execute.\n");
+    return 1;
+  }
 
-  bool runWithIR = true;
+  const char *index = paths[1];
+  const char *output = NULL;
+
+  for (int i = 2; i < length; i++) {
+    if (strcmp(paths[i], "-o") == 0) {
+      if (i + 1 >= length || !paths[i + 1] || !*paths[i + 1]) {
+        fprintf(stderr, "rupa: -o requires an output file\n");
+        return 1;
+      }
+      output = paths[i + 1];
+      i++;
+    } else if (paths[i][0] == '-') {
+      fprintf(stderr, "rupa: unknown option '%s' (lihat: rupa help)\n", paths[i]);
+      return 1;
+    }
+  }
+
+  bool compile = output != NULL;
 
   if (isDirectory(index)) {
     static char indexBuf[1024];
@@ -375,7 +436,7 @@ int run(const char *paths[], int length) {
     return 1;
   }
 
-  if (runWithIR) {
+  {
     /* IR: dari cache bila entry sudah lengkap; bila tidak, bangun
      * dari AST (yang mungkin dari cache) lalu upgrade entry. */
     if (!cachedIr) {
@@ -401,6 +462,12 @@ int run(const char *paths[], int length) {
       pipelineCachePut(index, node, cachedIr);
     }
 
+    if (compile) {
+      /* Frontend selesai. Backend compiler hanya menerima IR. */
+      int status = compileIR(cachedIr, output);
+      return status;
+    }
+
     profileStart = activeProfile ? profileNow() : 0.0;
     int status = executeIRError(cachedIr, node, error);
     if (activeProfile) profileAdd(&activeProfile->execute, profileStart);
@@ -413,36 +480,39 @@ int run(const char *paths[], int length) {
     return status;
   }
 
-  RuntimeEnv *env = semCreateEnv(NULL);
-  if (!env)
-    return 1;
-
-  stdlibInit(env);
-  builtinsInit(env);
-
-  extern struct EventLoop *g_event_loop;
-  g_event_loop = eventLoopCreate();
-
-  InterpreterResult result =
-    interpretNode(node, root, env, error);
-
-  for (int i = 0;
-       i < 1000 && eventLoopHasPending(g_event_loop);
-       i++) {
-    eventLoopRun(node, g_event_loop, env, error);
-  }
-
-  if (error && error->size > 0)
-    printErrors(error);
-
-  eventLoopDestroy(g_event_loop);
-  g_event_loop = NULL;
-
-  return result.flow == FLOW_ERROR ||
-         (error && error->size > 0) ? 1 : 0;
+  /* Backend IR adalah satu-satunya jalur eksekusi — kode interpreter
+   * lama di bawah ini tidak pernah terjangkau (return di atas). */
 }
 
 int profileRun(const char *paths[], int length) {
+  /* Flag mode tanpa file: --cache (laporan daftar cache), --clean
+   * (reset semua cache in-process). Optimizer butuh root: default cwd
+   * atau path posisi setelah flag. */
+  if (length >= 1 && paths[0] && strcmp(paths[0], "--cache") == 0)
+    return profilePrintCache();
+
+  if (length >= 1 && paths[0] && strcmp(paths[0], "--clean") == 0)
+    return profileClean();
+
+  if (length >= 1 && paths[0] && strcmp(paths[0], "--optimizer") == 0) {
+    /* rupa profile --optimizer [root] — root default: direktori saat ini. */
+    const char *root = NULL;
+    if (length >= 2 && paths[1] && *paths[1])
+      root = paths[1];
+    return profileOptimizer(root);
+  }
+
+  if (length >= 1 && paths[0] && paths[0][0] == '-') {
+    fprintf(stderr,
+            "rupa profile: unknown option '%s'\n"
+            "usage: rupa profile <file.rp>              profile runtime stages\n"
+            "       rupa profile --optimizer [root]     detect duplicate work + patch hints\n"
+            "       rupa profile --cache                list in-process caches\n"
+            "       rupa profile --clean                reset in-process caches\n",
+            paths[0]);
+    return 1;
+  }
+
   if (!paths || length != 1 || !paths[0]) {
     fprintf(stderr, "rupa profile: usage: rupa profile <file.rp>\n");
     return 1;
@@ -451,7 +521,7 @@ int profileRun(const char *paths[], int length) {
   /* run() mengambil entry file dari paths[length]. Bentuk command biasa
    * membawa argv[argc] sebagai sentinel, tetapi profile menerima slice argv
    * dari loader. Buat sentinel lokal yang menunjuk file target. */
-  const char *runPaths[2] = {paths[0], paths[0]};
+  const char *runPaths[2] = {"rupa", paths[0]};
 
   ProfileStats stats = {0};
 
@@ -463,7 +533,7 @@ int profileRun(const char *paths[], int length) {
    * silent, hanya laporan). */
   runnerStdoutSuppress();
   runnerStderrSuppress();
-  (void)run(runPaths, 1);
+  (void)run(runPaths, 2);
   runnerStderrRestore();
   runnerStdoutRestore();
 
@@ -474,13 +544,47 @@ int profileRun(const char *paths[], int length) {
   activeProfile = &stats;
   double totalStart = profileNow();
   runnerStdoutSuppress();
-  int status = run(runPaths, 1);
+  int status = run(runPaths, 2);
   runnerStdoutRestore();
   stats.total = profileNow() - totalStart;
   activeProfile = NULL;
 
   profilePrint(paths[0], status, &stats);
   return status;
+}
+
+/* ---- Inspeksi & reset FileCache (dipakai profile_stats/profile_clean) ----
+ * Didefinisikan di sini karena data FileCache static milik unit ini. */
+
+int runnerFileCacheCount(void) { return fileCacheCount; }
+
+const char *runnerFileCachePath(int index) {
+  if (index < 0 || index >= fileCacheCount)
+    return NULL;
+  return fileCaches[index].path;
+}
+
+bool runnerFileCacheValid(int index) {
+  if (index < 0 || index >= fileCacheCount)
+    return false;
+
+  struct stat st;
+  if (stat(fileCaches[index].path, &st) != 0)
+    return false;
+
+  return fileCaches[index].mtime == st.st_mtime &&
+         fileCaches[index].mtime_nsec == getMtimeNsec(&st) &&
+         fileCaches[index].size == st.st_size;
+}
+
+void runnerFileCacheReset(void) {
+  if (fileCaches) {
+    for (int i = 0; i < fileCacheCount; i++)
+      free(fileCaches[i].path);
+    free(fileCaches);
+    fileCaches = NULL;
+  }
+  fileCacheCount = 0;
 }
 
 void execute(const char *code) {

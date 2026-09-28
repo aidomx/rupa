@@ -9,6 +9,38 @@
  * grammar_*.c baru (lihat grammar.h) dan mendaftarkan pemanggilannya di
  * sini, tanpa perlu menyentuh unit grammar lain.
  */
+/* Statement separator satu baris (design/variable.txt): `x = 1; y = 2`
+ * dan `x = 1, y = 2` = dua statement. Cari SEMICOLON/COMMA top-level
+ * (di luar kurung/kurawal/siku) yang TIDAK diakhiri baris yang sama —
+ * `,` di akhir baris diperlakukan whitespace. Return posisi separator,
+ * atau -1.
+ *
+ * Keyword TIDAK di-split: `for i=0; i<10` memakai `;` di header loop,
+ * `import a, b from ./m` memakai `,` di daftar entry (keduanya punya
+ * grammar sendiri yang mengonsumsi separator tsb). `case`/`enum` juga
+ * aman: member dipisah NEWLINE/COMMA di dalam block grammar masing-
+ * masing, bukan statement. */
+static int grammarStatementSplit(Token *t, int a, int b) {
+  int depth = 0;
+  for (int i = a; i < b; i++) {
+    TokenType type = t->data[i].type;
+    if (type == LPAREN || type == LBRACE || type == LBLOCK)
+      depth++;
+    else if (type == RPAREN || type == RBRACE || type == RBLOCK)
+      depth--;
+    else if (depth == 0 && (type == SEMICOLON || type == COMMA)) {
+      /* `,` atau `;` di akhir baris: terminator kosong, bukan pemisah
+       * statement baru. */
+      int j = i + 1;
+      while (j < b && grammarIsWhitespace(t, j)) j++;
+      if (j >= b)
+        continue;
+      return i;
+  }
+  }
+  return -1;
+}
+
 int grammarParseStatement(Request *r, int *pos, int limit) {
   Token *t = r->tokens;
   while (*pos < limit && grammarIsWhitespace(t, *pos))
@@ -18,6 +50,36 @@ int grammarParseStatement(Request *r, int *pos, int limit) {
   int a = *pos, b = grammarLineEnd(t, a);
   g_parser_token = &t->data[a];
   if (b > limit) b = limit;
+
+  /* Separator statement satu baris: parse bagian sebelum `;`/`,` lalu
+   * lanjutkan SETELAHNYA (baris sama, statement berikutnya). Statement
+   * ber-keyword dilewati: loop memakai `;` di header (`for i=0; i<10`),
+   * import/export memakai `,` di daftar entry — grammar mereka sendiri
+   * yang mengonsumsi separator tersebut. */
+  int sep = (t->data[a].type == KEYWORD) ? -1 : grammarStatementSplit(t, a, b);
+  if (sep > a) {
+    int save = b;
+    b = sep;
+    int id = grammarParseStatementBody(r, a, b, limit, pos);
+    if (id != GRAMMAR_NO_MATCH) {
+      /* Maju melewati separator (dan whitespace) — *pos menunjuk awal
+       * statement berikutnya di baris yang sama. */
+      int p = sep + 1;
+      while (p < limit && grammarIsWhitespace(t, p)) p++;
+      *pos = p;
+      return id;
+    }
+    b = save;
+  }
+
+  return grammarParseStatementBody(r, a, b, limit, pos);
+}
+
+/* Isi pemilihan grammar untuk SATU statement pada rentang [a,b).
+ * Dipanggil grammarParseStatement baik untuk statement utuh maupun
+ * bagian sebelum `;`/`,` (split statement satu baris). */
+int grammarParseStatementBody(Request *r, int a, int b, int limit, int *pos) {
+  Token *t = r->tokens;
 
   /* case may be emitted as a keyword by the processor; keep the grammar
    * check value-based as a defensive path while keyword tables evolve. */

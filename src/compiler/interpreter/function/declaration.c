@@ -74,8 +74,11 @@ InterpreterResult interpretFunction(Node *node, AstNode *ast, RuntimeEnv *env, E
 
   if (function->name >= 0 && function->name < node->length) {
     AstNode *name = &node->ast[function->name];
-    if (name->type == NODE_IDENTIFIER && name->identifier.name)
+    if (name->type == NODE_IDENTIFIER && name->identifier.name) {
       semSet(env, name->identifier.name, valueFunction(function));
+      /* `pub a() {}` (design fn): binding publik — ikut export surface. */
+      if (ast->function.isPub) semMarkPub(env, name->identifier.name);
+    }
   }
 
   return resultNormal(valueFunction(function));

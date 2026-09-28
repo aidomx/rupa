@@ -3,6 +3,17 @@
 int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
   Token *t = r->tokens;
 
+  /* `pub a() {}` (design fn): keyword pub membuka deklarasi fungsi
+   * publik. Default tanpa pub = private — tidak ikut export otomatis. */
+  bool isPub = false;
+  if (t->data[a].type == KEYWORD && t->data[a].value &&
+      !strcmp(t->data[a].value, "pub")) {
+    isPub = true;
+    a++;
+    while (a < b && grammarIsWhitespace(t, a))
+      a++;
+  }
+
   // name(...) { } => function, name(...) => call
   if (t->data[a].type != IDENTIFIER || a + 1 >= b ||
       t->data[a + 1].type != LPAREN)
@@ -101,7 +112,8 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
   if (head < limit && t->data[head].type == LBRACE) {
     int close = grammarMatchClose(t, head, limit, LBRACE, RBRACE);
     int body = close >= 0 ? grammarParseBlock(r, head, close) : -1;
-    int id = createFunctionDecl(r->node, name, ps, n, body, returnType);
+    int id = isPub ? createFunctionDeclPub(r->node, name, ps, n, body, returnType)
+                   : createFunctionDecl(r->node, name, ps, n, body, returnType);
     *pos = close >= 0 ? close + 1 : b;
     return id;
   }
@@ -109,7 +121,8 @@ int grammarParseFunction(Request *r, int a, int b, int limit, int *pos) {
   /* `foo(params): Type` tanpa body + tanpa call-arg = deklarasi function
    * dengan return type saja (tanpa body) — bukan call. */
   if (returnType >= 0) {
-    int id = createFunctionDecl(r->node, name, ps, n, -1, returnType);
+    int id = isPub ? createFunctionDeclPub(r->node, name, ps, n, -1, returnType)
+                   : createFunctionDecl(r->node, name, ps, n, -1, returnType);
     *pos = head;
     return id;
   }
