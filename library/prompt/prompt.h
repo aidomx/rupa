@@ -1,0 +1,58 @@
+#pragma once
+
+#if defined(RUPA_PACKAGE_H)
+
+/* prompt.c — UI (help per-section dari src/prompt/cmd.txt) */
+extern void welcomeMessage(void);
+extern void help(bool prepend);
+extern bool helpShowSection(const char *name);
+extern void showModuleHelp(void);
+extern void showTestHelp(void);
+extern void showFmtHelp(void);
+extern void version(void);
+
+/* compile class */
+extern int goCompile(const char *paths[], int length);
+
+/* spec.c — .spec config generate + encrypt */
+extern int specCommand(const char *paths[], int length);
+extern bool specPromptPassword(const char *prompt, char *buf, int n);
+extern char *specDecryptText(const char *algo, const char *pass, const char *checkHex,
+                             const char *hex);
+
+/* serve.c — serve.rp runner dengan hot reload (mode dev) */
+extern int serveRun(const char *path, const char *watchExtra, int portFallback, bool detail);
+/* Buang module cache global (loader.c) — lihat module.h di
+ * src/compiler/interpreter/modules/ untuk detail; dideklarasikan ulang
+ * di sini supaya serve.c tak perlu include header internal modules/. */
+extern void moduleCacheReset(void);
+/* Jumlah entri module cache saat ini (profile_stats.c). */
+extern int moduleCacheCount(void);
+/* Path utilitas loader (loader_path.c) — dideklarasikan ulang untuk
+ * profile_optimizer.c (rekursi direktori scan .rp). */
+extern char *modJoinPath(const char *dir, const char *rel);
+
+/* runner.c — file & code execution */
+extern int run(const char *paths[], int length);
+extern int profileRun(const char *paths[], int length);
+extern void execute(const char *code);
+/* Jalankan run() dengan stdout dialihkan ke file (dipakai test_codegen
+ * membandingkan output interpreter vs binary hasil backend C). */
+extern int runnerCaptureStdoutTo(const char *outPath, const char *paths[], int length);
+
+/* test.c — syntax, exec, and REPL tests */
+extern void test(const char *paths[], int length);
+extern void testAst(const char *paths[], int length);
+extern void testIR(const char *paths[], int length);
+extern void testIRExec(const char *paths[], int length);
+extern void testExec(const char *paths[], int length);
+extern void testFmt(const char *paths[], int length);
+extern void testRepl(const char *paths[], int length);
+extern int testDispatch(const char *args[], int length);
+
+/* formatter.c — code formatting */
+extern int formatFile(const char *path);
+extern int formatString(const char *source);
+extern int formatStdin(void);
+
+#endif

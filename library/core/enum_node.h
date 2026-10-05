@@ -1,0 +1,62 @@
+#pragma once
+/**
+ * Definisi tipe yang digunakan untuk menentukan tipe
+ * saat proses parsing menjadi AST.
+ *
+ * @NodeType
+ */
+enum NodeType {
+  NODE_ASSIGN = 0,
+  NODE_BOOLEAN = 1,
+  NODE_BINARY = 2,
+  NODE_ENDPROGRAM = 3,
+  NODE_DECIMAL = 4,
+  NODE_FUNCTION = 5,
+  NODE_IDENTIFIER = 6,
+  NODE_LITERAL_ID = 7,
+  NODE_NUMBER = 8,
+  NODE_NULLABLE = 9,
+  NODE_PROGRAM = 10,
+  NODE_PARAM = 11,
+  NODE_RETURN = 12,
+  NODE_STRING = 13,
+  NODE_SUBSCRIPT = 14,
+  NODE_VARIABLE = 15,
+  NODE_ARRAY = 16,
+  NODE_STRUCT = 17,
+  NODE_CALL = 18,
+  NODE_PRINT = 19,
+  NODE_BLOCK = 20,
+  NODE_IF = 21,
+  NODE_LOOP = 22,
+  NODE_FUNCTION_DECL = 23,
+  NODE_STRUCT_DECL = 24,
+  NODE_CLASS_DECL = 26,
+  NODE_ENUM_DECL = 53, /* design/enum.txt: enum Nama { MEMBER = 1, ... } */
+  NODE_MARKER = 89, /* @name — method marker (mis. @created); parent = name, body = value */
+  NODE_ANNOTATION = 25,
+  NODE_EXTENDS = 28,
+  NODE_OBJECT = 29,
+  NODE_ELSEIF = 30,
+  NODE_ELSE = 31,
+  NODE_BREAK = 32,
+  NODE_CONTINUE = 33,
+  NODE_UPDATE = 34,
+  NODE_CONDITIONAL_ASSIGN = 35,
+  NODE_THEN = 36,
+  NODE_FALLBACK = 37,
+  NODE_ASYNC = 38,
+  NODE_AWAIT = 39,
+  NODE_MEMBER = 40,
+  NODE_CASE = 41,
+  NODE_CASE_ENTRY = 42,
+  NODE_WILDCARD = 43,
+  NODE_MEMBER_ASSIGN = 44,
+  NODE_STRING_INTERP = 47,
+  NODE_ARRAY_TYPE = 48,
+  NODE_COMMENT = 49,
+  NODE_INLINE_COMMENT = 50,
+  NODE_BLOCK_COMMENT = 51,
+  NODE_MOD = 52,
+  NODE_UNKNOWN = -1
+};

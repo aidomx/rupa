@@ -1,0 +1,12 @@
+[submodule "bade"]
+	path = bade
+	url = git@github.com:aidomx/bade.git
+[submodule "core"]
+	path = core
+	url = git@github.com:aidomx/core.git
+[submodule "rupadocs"]
+	path = rupadocs
+	url = git@github.com:aidomx/rupadocs.git
+[submodule "rupamod"]
+	path = rupamod
+	url = git@github.com:aidomx/rupamod.git
