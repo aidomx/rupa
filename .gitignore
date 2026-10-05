@@ -31,3 +31,4 @@ lib/librupa.so
 
 # Codegen test artifacts
 *.rupa.gen.c
+dist

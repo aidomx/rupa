@@ -1,65 +1,54 @@
-root: .
+use alias
+# ============================================
+# Buildfile — Bahasa Rupa (Ultimate Version)
+# ============================================
 
-clean:
-  - buildDir: false
-  - compileCommands: true
+# --- Aliases (self-documenting) ---
+clean as c              # c = clean
+library as lib          # lib = library
+embedded as e           # e = embedded
+output as o             # o = output
+e.modules as mod        # mod = embedded.modules
+mod.archive as archive  # archive = embedded.modules.archive
 
-sources:
-  - src
+# --- Config ---
+root = .
 
-flags:
-  - Wall
-  - Wextra
-  - O2
+c.build = false
+c.compdb = true
 
-std: gnu11
+sources = src
+headers = include, I.
+exclude = main.c
 
-headers:
-  - include
-  - I.
+flags = Wall, Wextra, O2, MMD, MP
+std = gnu11
+compiler = gcc, clang
 
-library:
-  - ssl
-  - crypto
-  
-  - linux:
-    - m
-    - pthread
+lib.default = ssl, crypto
+lib.linux = m, pthread
+lib.macos = m
+lib.windows = ws2_32
 
-  - macos:
-    - m
+progress.bar = true
+progress.error = always
 
-  - windows:
-    - ws2_32
+# Embedded modules (pakai alias "mod")
+mod.src = stdlib
+mod.extract = /tmp/rupa-system
+mod.pattern = .rp
 
-compiler:
-  - gcc
-  - clang
+# Archive (pakai alias "archive" yang di-chain dari "mod.archive")
+archive.dir = modules
+archive.name = rupa_modules
+archive.with.tar = true
+archive.with.ext = gz
 
-progress:
-  bar: true
-  error: always
-
-embedded:
-  - modules:
-    - src: stdlib
-    - extract: /tmp/rupa-system
-    - pattern: .rp
-    - archive:
-      - dir: modules
-      - name: rupa_modules
-      - with:
-        - tar: true
-        - ext: gz
-
-exclude:
-  - main.c
-
-output:
-  - binaryName: rupa
-  - binaryDir: bin
-  - buildDir: build
-  - compileCommands: auto # compile_commands.json
-  - libraryName: rupa # lib/librupa.a
-  - libDir: lib
-  - libraryShared: true # lib/librupa.so
+# Output (pakai alias "o")
+o.binaryName = rupa
+o.binaryDir = bin
+o.buildDir = build
+o.compileCommands = auto
+o.libraryName = rupa
+o.libDir = lib
+o.libraryShared = true

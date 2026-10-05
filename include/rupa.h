@@ -1,6 +1,5 @@
 #pragma once
 #define RUPA_PACKAGE_H
-
 /*
  * Header publik rupa — SATU titik include untuk konsumer librupa:
  *
@@ -26,4 +25,4 @@
  * utilitas serta implementasi internal dapat diubah tanpa memengaruhi
  * antarmuka utama.
  */
-#include "../lib/intl.h"
+#include "../../library/intl.h"

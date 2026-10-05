@@ -1,3 +1,4 @@
+
 #include <rupa.h>
 
 /* Runner file bebas (tidak terikat tests/): rupa ast|ir|irexec|exec|semantic|stress|repl <file.rp> */
@@ -8,8 +9,7 @@ static int runSingleFile(const char *cmd, const char *paths[], int length) {
   }
   if (length < 1) {
     fprintf(stderr, "rupa %s: file.rp diperlukan", cmd);
-    if (strcmp(cmd, "exec") == 0 || strcmp(cmd, "semantic") == 0 ||
-        strcmp(cmd, "stress") == 0)
+    if (strcmp(cmd, "exec") == 0 || strcmp(cmd, "semantic") == 0 || strcmp(cmd, "stress") == 0)
       fprintf(stderr, " (batch: rupa test %s)", cmd);
     fprintf(stderr, "\n");
     return 1;
