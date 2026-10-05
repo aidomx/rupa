@@ -1,7 +1,0 @@
-// index.rp — Public entry untuk modul database.
-// `import db from rupa` binds namespace db { driver, dsn, open }.
-namespace db {
-  export driver from ./driver
-  export dsn from ./dsn
-  export open from ./open
-}

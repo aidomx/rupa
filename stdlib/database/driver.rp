@@ -1,4 +1,0 @@
-// driver.rp — Registry driver database (nosql, mariadb, mysql, psql, sqlite).
-// Kontrak publik: has(name), get(name), list().
-
-import has, get, list from ./drivers

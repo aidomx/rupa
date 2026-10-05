@@ -1,4 +1,0 @@
-export resources from ./resources -> {
-  id: public
-}
-export render from ./render
