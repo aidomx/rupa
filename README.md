@@ -2,39 +2,39 @@
 
 [![Docs](https://img.shields.io/badge/docs-rupadocs-blue)](https://aidomx.github.io/rupadocs/)
 [![Language](https://img.shields.io/badge/language-C-blue)](https://github.com/aidomx/rupa)
-[![Build Tool](https://img.shields.io/badge/build-rbot-orange)](https://github.com/aidomx/rbot)
+[![Build Tool](https://img.shields.io/badge/build-satria-orange)](https://github.com/aidomx/satria)
 
 Rupa adalah bahasa pemrograman _general-purpose_ yang dapat digunakan untuk berbagai kebutuhan.
 
-Panduan ini akan membawamu dari nol sampai menjalankan program Rupa pertamamu — install `rbot`, build dari source, sampai menulis kode. Butuh referensi lengkap? Kunjungi **[dokumentasi resmi Rupa](https://aidomx.github.io/rupadocs/)**.
+Panduan ini akan membawamu dari nol sampai menjalankan program Rupa pertamamu — install `satria`, build dari source, sampai menulis kode. Butuh referensi lengkap? Kunjungi **[dokumentasi resmi Rupa](https://aidomx.github.io/rupadocs/)**.
 
 ---
 
-## Install rbot
+## Install satria
 
-Rupa dibangun menggunakan [rbot](https://github.com/aidomx/rbot) — build tool berbasis konfigurasi `Buildfile`. rbot wajib terpasang sebelum build:
+Rupa dibangun menggunakan [satria](https://github.com/aidomx/satria) — build tool berbasis konfigurasi `Buildfile`. satria wajib terpasang sebelum build:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aidomx/rbot/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/aidomx/satria/main/install.sh | sh
 ```
 
 Atau kunjungi reponya untuk build dari source:
 
 ```text
-https://github.com/aidomx/rbot
+https://github.com/aidomx/satria
 ```
 
 Verifikasi instalasi:
 
 ```bash
-rbot --version
+satria --version
 ```
 
 ## Syarat
 
 ### Wajib
 
-- rbot (lihat langkah di atas)
+- satria (lihat langkah di atas)
 - Compiler C yang kompatibel, umumnya `gcc` atau `clang`
 - Utilitas dasar sistem Linux/POSIX
 
@@ -52,7 +52,7 @@ sudo apt install build-essential libssl-dev ccache gdb
 
 ## Library yang digunakan
 
-Proses link yang dijalankan rbot (sesuai `Buildfile`) menggunakan empat library sistem:
+Proses link yang dijalankan satria (sesuai `Buildfile`) menggunakan empat library sistem:
 
 | Library                                  | Fungsi                                                                    |
 | ---------------------------------------- | ------------------------------------------------------------------------- |
@@ -62,7 +62,7 @@ Proses link yang dijalankan rbot (sesuai `Buildfile`) menggunakan empat library 
 
 > ️ `libssl-dev` **wajib** terpasang sebelum build; tanpa itu link akan gagal. Contoh di atas sudah menyertakannya.
 
-Selain library sistem, build juga meng-embed stdlib Rupa ke binary: seluruh file `stdlib/*.rp` diarsipkan oleh rbot (bagian `embedded` pada `Buildfile`) ke `modules/rupa_modules.tar.gz`, dikonversi menjadi object file, lalu di-link bersama binary — jadi `import ... from rupa` langsung bekerja tanpa file eksternal.
+Selain library sistem, build juga meng-embed stdlib Rupa ke binary: seluruh file `stdlib/*.rp` diarsipkan oleh satria (bagian `embedded` pada `Buildfile`) ke `modules/rupa_modules.tar.gz`, dikonversi menjadi object file, lalu di-link bersama binary — jadi `import ... from rupa` langsung bekerja tanpa file eksternal.
 
 ## Build dari source
 
@@ -73,24 +73,24 @@ git clone https://github.com/aidomx/rupa.git
 cd rupa
 ```
 
-Build menggunakan rbot. Konfigurasi build dibaca dari `Buildfile` di root project:
+Build menggunakan satria. Konfigurasi build dibaca dari `Buildfile` di root project:
 
 ```bash
-rbot
+satria
 ```
 
-rbot memilih compiler yang tersedia (`gcc`/`clang`), mengompilasi seluruh source di `src/`, menyiapkan `compile_commands.json`, dan menulis binary ke:
+satria memilih compiler yang tersedia (`gcc`/`clang`), mengompilasi seluruh source di `src/`, menyiapkan `compile_commands.json`, dan menulis binary ke:
 
 ```text
 bin/rupa
 ```
 
-Perintah rbot lain yang berguna:
+Perintah satria lain yang berguna:
 
 ```bash
-rbot clean   # bersihkan artefak build (aturan: Buildfile: clean)
-rbot init    # buat Buildfile default jika belum ada
-rbot help    # bantuan rbot
+satria clean   # bersihkan artefak build (aturan: Buildfile: clean)
+satria init    # buat Buildfile default jika belum ada
+satria help    # bantuan satria
 ```
 
 ## Program pertama
