@@ -1,7 +1,7 @@
 #pragma once
 
 // standard C headers
-#include "stdlib.h"
+#include "cstd.h"
 
 // platform layer
 #include "platform/platform.h"
