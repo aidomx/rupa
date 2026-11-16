@@ -1,34 +1,38 @@
+# Codegen artifact
+bin
+build
+compile_commands.json
+dist
+lib
+modules
+.satria
+*.rupa.gen.c
+
+# Backup and logger
 *.swp
 *.backup
+.logs
+*.log
+
+# Cache and environment settings
 .cache
 .clangd
 .env
 .env.local
-.logs
-build
-compile_commands.json
-bin/*
-!.gitkeep
-cscope.out
+
+# Node modules
 docs/node_modules
-tags
-rupa-*.tar.gz
-modules/*.tar.gz
-!.gitkeep
-build-report.txt
+package-lock.json
+
+# Design, problems, todos for internal usage
 design/*
 !.gitkeep
 !README.md
+
+problems
+todos
+
+# Example app by rupa language
 examples/*
 !calculator
 !web
-.rbot
-Makefile
-todos
-rules.md
-lib/librupa.a
-lib/librupa.so
-
-# Codegen test artifacts
-*.rupa.gen.c
-dist
